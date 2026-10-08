@@ -67,6 +67,7 @@ import {
   itemFieldDefs,
   itemListPricingSpec,
   matchStatedToOption,
+  matchStatedToOptionDetailed,
   readLayers,
   readNumber,
   listSpecDefs,
@@ -1910,6 +1911,29 @@ export function unitChoicesOf(spec: ItemListPricingSpec, families: readonly (str
  * answers as they stand, and `fieldOptionsFromSkus` skips the field under test, so one stale pick can
  * remove itself without dragging a second valid one out with it.
  */
+/**
+ * SLICE 12d-8 (owner R3): DID THE MODEL OPEN THIS FIELD'S "Other..." BOX? The one test, shared by the
+ * stale-pick clearing (`unstockedPicks`: a value typed into such a box is typing, never a pick) and the
+ * field view (`itemBlockView`: the box STAYS OPEN while the pricer types into it). The model's own cell
+ * for the field holds a non-empty value that is neither an option nor matchable to one.
+ *
+ * ⚠️ CERT-FOUND 2026-10-09 (12d-8 C5): with the pricer's first keystroke `userEdited` became true and the
+ * box's `otherMode` dropped -- the box UNMOUNTED after ONE character ("5" of "50"), the select jumped to
+ * the rung that character laddered to (6.35), and every further keystroke was lost. R3 had kept the VALUE
+ * (it was no longer cleared) while the box that receives it closed. Both halves read this one predicate.
+ */
+function modelOpenedField(
+  spec: ItemListPricingSpec,
+  modelItem: ExtractedListItem | undefined,
+  f: { id: string; skuAttr: string; options?: string[] },
+): boolean {
+  const mv = modelItem?.attributes?.[f.id]?.value;
+  if (typeof mv !== "string" || mv.trim() === "") return false;
+  const opts = f.options ?? [];
+  if (opts.includes(mv)) return false;
+  return matchStatedToOption(mv, opts, spec.numbers[f.skuAttr]) === null;
+}
+
 function unstockedPicks(
   spec: ItemListPricingSpec,
   defs: ReturnType<typeof listSpecDefs>,
@@ -1917,6 +1941,8 @@ function unstockedPicks(
   edits: ItemListEditState,
   assembled: ExtractedListItem[],
   unitClass: string | null,
+  /** SLICE 12d-8 (owner R3): the model's items, to tell a box the MODEL opened from a pick. */
+  modelItems: ExtractedListItem[] = [],
 ): Array<Map<string, string>> {
   return assembled.map((a, i) => {
     const out = new Map<string, string>();
@@ -1926,6 +1952,18 @@ function unstockedPicks(
     const family = typeof famRaw === "string" ? famRaw : null;
     if (!family || !spec.families[family]) return out;
     const fieldDefs = itemFieldDefs(spec, defs, family, unitClass, { items, answers: {} });
+    /**
+     * SLICE 12d-8 (owner R3, 2026-10-09): TYPING INTO A BOX THE MODEL OPENED IS TYPING THROUGH "Other...".
+     *
+     * The box opens by itself when the model's value matches no option (`otherMode`), and the pricer then
+     * types straight into it -- without ever choosing "Other..." from the select, so `edit.other` never
+     * records it and the clearing below treated the typed size as a stale PICK (12d-6 C6a / 12d-7 F-3: a
+     * typed 50 over the model's "250 NB" was cleared and the row lost its pipe size). The test is the one
+     * `itemBlockView` uses to open the box: the model's own cell holds a non-empty value that is neither an
+     * option nor matchable to one.
+     */
+    const base = edit.family === null && edit.base !== null ? modelItems[edit.base] : undefined;
+    const modelOpened = (f: { id: string; skuAttr: string; options?: string[] }): boolean => modelOpenedField(spec, base, f);
     /**
      * ⚠️ THE TEST MUST BE DIRECTIONAL, OR BOTH ANSWERS CLEAR EACH OTHER. Pipe 100 with thickness 25 is
      * unstocked BOTH ways round -- no pipe 100 SKU carries 25, and no thickness-25 SKU carries pipe 100 --
@@ -1955,6 +1993,7 @@ function unstockedPicks(
        */
       const droppable = !!f.options && f.options.length > 0
         && !(edit.other ?? []).includes(f.id)                     // typed through "Other..." -- let the ladder work
+        && !modelOpened(f)                                        // 12d-8 R3: the model opened the box -- the same
         && typeof picked === "string" && picked !== "" && picked !== "None";
       if (droppable) {
         const live = itemFieldDefs(spec, defs, family, unitClass, { items, answers }).find((x) => x.id === f.id);
@@ -1983,7 +2022,10 @@ function itemBlockView(
   clearedByBlock: ReadonlyMap<string, string> = new Map(),
   /** SLICE 12c-F (fix B): model attribute id -> the model's wording and the option it was matched to.
    *  Empty for every block where the model's values were already the catalogue's own spellings. */
-  matchedByBlock: ReadonlyMap<string, { from: string; to: string }> = new Map(),
+  matchedByBlock: ReadonlyMap<string, { from: string; to: string; by?: "text" | "number" }> = new Map(),
+  /** SLICE 12d-8 (owner R3): the MODEL's item behind this block (undefined for an added item), so a
+   *  box the model opened stays open while the pricer types into it. */
+  modelItem: ExtractedListItem | undefined = undefined,
 ): ItemBlockView {
   const family = res.family ?? (typeof assembled.attributes.family?.value === "string" ? assembled.attributes.family.value : null);
   // SLICE 6b (V1, X2): the block's answers as they reached the matcher (defaults applied, ladders fitted) narrow
@@ -2062,6 +2104,12 @@ function itemBlockView(
       if (hop) value = String(hop.fitted);
       else if (value !== "" && !(f.options ?? []).includes(value)) {
         const parsed = readNumber(value, spec.numbers[f.skuAttr]);
+        /**
+         * SLICE 12d-8 (owner U7): `value` here is the text as ENTERED and may carry its own unit or be no
+         * number at all ("Double layer of 19 mm thick"); the unit is appended to a BARE number only, so the
+         * line never reads "... thick mm:" (the 12d-6 leftover).
+         */
+        const vU = /^\s*\d+(?:\.\d+)?\s*$/.test(value) ? u : "";
         if (parsed && "value" in parsed) {
           if (res.state === "priced") {
             /**
@@ -2072,9 +2120,9 @@ function itemBlockView(
              * size fits" -- beside a correct price, which reads as a failure that somehow still produced
              * a figure. The size WAS used; the sheet simply stocks none to choose between.
              */
-            note = `${said} ${value}${u}: used to work out this item's rate (the sheet stocks no sizes to choose from here)`;
+            note = `${said} ${value}${vU}: used to work out this item's rate (the sheet stocks no sizes to choose from here)`;
           } else if (reasonIsMine) {
-            note = `${said} ${value}${u}: ${res.reason}`;
+            note = `${said} ${value}${vU}: ${res.reason}`;
             value = "";
           }
           // F6: the row refused for ANOTHER field -- that field says so; this one stays quiet.
@@ -2083,7 +2131,7 @@ function itemBlockView(
           // THIS field, its own reason is more specific than the generic prompt ("several values stated
           // for thickness ('13+13')" says what is wrong; "enter a number" does not), so it is preferred.
           note = reasonIsMine && res.reason
-            ? `${said} ${value}${u}: ${res.reason}`
+            ? `${said} ${value}${vU}: ${res.reason}`
             : `Enter a number in ${unitOf ?? "mm"}, or an inch size like 7/8".`;
           value = "";
         }
@@ -2101,7 +2149,25 @@ function itemBlockView(
      * unit is appended only to a BARE number, so the line reads "BoQ says 19 mm -> 19 mm", never "19 mm mm".
      */
     const fromU = matched && /^\s*\d+(?:\.\d+)?\s*$/.test(matched.from) ? u : "";
-    if (matched && !note) note = `${said} ${matched.from}${fromU} -> ${matched.to}${u} (the sheet's own spelling of this value)`;
+    /**
+     * SLICE 12d-8 (owner R2, 2026-10-09): on a NUMBER match the note shows HOW the reader read the stated
+     * text -- its own line ("states several values -- the highest, 25, is taken", "20 cm read as 200 mm",
+     * "range '25 to 50' -> its top value 50") -- never "the sheet's own spelling", which is true only of a
+     * plain match ("19 mm" -> 19, no reader line) and keeps that wording. The ladder's hop, where there is
+     * one, follows on the same line so the two facts stay in reading order.
+     */
+    const readerLine = (() => {
+      if (!matched || matched.by !== "number") return undefined;
+      const rd = spec.numbers[f.skuAttr];
+      const r = rd ? readNumber(matched.from, rd) : null;
+      if (!r || !("value" in r) || !r.note) return undefined;
+      const quoted = `'${matched.from}' `;
+      return r.note.startsWith(quoted) ? r.note.slice(quoted.length) : r.note;
+    })();
+    if (matched && readerLine) {
+      note = `${said} ${matched.from}${fromU} -> ${matched.to}${u} (${readerLine})`
+        + (hop && hop.requested !== hop.fitted ? ` -> priced as ${fmtNum(hop.fitted)}${u} ${hop.exact ? "(the sheet's own spelling of this size)" : "(next size up)"}` : "");
+    } else if (matched && !note) note = `${said} ${matched.from}${fromU} -> ${matched.to}${u} (the sheet's own spelling of this value)`;
     // SLICE 12c-S (E2E-1): a pick the pricer's later answers no longer stock was CLEARED before pricing;
     // the field says which value went and why, so nothing is substituted behind their back.
     const dropped = clearedByBlock.get(f.id);
@@ -2133,8 +2199,12 @@ function itemBlockView(
      */
     const explicitOther = (edit.other ?? []).includes(f.id);
     const inOptions = (f.options ?? []).includes(stated);
+    // SLICE 12d-8 (owner R3): a value the pricer typed into a box the MODEL opened keeps the box open --
+    // they are typing through "Other..." without having chosen it (see `modelOpenedField`). A typed value
+    // that IS an option closes it, exactly as a pick would.
+    const modelOpened = !!f.allowOther && userEdited && modelOpenedField(spec, modelItem, f);
     const otherMode = !!f.allowOther
-      && (explicitOther || (stated !== "" && !inOptions && !userEdited));
+      && (explicitOther || (stated !== "" && !inOptions && (!userEdited || modelOpened)));
     return {
       ...f,
       value,
@@ -2274,9 +2344,9 @@ function computeItemList(
    * ⚠️ NOTHING IS INVENTED. `matchStatedToOption` returns null unless an option means the same thing, so
    * an unstocked size is left untouched and still ladders to the next rung.
    */
-  const matchedByBlock: Array<Map<string, { from: string; to: string }>> = [];
+  const matchedByBlock: Array<Map<string, { from: string; to: string; by: "text" | "number" }>> = [];
   const assembledMatched = assembled.map((a, i) => {
-    const matches = new Map<string, { from: string; to: string }>();
+    const matches = new Map<string, { from: string; to: string; by: "text" | "number" }>();
     matchedByBlock.push(matches);
     const famV = a.attributes[familyAttr(spec)]?.value;
     const fam = typeof famV === "string" && famV !== "" ? famV : null;
@@ -2301,10 +2371,10 @@ function computeItemList(
        * the pricer would read the same way.
        */
       if (readLayers(raw) !== null) continue;
-      const hit = matchStatedToOption(raw, opts, spec.numbers[f.skuAttr]);
-      if (hit === null || hit === raw) continue;
-      attributes[f.id] = { ...attributes[f.id], value: hit };
-      matches.set(f.id, { from: raw, to: hit });
+      const hit = matchStatedToOptionDetailed(raw, opts, spec.numbers[f.skuAttr]);
+      if (hit === null || hit.to === raw) continue;
+      attributes[f.id] = { ...attributes[f.id], value: hit.to };
+      matches.set(f.id, { from: raw, to: hit.to, by: hit.by });
     }
     return matches.size === 0 ? a : { ...a, attributes };
   });
@@ -2321,12 +2391,33 @@ function computeItemList(
    * is deliberately unstocked and must still ladder; a value the MODEL read off the BoQ is evidence
    * about the row, not a choice, and must still resolve. Both are left exactly as they were.
    */
-  const clearedPicks = unstockedPicks(spec, defs, items, edits, assembledMatched, rowClass);
-  const forPricing = assembledMatched.map((a, i) => {
+  const clearedPicks = unstockedPicks(spec, defs, items, edits, assembledMatched, rowClass, modelItems);
+  /**
+   * SLICE 12d-8 (owner R1 + R2, 2026-10-09) -- WHAT THE PRICER GETS vs WHAT THE SCREEN SHOWS.
+   *
+   * `forDisplay` is the block as the fields draw it: every match applied, a cleared pick REMOVED (its
+   * select goes back to "- select -" with the line saying why). `forPricing` differs in two deliberate ways:
+   *   - a NUMBER match keeps the STATED text (R2). The pricer reads the same number from it -- that is what
+   *     the match tested -- and so also produces the reader's own line ("states several values -- the
+   *     highest, 25, is taken", "20 cm read as 200 mm"), which rewriting the value first discarded (12d-7
+   *     F-2). A TEXT match is still rewritten: "gi rectangular" prices only as "GI rectangular".
+   *   - a cleared pick is MARKED `cleared`, not deleted (R1). Deleted, the pricer read "not mentioned" and
+   *     a ruled default re-priced the row beside the "choose again" note (12d-7 F-1); marked, the pricer
+   *     refuses for that field until the pricer chooses, and no default fires.
+   */
+  const forDisplay = assembledMatched.map((a, i) => {
     const drop = clearedPicks[i];
     if (!drop || drop.size === 0) return a;
     const attributes = { ...a.attributes };
     for (const id of drop.keys()) delete attributes[id];
+    return { ...a, attributes };
+  });
+  const forPricing = assembled.map((a, i) => {
+    const attributes = { ...a.attributes };
+    for (const [id, m] of matchedByBlock[i] ?? []) {
+      if (m.by === "text") attributes[id] = { ...attributes[id], value: m.to };
+    }
+    for (const id of (clearedPicks[i] ?? new Map()).keys()) attributes[id] = { value: null, cleared: true };
     return { ...a, attributes };
   });
   /**
@@ -2372,7 +2463,7 @@ function computeItemList(
    */
   const unshowable: Array<{ block: number; field: string; label: string; value: string }> = [];
   if (priced.priced) {
-    forPricing.forEach((a, i) => {
+    forDisplay.forEach((a, i) => {
       const famV = a.attributes[familyAttr(spec)]?.value;
       const fam = typeof famV === "string" && famV !== "" ? famV : null;
       if (!fam || !spec.families[fam]) return;
@@ -2417,8 +2508,9 @@ function computeItemList(
     };
     // the block is drawn from what was PRICED (the stale pick removed), with the cleared value carried
     // separately so the field can name it
-    return itemBlockView(spec, defs, e, forPricing[i], res, unitClass, items, mine.length ? mine : [res],
-                         clearedPicks[i] ?? new Map(), matchedByBlock[i] ?? new Map());
+    return itemBlockView(spec, defs, e, forDisplay[i], res, unitClass, items, mine.length ? mine : [res],
+                         clearedPicks[i] ?? new Map(), matchedByBlock[i] ?? new Map(),
+                         e.family === null && e.base !== null ? modelItems[e.base] : undefined);
   });
   const values: Record<string, number> = {};
   if (priced.priced && !unshowableReason) {

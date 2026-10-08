@@ -67,14 +67,16 @@ export const ACCEPTED_SAMPLE_DIVERGENCES: ReadonlyArray<{ id: string; what: stri
   {
     id: "BOQ-26-00169#290", what: "item blocks",
     panel: '[{"family":"Acoustic Nitrile Insulation","state":"blank","reason":"no SKU for this combination (Acoustic Nitrile Insulation: cladding GI Framework with perforated Al sheet)","figures":"supply_rate=- install_rate=- combined_rate=-","qty":"1"}]',
-    calculator: '[{"family":"Acoustic Nitrile Insulation","state":"blank","reason":"could not tell cladding","figures":"supply_rate=- install_rate=- combined_rate=-","qty":"1"}]',
+    // INVERTED at 12d-8 (owner R1): the calculator's cleared pick now refuses "choose again: cladding ..."
+    // (BEFORE: "could not tell cladding" -- the cleared value was read as absent). Both surfaces still refuse.
+    calculator: '[{"family":"Acoustic Nitrile Insulation","state":"blank","reason":"choose again: cladding -- the value picked is not stocked with the other answers on this item","figures":"supply_rate=- install_rate=- combined_rate=-","qty":"1"}]',
     cause: "C_option_not_offered: the model-read cladding is not a stocked option of the family, so the calculator cannot carry it",
-    accepted: "ACCEPTED BY OWNER -- F2, 12d-2F, 2026-10-07: 'ok'",
+    accepted: "ACCEPTED BY OWNER -- F2, 12d-2F, 2026-10-07: 'ok'; wording under R1, 12d-8, 2026-10-09",
   },
   {
     id: "BOQ-26-00169#290", what: "item row reason",
     panel: "no SKU for this combination (Acoustic Nitrile Insulation: cladding GI Framework with perforated Al sheet)",
-    calculator: "could not tell cladding",
+    calculator: "choose again: cladding -- the value picked is not stocked with the other answers on this item",
     cause: "C_option_not_offered: the model-read cladding is not a stocked option of the family, so the calculator cannot carry it",
     accepted: "ACCEPTED BY OWNER -- F2, 12d-2F, 2026-10-07: 'ok'",
   },

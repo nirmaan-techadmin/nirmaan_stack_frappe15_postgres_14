@@ -5712,6 +5712,8 @@ import HVAC_V25_FAM from "../../../../../nirmaan_stack/services/boq_rate_master/
 import HVAC_V26_S from "../../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v26.json";
 import { assembleItems as assembleItemsFam, initialItemEdits as initialItemEditsFam } from "./pricingSheetHelper";
 import { itemListPricingSpec as specOfFam, priceItemList as priceItemListFam } from "./itemListPricing";
+// SLICE 12d-8: the LIVE asset is READ at runtime for the re-pointed E2E-1 pin (a JSON import OOMs tsc)
+import { readJsonFixture } from "@/pages/pricing/calculatorPanelParity.harness";
 
 /* ════════════════════════════════════════════════════════════════════════════════════════════════
  * SLICE 12c FINISH -- A CHANGED OR ADDED ITEM WRITES ITS FAMILY WHERE THE PRICER READS IT
@@ -6072,9 +6074,35 @@ describe("SLICE 12c-S -- units, Other... state and per-field lines", () => {
   });
 
   // -- E2E-1 -- a stale pick is CLEARED, never substituted --------------------------------------
-  it("E2E-1: a thickness the new pipe size does not stock is CLEARED, with a line saying why", () => {
+  /**
+   * RE-POINTED at 12d-8 (owner, 2026-10-09) to the LIVE asset. This pin ran on the frozen v26 asset,
+   * where no thickness default could reach a cleared pick -- and so it stayed green while, on the live
+   * v33 config (T1's 9 mm default widened to every family at 12d-2), the panel DELETED the cleared pick
+   * and the default re-priced the row at 65 beside the "choose again" note (12d-7 F-1: 412 / 14). Owner
+   * R1: a cleared value stays blank and the row refuses. The LIVE config is what this now guards.
+   */
+  const LIVE_ASSET = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+    new URL("../../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v33.json", import.meta.url),
+  );
+  const viewLive = (o: { category: string; unit?: string; family: string; attrs?: Record<string, string>; other?: string[] }) => {
+    const cfgs = new Map<string, RateCategoryConfig>(LIVE_ASSET.category_configs.map((c) => [c.category_id, c]));
+    const its: RateMasterItem[] = LIVE_ASSET.items.map((i) => ({ ...i, discipline: LIVE_ASSET.discipline } as RateMasterItem));
+    const h = makePricingSheetHelper({ configsByCategory: cfgs, items: its, extractionByRow: buildExtractionByRow([]) });
+    const edits = { items: [{ base: null, family: o.family, attrs: o.attrs ?? {}, ...(o.other ? { other: o.other } : {}) }] };
+    const rowCtx: RateHelperRowContext & { unit?: string | null } = {
+      excelRow: 1, description: "x", nodeType: "Line Item", category: o.category,
+      discipline: "HVAC", rateKinds: ["supply_rate", "install_rate"], unit: null,
+    };
+    const ov: Record<string, string> = { [ITEM_LIST_OVERRIDE_KEY]: JSON.stringify(edits) };
+    if (o.unit !== undefined) ov[ROW_UNIT_OVERRIDE_KEY] = o.unit;
+    const r = h.compute(rowCtx, ov);
+    if (!isSuggestion(r)) throw new Error("expected a suggestion");
+    const v = (r as ItemListSuggestion).itemList!;
+    return { r: r as ItemListSuggestion, v, block: v.items[0], field: (id: string) => v.items[0].fields.find((f) => f.id === id)! };
+  };
+  it("E2E-1 (LIVE asset, 12d-8 R1): a thickness the new pipe size does not stock is CLEARED, stays BLANK, and the row REFUSES -- the 9 mm default never fills it", () => {
     // pipe 100 stocks only 65; a 25 picked at an earlier pipe size must not quietly price as 65
-    const { block, field } = view({
+    const { r, block, field } = viewLive({
       category: "hvac_insulation", family: "Tubular Puf Insulation",
       attrs: { cladding: "No", pipe_size_mm: "100", thickness_mm: "25" },
     });
@@ -6083,8 +6111,22 @@ describe("SLICE 12c-S -- units, Other... state and per-field lines", () => {
     expect(th.options).toEqual(["65"]);              // narrowed to what this pipe stocks
     expect(th.note).toBe("25 mm is not stocked with the other answers on this item -- choose again");
     expect(block.state).toBe("blank");               // and the row refuses rather than substituting
+    expect(r.values).toEqual({});
+    // the NEGATIVE half 12d-7 measured: before R1 this row priced 412 / 14 at 65 with "not mentioned -> 9"
+    expect(block.working.join("\n")).not.toMatch(/not mentioned -> 9|-> 65/);
+    expect(block.reason).toBe("choose again: thickness -- the value picked is not stocked with the other answers on this item");
     // the COARSE axis is untouched -- only the dependent one goes
     expect(field("pipe_size_mm").value).toBe("100");
+  });
+
+  it("E2E-1 on the frozen v26 asset (the pin as 12c-S wrote it) still holds", () => {
+    const { block, field } = view({
+      category: "hvac_insulation", family: "Tubular Puf Insulation",
+      attrs: { cladding: "No", pipe_size_mm: "100", thickness_mm: "25" },
+    });
+    expect(field("thickness_mm").value).toBe("");
+    expect(field("thickness_mm").note).toBe("25 mm is not stocked with the other answers on this item -- choose again");
+    expect(block.state).toBe("blank");
   });
 
   it("E2E-1 NEGATIVE: a size TYPED through Other... is never cleared -- the ladder still has it", () => {

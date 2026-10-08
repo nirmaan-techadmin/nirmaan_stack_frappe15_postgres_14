@@ -177,6 +177,17 @@ export const AWAITING_CORPUS_DIVERGENCES: readonly AwaitingCorpusDivergence[] = 
 export const AWAITING_SWEEP_DIVERGENCES: readonly AwaitingSweepDivergence[] = [
   { cat: "hvac_adp", unit: "nos", item: {"family":"actuator","ul":"no","torque":"1020"}, cause: "D_reason_only" },
   { cat: "hvac_adp", unit: "nos", item: {"family":"control panel","panel_ratio":"1012"}, cause: "D_reason_only" },
+  /**
+   * SLICE 12d-8 (owner R1, 2026-10-09). The sweep feeds the panel's RESOLVED values to the calculator as
+   * PICKS; here the panel's damper is the ruled default "without" (never stated), and the per-sq.m slot
+   * diffuser stocks "with" only -- so on the calculator the stale-pick rule clears that pick, and under R1
+   * the cleared field stays blank and the row refuses "choose again: whether it is with or without a
+   * damper ...", where the panel refuses "no SKU for this combination (slot diffuser: damper without)".
+   * BOTH refuse; only the SENTENCE differs; no price moves. Before R1 the cleared pick fell to the same
+   * default and the two sentences agreed -- the agreement was the 12d-7 F-1 defect, not correctness.
+   * APPROVED BY OWNER: R1 ("ok agree on all for r1 to R6"), 2026-10-09.
+   */
+  { cat: "hvac_adp", unit: "sqm", item: {"family":"slot diffuser"}, cause: "B_stale_pick" },
   { cat: "hvac_adp", unit: "rmt", item: {"family":"slot diffuser","damper":"with","slot_count":"1003"}, cause: "D_reason_only" },
   { cat: "hvac_adp", unit: "rmt", item: {"family":"slot diffuser","damper":"with","slot_count":"2.5"}, cause: "D_reason_only" },
   { cat: "hvac_adp", unit: "nos", item: {"family":"square diffuser","damper":"with","neck_mm":"1450"}, cause: "D_reason_only" },

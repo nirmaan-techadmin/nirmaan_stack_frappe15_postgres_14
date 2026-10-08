@@ -481,7 +481,11 @@ export interface ExtractedListItem {
   attributes: Record<string, { value: string | number | null; confidence?: number;
     /** SLICE 12d-1b (owner T6): the PRICER typed this value (a calculator / panel entry). A typed value is
      * never parsed as layers -- the single-number entry stays as it is; only a MODEL answer may be layers. */
-    typed?: boolean }>;
+    typed?: boolean;
+    /** SLICE 12d-8 (owner R1, 2026-10-09): the SYSTEM cleared this value -- a pick the block's other answers
+     * no longer stock (12c-S E2E-1). It is NOT "not mentioned": no default may fill it, the row refuses
+     * until the pricer chooses again. Set by the panel helper only; the pure pricer never writes it. */
+    cleared?: boolean }>;
   /** SLICE 6 (T4, the owner's unit-rate ruling): how many of this item ONE row unit pays for. Absent => 1.
    * Blank / non-numeric / non-positive => the item refuses ("quantity per row unit is blank"). */
   qtyPerRowUnit?: number | string | null;
@@ -890,6 +894,19 @@ export function splitSizePhrase(text: string | number | null | undefined): strin
  *   null              -> not stated (blank / null / the "None" sentinel)
  *   { value, note? }  -> the number, with a note when a range was resolved to its top or a unit was scaled
  *   { blank: reason } -> stated but unusable, with the owner-language reason (never a guess) */
+/** SLICE 12d-8 (owner U8): the unicode vulgar fractions a BoQ may carry, as ASCII fractions. A whole number
+ * directly before one becomes a hyphenated mixed number (`1¼` -> `1-1/4`), the form the inch reader accepts. */
+const VULGAR_FRACTIONS: Record<string, string> = {
+  "¼": "1/4", "½": "1/2", "¾": "3/4",
+  "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8",
+  "⅓": "1/3", "⅔": "2/3",
+};
+export function unicodeFractions(text: string): string {
+  return text
+    .replace(/(\d)\s*([¼½¾⅛-⅞⅓⅔])/g, (_m, d: string, f: string) => `${d}-${VULGAR_FRACTIONS[f]}`)
+    .replace(/[¼½¾⅛-⅞⅓⅔]/g, (f) => VULGAR_FRACTIONS[f]);
+}
+
 export function readNumber(text: string | number | null | undefined, reader: NumberReader): NumberRead {
   if (text === null || text === undefined) return null;
   // SLICE 9 (A-1): this reader is ONE AXIS of a one-phrase size. Split, then read that axis with the very
@@ -906,7 +923,10 @@ export function readNumber(text: string | number | null | undefined, reader: Num
   const raw = String(text).trim();
   if (raw === "" || raw === "None") return null;
   // parenthesised qualifiers are dropped: "10NM (up to 1.6 sqm)" -> "10NM", "1100(W)" -> "1100"
-  const s = raw.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  // SLICE 12d-8 (owner U8): a UNICODE vulgar fraction reads as its ASCII fraction -- `1¼"` is `1-1/4"`,
+  // `¾"` is `3/4"` -- so the existing inch reader (whole, mixed, hyphenated) lands it on its rung. A text
+  // without such a character is byte-identical; the messages keep the BoQ's own `raw`.
+  const s = unicodeFractions(raw).toLowerCase().replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
   if (s === "") return { blank: `no number in '${raw}' for ${reader.name}` };
   const tokens = s.split(/[^a-z0-9.]+/).filter(Boolean);
   for (const t of reader.reject_tokens ?? []) {
@@ -1058,11 +1078,29 @@ export function matchStatedToOption(
   options: readonly string[],
   reader: NumberReader | undefined,
 ): string | null {
+  return matchStatedToOptionDetailed(stated, options, reader)?.to ?? null;
+}
+
+/**
+ * SLICE 12d-8 (owner R2, 2026-10-09): the SAME match, saying HOW it matched. A TEXT match is the same
+ * answer spelled differently ("gi rectangular" -> "GI rectangular") and the pricer needs the option to
+ * price at all. A NUMBER match ("13 / 19 / 25" -> 25, "20 cm" -> 200) is a value the pricer's own reader
+ * already understands -- and that reader also says how it read it ("states several values -- the highest,
+ * 25, is taken", "20 cm read as 200 mm", "range ... -> its top value"). 12d-7 (F-2) measured that rewriting
+ * such a value BEFORE the pricer discarded that line and put "the sheet's own spelling of this value" in its
+ * place. So the panel keeps the stated text for PRICING on a number match (same number, same figure) and
+ * shows the option in the select; the `by` tells it which.
+ */
+export function matchStatedToOptionDetailed(
+  stated: string,
+  options: readonly string[],
+  reader: NumberReader | undefined,
+): { to: string; by: "text" | "number" } | null {
   if (options.length === 0) return null;
   const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
   const want = norm(stated);
   if (want === "") return null;
-  for (const o of options) if (norm(o) === want) return o;
+  for (const o of options) if (norm(o) === want) return { to: o, by: "text" };
   if (!reader) return null;
   const read = (text: string): number | null => {
     const r = readNumber(text, reader);
@@ -1070,7 +1108,7 @@ export function matchStatedToOption(
   };
   const n = read(stated);
   if (n === null) return null;
-  for (const o of options) if (read(o) === n) return o;
+  for (const o of options) if (read(o) === n) return { to: o, by: "number" };
   return null;
 }
 
@@ -1288,6 +1326,23 @@ function priceOneItem(
   const notes: string[] = [];
   for (const attr of spec.match_attrs) {
     const reader = spec.numbers[attr];
+    /**
+     * SLICE 12d-8 (owner R1, 2026-10-09): A VALUE THE SYSTEM CLEARED STAYS BLANK AND THE ROW REFUSES.
+     *
+     * 12c-S clears a pick the block's other answers no longer stock, and until this slice the panel
+     * DELETED the attribute -- so the pricer read it as "not mentioned" and the T1 thickness default (9 mm,
+     * then the ladder) or an `absent_as_none` default (ADP's UL) filled it and PRICED the row, beside a
+     * field note saying "choose again" (12d-7 F-1: Nitrile 6.35 + a cleared 25 priced 191 / 14 where the
+     * pure pricer composes 382 / 28; a cleared UL yes priced the non-UL damper). The owner's ruling:
+     * defaults fill only what the BoQ or the user never gave -- never a pick that was cleared. A cleared
+     * cell is therefore read as UNREADABLE here, which the needs loop below turns into the refusal BEFORE
+     * any default is consulted (the same order T1 fixed for a stated-but-unreadable value).
+     */
+    const clearedSrc = (reader ? reader.from : [attr]).find((src) => item.attributes?.[src]?.cleared === true);
+    if (clearedSrc !== undefined) {
+      unreadable[attr] = `choose again: ${reasonName(spec, attr)} -- the value picked is not stocked with the other answers on this item`;
+      continue;
+    }
     if (reader) {
       // SLICE 12d-4c (owner C3, F4): on the COMPOSE axis the layers reader runs FIRST, over the MODEL's cells
       // only (T6: a pricer's typed entry is never parsed as layers). It used to run only when the single-number
@@ -2079,6 +2134,19 @@ export function fieldOptionsFromSkus(
     if (!seen.has(text)) { seen.add(text); out.push(text); }
   }
   if (isNumber) return out.sort((a, b) => Number(a) - Number(b));
+  /**
+   * SLICE 12d-8 (owner R4 option (b), 2026-10-09): a value the config MAPS onto a stocked one is offered
+   * too -- "Aluminium Foil" on Nitrile Rubber / Tubular PUF, which `value_map` prices as 26G Aluminium with
+   * its own line. DERIVED from config, never a word written here: every `value_map` entry on this attribute
+   * whose `to` is among the options this family's SKUs give, for a family the entry names. An entry that
+   * REFUSES (foil on Acoustic Nitrile) has no `to` and adds nothing, and a family the entry does not name
+   * (the sheet families, glass cloth) is untouched -- their lists stay exactly as the SKUs give them.
+   */
+  for (const rule of spec.value_map ?? []) {
+    if (rule.attr !== attr || rule.to === undefined || !rule.families.includes(family)) continue;
+    if (!seen.has(rule.to) || seen.has(rule.from)) continue;
+    seen.add(rule.from); out.push(rule.from);
+  }
   if (defOrder) return [...defOrder.filter((o) => seen.has(o)), ...out.filter((o) => !defOrder.includes(o))];
   return out.sort();
 }

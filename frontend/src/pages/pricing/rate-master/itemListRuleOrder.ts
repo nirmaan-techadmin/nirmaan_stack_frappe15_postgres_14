@@ -167,8 +167,9 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
   }
   for (const [attr, rd] of Object.entries<any>(pr.numbers ?? {})) {
     if (rd?.several === "highest") {
+      // SLICE 12d-8 (owner R5): the wording follows the code -- a range is read as its TOP value, not refused
       add(`Several ${name(attr)} values stated take the highest`,
-          "a bare slash list ('19 / 25 / 32'); a size range ('25 to 50'), a comma list and a tolerance ('25 +/- 2') still refuse");
+          "a bare slash list ('19 / 25 / 32'); a size range ('25 to 50') takes its top value; a comma list and a tolerance ('25 +/- 2') still refuse");
     }
     if (rd?.inches) add(`A ${name(attr)} written in inches is converted to millimetres`, "a bare fraction (7/8\") is read as inches on this reader");
   }
@@ -219,6 +220,18 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
     if (!r?.line) continue;
     add(`A ${list((r.families ?? []).map(famWord), 2)} row stating its own figure in the ${name(String(r.from_attr ?? ""))} carries a line saying what was priced`,
         `'${String(r.line).replace("{match}", "<the stated figure>")}'${r.unless ? ` (not when the figure is ${String(r.unless)})` : ""}`);
+  }
+
+  // ── 6b. a second key beside the primary size ─────────────────────────────────────────────────────
+  // SLICE 12d-8 (owner R6): the square diffuser's OUTER size (`second_key`, A-4 / A-5) executes on real rows
+  // and had no line. Generated from the key's own words, in the order `priceOneItem` applies it.
+  for (const sk of (pr.second_key ?? []) as any[]) {
+    if (!sk?.primary || !sk?.name) continue;
+    add(`A stated ${String(sk.name)} is matched beside the ${name(String(sk.primary))} on ${list((sk.families ?? []).map(famWord), 3)}`,
+        `both stated: the ${String(sk.name)} narrows the products the ${name(String(sk.primary))} then fits; `
+        + `${String(sk.name)} only: the one product behind it is used as it stands, else the largest ${name(String(sk.primary))} behind it; `
+        + `an ${String(sk.name)} the catalogue does not stock is set aside and the ${name(String(sk.primary))} prices the row`
+        + (Array.isArray(sk.alt_key) && sk.alt_key.length ? `; the catalogue's alternative wording of the same size counts as that size` : ""));
   }
 
   // ── 7. fitting the sizes ──────────────────────────────────────────────────────────────────────────

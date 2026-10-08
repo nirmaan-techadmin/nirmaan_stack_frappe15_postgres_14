@@ -221,8 +221,9 @@ describe("SLICE 12d-6 / AC3 -- a hyphenated mixed inch is one number", () => {
     expect(readNumber('1-1/4"', thickness)).toEqual({ blank: "thickness stated in inches ('1-1/4\"')" });
   });
 
-  it("REPORTED, not built: a unicode fraction (1¼\") has no reader path and still reads as 1\"", () => {
-    expect(mm('1¼"')).toBeCloseTo(25.4, 3);
+  it("INVERTED at 12d-8 (owner U8): a unicode fraction (1¼\") now reads as 1-1/4\" = 31.75 -- BEFORE: 25.4 (reported, not built)", () => {
+    expect(mm('1¼"')).toBeCloseTo(31.75, 3);
+    expect(mm('1¼"')).not.toBeCloseTo(25.4, 3);
   });
 });
 

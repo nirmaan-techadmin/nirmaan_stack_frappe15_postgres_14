@@ -334,9 +334,14 @@ describe("the owner's ruling on each cause (12c-F)", () => {
     expect([...awaiting]).toEqual([]);
   });
 
-  it("no listed divergence carries cause B any more -- fix B closed every one", () => {
+  it("no listed divergence carries cause B any more -- fix B closed every one; INVERTED at 12d-8 (owner R1): exactly ONE sweep entry carries it, by name", () => {
     expect(AWAITING_CORPUS_DIVERGENCES.filter((d) => d.cause === "B_stale_pick")).toEqual([]);
-    expect(AWAITING_SWEEP_DIVERGENCES.filter((d) => d.cause === "B_stale_pick")).toEqual([]);
+    // BEFORE 12d-8: `toEqual([])`. AFTER: a cleared pick stays blank and refuses (R1), so the sweep's
+    // per-sq.m slot diffuser -- whose damper the panel DEFAULTS and the calculator therefore PICKS and
+    // clears -- now refuses with a different sentence on each surface. Both refuse; no price moves.
+    expect(AWAITING_SWEEP_DIVERGENCES.filter((d) => d.cause === "B_stale_pick")).toEqual([
+      { cat: "hvac_adp", unit: "sqm", item: { family: "slot diffuser" }, cause: "B_stale_pick" },
+    ]);
   });
 
   it("the eleven rows fix B was ruled for are gone from the list BY NAME", () => {
