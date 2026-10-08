@@ -45415,3 +45415,168 @@ refuse on size (80–250 NB Nitrile). **0 value / total / rowPriced / item-figur
   choosing "Other..." from the select first, then typing, prices normally (that is how C6 was taken). (b) The typed-refusal
   branch's note still reads "You typed Double layer of 19 mm thick mm: ..." -- the unit is appended to the raw text there; the
   12d-6 `fromU` fix covers the "own spelling" note only.
+
+## Slice 12d-7 — RULE REACHABILITY SWEEP: INSULATION + ADP, FROM THE PANEL'S ENTRY POINT (2026-10-09) — RUN (Phase 1 report; Phase 2 delivered in 12d-8)
+
+Ordered by the owner after 12d-6 found a rule (the double-layer reader) that worked in the inner pricer and in its tests and
+never fired on the panel, because an earlier step on the path rewrote the wording first. Test-only, no model calls, nothing
+committed. 150 cases (one per Derivation-tab rule of Insulation and ADP: model-read, typed, negative; both the panel and the
+calculator branch) run from `makePricingSheetHelper(...).compute` on the LIVE v33 configs + stored items: **137 PASS / 3
+EXCLUDED (T6 + U4, by ruling) / 10 FAIL — PHASE 1 GATE: FAIL.** Report: Desktop `2026-10-09_12d7_Report.md` (+ Ledger, harness
+in `2026-10-09_12d7_harness/`). Findings: **F-1** the 12c-S stale-pick clearing DELETED the cleared cell, so `number_defaults` /
+`defaults` / `absent_as_none` re-priced the row on a default the pricer never chose (PUF 100 + a picked 25 -> 412 / 14 on the
+9 mm default; Nitrile 6.35 + a picked 25 composed 13 + 13; fire damper motorised + UL yes picked -> the non-UL SKU);
+**F-2** the R-B option match (12c-F) replaced the stated text with the option before the pricer ran, so the several / cm /
+range readers' notes never reached the screen ("the sheet's own spelling" instead); **F-3** a size typed into an "Other..."
+box the MODEL opened recorded `set_attr` without `set_other`, so the stale-pick rule read it as a pick and cleared it (the
+12d-6 cert's (a)); **F-4** `value_map` / `refuse_on_unit_class` are calculator-unreachable because the mapped source values
+are not dropdown options (owner R4: option (b), offer the mapped value where it maps); **S1** tab line 9 said a range
+refuses while the code takes its top value; ADP's `second_key` (the outer-size match) executed on real rows with no tab line;
+`derived_rates` and the typed-cladding figure are catalogue rules, not panel rules. Owner: "ok agree on all for r1 to R6. for
+R4 option b" (2026-10-09). The permanent tests (Phase 2: T1 / T2 / T3) ship in 12d-8 below.
+
+## Slice 12d-8 — THE 12d-7 FINDINGS FIXED (R1-R6), THE 12d-6 LEFTOVERS (U7, U8), AND THE RULE SWEEP MADE PERMANENT (2026-10-09) — SHIPPED
+
+Frontend only; no asset, config, item, Pricing Input, BoQ, run or snapshot changed (P3 hashes 12/12 equal at start and end;
+capture log 244 lines at start and end — zero model calls). Report: Desktop `2026-10-09_12d8_Report.md` (+ Ledger). Three
+commits: `640b0d741` (fix + `slice12d8.test.ts` + the inverted pins), `73c5895f8` (T1-T3), and the docs commit. Both code commits were
+AUTOSQUASHED three times before anything was pushed (a tsc TS2532 in the new test, the C5 box fix, the C8 article) -- the
+hashes in the Desktop report's per-commit sections are the final ones.
+
+### The fixes, each with its cause (commit 1, `640b0d741`)
+
+- **R1 — a cleared pick is never filled by a default.** `pricingSheetHelper.computeItemList` used to DELETE a cleared cell
+  from the pricer's input, which made it indistinguishable from "never given", so every default fired. Now the pricer's copy
+  (`forPricing`) carries `{ value: null, cleared: true }` and `itemListPricing.priceOneItem` refuses the attribute by name
+  ("choose again: thickness -- the value picked is not stocked with the other answers on this item") BEFORE `number_defaults`,
+  `defaults`, `absent_as_none` or the ladder are consulted (the reader's `from` sources are checked too, so a cleared pipe
+  size refuses the pipe-size need). A value the BoQ / user NEVER gave still takes its default exactly as before (I11b,
+  I11b-calc, A7a-A7d pinned unchanged). The display copy (`forDisplay`) is the old shape, so the field still shows blank with
+  the "choose again" note.
+- **R2 — the note under a value says how it was read.** `matchStatedToOptionDetailed` now reports WHY a stated value matched
+  an option (`text` = the same words; `number` = the same `readNumber` value). Only a TEXT match rewrites the pricer's input;
+  a NUMBER match keeps the stated text, so the pricer itself produces the reader's line in the working ("panel ratio: '10/12
+  Module' states two values -- the higher, 12, is taken") and the field note reads "BoQ says 13 / 19 / 25 -> 25 mm (states
+  several values -- the highest, 25, is taken)" (+ " -> priced as 65 mm (next size up)" on a ladder hop) instead of "the
+  sheet's own spelling of this value". A plain match ("19 mm" -> 19) keeps today's note. Figures unchanged: 643 / 224,
+  986 / 14, 412 / 14.
+- **R3 — a size typed into a model-opened Other box is kept.** `unstockedPicks` exempts a field whose MODEL value is a
+  non-empty string that is not an option and matches none (`modelOpened`): the box was opened by the model, so a value typed
+  into it is typed, not picked, and it ladders (BOQ-26-00137 'CHW pipes , Valves' row 32: "250 NB" opened the box; 50 typed
+  -> two layers 991 / 238).
+- **R4 option (b) — foil is offered where it maps.** `fieldOptionsFromSkus` appends every `value_map` source value whose
+  target is stocked for the family (Aluminium Foil on Nitrile / PUF, which the map prices as 26G with "foil on a pipe is
+  priced as 26G cladding"); DERIVED from config, no word in code. Acoustic Nitrile keeps no foil and the sheet families keep
+  no glass cloth (those `value_map` entries refuse and have no `to`) — on the calculator they are therefore unreachable by
+  design, EXCLUDED by name in T1 / T2.
+- **R5 / R6 — the Derivation tab says what the code does.** Insulation line 9: "a bare slash list ('19 / 25 / 32'); a size
+  range ('25 to 50') takes its top value; a comma list and a tolerance ('25 +/- 2') still refuse". ADP gains section 6b, one
+  line per `second_key` ("A stated outer size is matched beside the neck size on square diffuser", with the both-stated /
+  only / unstocked-set-aside / alternative-wording detail), generated from the key's own words. Counts: Insulation 24, ADP 18.
+- **U7** the typed-refusal note appends the unit only to a bare number ("You typed Double layer of 19 mm thick: Type the
+  thickness as a single number in mm"); the three `${said} ${value}${vU}` sites share the one test. On stored rows this also
+  de-dups 28 refusal notes ("BoQ says 250 NB mm: ..." -> "BoQ says 250 NB: ...").
+- **U8** `readNumber` normalises unicode vulgar fractions (`1¼"` -> `1-1/4"` -> 31.75 -> Nitrile 34.93; `¾"`, `⅝"` ... alone or
+  after a whole number) through `unicodeFractions` before the ASCII readers; the ASCII forms are byte-unchanged.
+
+### AC0 — the 12d-7 sweep re-run on the fix
+
+163 cases (the 150 + the 12d-8 cases) from `makePricingSheetHelper(...).compute` on the live v33 configs + stored items:
+**157 PASS / 6 EXCLUDED / 0 FAIL — PHASE 1 GATE: PASS.** Every former FAIL is PASS or EXCLUDED with a cited ruling
+(I13a-calc, I14a-calc: "not offered by design - owner R4, 2026-10-09"; I12a-calc: PASS under R4(b)). Three case-side
+corrections were needed and are disclosed: I13a-calc / I14a-calc expected the old "could not tell cladding" wording (now
+R1's "choose again"), and N-R4b-puf used thickness 25 at pipe 100 (unstocked -> cleared under R1; changed to 65).
+
+### AC7 — blast radius (A/B over every stored row, `26ee3ec0c` vs the fix)
+
+5,439 rows (Electrical 5,015 / HVAC 406 / 18 uncategorised), 22 configs, 1,737 items, through the panel path with the three
+product files stashed and then restored (`ac7_harness.ts`, records figures, status, reasons, notes, working AND option lists):
+
+| What moved | Rows | Rule | Detail |
+|---|---|---|---|
+| Figure / total / rowPriced | **0** | — | F-1 needs a user edit; stored runs carry none |
+| Row / block reason | **0** | — | |
+| Field note | 30 | U7 x28, R2 x2 | 28 refusal notes lose the doubled unit (Insulation pipe_size x18, ADP dia/neck/torque/ratio/thickness x10); 2 = BOQ-26-00140 'HVAC Lowside Works ' rows 67-68 control panel `panel_ratio` "10/12 Module" / "4/6 Module" -> "(states two values -- the higher, 12/6, is taken)" |
+| Working lines | 2 | R2 | the same two rows: the reader's line now in the working |
+| Option list | 36 | R4b | every Nitrile Rubber block's cladding list gains "Aluminium Foil" (PUF has 0 stored blocks) |
+| Electrical | **0** | — | no change of any kind |
+
+### The permanent tests (commit 2, `73c5895f8`) and their guard
+
+- **T1 `ruleReachability.test.ts` (161 tests):** one named case per Derivation-tab rule (model-read + typed where a control
+  exists + a negative near-miss), the v33 asset read at runtime, PASS = the rule's own line appears AND the figure equals the
+  pure pricer's over the same assembled inputs. **THE GUARD: the named set must EQUAL the set `itemListRuleOrder` generates
+  from the config** (Insulation 24 / ADP 18) — a new rule with no case, or a case naming a dead rule, fails the suite; the
+  one tab line that is not a panel-path rule (the derived catalogue cell) is declared by name and checked to exist. Six
+  cases EXCLUDED by cited ruling (T6/U4 x3, R4 x2, R1 on the calculator's fire damper). ADP line 5 is covered on the
+  calculator's unit picker, where it acts.
+- **T2 (parity):** one parity case per rule on the live v33 asset — 39 agree; seven EXPECTED divergences by name (T6/U4,
+  R4 x2, `F_row_text_not_an_input`, `C_unit_not_offered` x3 on the unit-class axis), and an exclusion that stops differing
+  fails too. Suite 78/78.
+- **T3 (matrix):** the 21 rewriter x rule pairs, with F-1 (R5xDefault / R5xCompose / R5xAbsentAsNone), F-2 (R4xSeveral /
+  R4xCm / R4xRange — the reader's line asserted IN THE WORKING) and F-3 (R5xModelOpenedBox) as regression pins.
+- **Vacuity (each restored byte-identical, `cmp`):** a fake rule line in `itemListRuleOrder` -> both guards red; R1 guard
+  off -> 13 red (slice12d8 x5, T1/T3 x5, E2E-1, the 12d-2 sample pin, the sweep pin); R2 reverted -> 6 red (3 slice12d8 +
+  3 T3 — the T3 pins went red only once they asserted the WORKING line, which is why they do); R3 reverted -> 3 red;
+  restored -> 197/197 green.
+- Inverted, never deleted: `pricingSheetHelper.test.ts` E2E-1 re-pointed to the LIVE asset (the frozen-v26 half kept, so a
+  future mint cannot silently move it); `slice12d6.test.ts` unicode pin (31.75, never 25.4); `insulation12d2Sample.e2e.test.ts`
+  #290 calculator wording; `calculatorPanelParity.test.ts` "no cause B" -> exactly ONE sweep entry by name (ADP slot
+  diffuser sqm, `calculatorPanelParity.awaiting.ts`: the sweep feeds a ruled default as a PICK, both surfaces refuse, only
+  the sentence differs).
+- Counts (measured in-session): targeted 18 files / 1,820 tests green before commit 1 (the 17 importers + `slice12d8.test.ts`
+  + T1), 1,823 after the C5 fix; **FULL after the last code commit: vitest 149 files / 5,414 tests, 1 failure = the known
+  `writeOffControl` 5 s timeout (12d-6 end: 147 / 5,171, same 1 failure); tsc app-wide 3,169 = baseline** -- the first tsc
+  run died in a V8 heap OOM (exit 134, 0 errors printed) and was re-run with `--max-old-space-size=8192`; a second run read
+  3,170 because the new test carried one TS2532 (`options` possibly undefined), fixed and autosquashed. Logs:
+  `2026-10-09_12d8_frontend_full.log` / `_tsc_full.log` on the Desktop.
+  `residence_check.py`: F2 223 vs baseline 219 is PRE-EXISTING (12d-5/12d-7 saw the same four; this slice adds 0 `JSON.parse`).
+
+### Browser cert (C1-C10, three full de-stales; screenshots + DOM reads in `2026-10-09_12d8_screens/`)
+
+De-stale ran THREE times (22 PIDs TERMed each time, 0 survivors, 0 listeners, `__pycache__` purged, `clear-cache` +
+`clear-website-cache`, `node_modules/.vite` removed, bench `/api/method/ping` after 207 / 201 / 208 s, vite 200 after
+16 / 30 / 16 s), because the cert found two things that changed code mid-cert. PROOF 1 each time from the served
+TRANSFORMED modules (`cleared === true`, `matchStatedToOptionDetailed`, `unicodeFractions`, `forPricing`,
+`modelOpenedField` x3, `takes its top value`, `is matched beside the`); PROOF 2 from a runtime `await import` in the
+page (`matchStatedToOptionDetailed("13 / 19 / 25", ...)` -> `{by:"number", to:"25"}`, `readNumber('1 1/4"' as the
+single glyph)` -> 31.75). Browser: service worker unregistered, storage + 4 IndexedDB cleared, hard refresh; cookies
+KEPT (no credentials entered -- the same deviation 12d-6 disclosed), session `admins@nirmaan.app`. The CDP screenshot
+timed out on several heavy renders (the Derivation tab, the open Radix list); where it did, the SEEN evidence is the
+DOM read, filed as text beside the screenshots.
+
+- **C1** calculator, Nitrile, 26G, thickness 25 picked, then pipe `Other... 6.35` -> "25 mm is not stocked with the
+  other answers on this item -- choose again", thickness select blank, "Not priced -- choose again: thickness ...",
+  no figures, no "not mentioned -> 9" line. (The S1 narrowing means 25 cannot be picked AFTER 6.35: the list has
+  already dropped it -- the stale pick only arises in the other order, which is what the step shows.)
+- **C2** ADP fire damper, motorised + UL yes picked, 600x600, nos -> "yes is not stocked ... choose again", UL blank,
+  not priced, no "ul not mentioned -> no"; variant UL picked directly -> **7830 / 692 / 8522** (= pure).
+- **C3** Nitrile, 26G, pipe Other 50, thickness unanswered -> "thickness not mentioned -> 9 mm, then the ladder",
+  **556 / 224 / 780** (= pure; a never-given value still takes its default).
+- **C4** Nitrile cladding list offers "Aluminium Foil"; picked (19, pipe 50) -> "foil on a pipe is priced as 26G
+  cladding", **615 / 224 / 839**. Acoustic Nitrile's list: `GI Framework with perforated Al sheet` / `No` only;
+  Thermal Nitrile's: `Aluminium Foil` (a stocked SKU value) / `No` -- no glass cloth.
+- **C5 (FOUND A DEFECT, FIXED, RE-CERTIFIED)** BOQ-26-00137 'CHW pipes , Valves' row 32: typing 50 straight into the
+  model-opened pipe box ("250 NB") on run 1 produced "You typed **5** mm -> priced as 6.35 mm" and 539 / 238 -- the
+  box UNMOUNTED after the first keystroke (`otherMode` dropped on `userEdited`), the select jumped to the rung "5"
+  laddered to and the "0" was lost. R3 as first shipped kept the VALUE (no longer cleared) while the box that receives
+  it closed. Fix: ONE shared predicate `modelOpenedField` (the stale-pick exemption and the field view read the same
+  test), `otherMode` stays true for a typed value in a model-opened field; pinned in `slice12d8.test.ts` (+2 negatives)
+  and the T3 matrix (`otherMode=true typed=50`); vacuity: predicate off -> 2 red, restored -> green. Run 2 (after a
+  full re-de-stale + proofs): 50 typed, box kept, "You typed 50 mm -> priced as 53.98 mm", two layers 376/14 +
+  615/224 = **991 / 238 / 1229**, "Use this value" enabled and NOT pressed.
+- **C6** typed "Double layer of 19 mm thick" -> "You typed Double layer of 19 mm thick: Type the thickness as a single
+  number in mm" (the unit once); pipe `1¼"` + 13 -> "You typed 31.75 mm -> priced as 34.93 mm (next size up)",
+  **408 / 224 / 632**.
+- **C7** (reachable -- AC7 named it) BOQ-26-00140 'HVAC Lowside Works ' row 67, control panel: select 12, note "BoQ
+  says 10/12 Module -> 12 (states two values -- the higher, 12, is taken)", the same line in the working,
+  **20300 / 800 / 21100** (= AC7).
+- **C8** Rate Master -> HVAC -> Insulation -> Derivation: **24** lines, line 9 "... a size range ('25 to 50') takes its
+  top value; a comma list and a tolerance ('25 +/- 2') still refuse". ADP: **18** lines, line 9 "A stated outer size is
+  matched beside the neck size on square diffuser -- both stated: ...; an outer size the catalogue does not stock is
+  set aside ...". (Run 2 read "a outer size" -- a grammar slip in the generated detail; fixed in the same commit, pin
+  updated, de-stale run 3, re-read "an outer size".)
+- **C9** BOQ-26-00183 'Electrical Works' row 19 -> Cable per Mtr **120 / 24 / 144** (headline 144, Termination 90),
+  unchanged.
+- **C10** P3 hashes 12/12 equal to the start (HVAC 335 items / 9 configs, Electrical 1,402 / 13); capture log 244
+  lines at start and end; Fast render ON on all three sheets afterwards; no override used (no sheet was locked).
