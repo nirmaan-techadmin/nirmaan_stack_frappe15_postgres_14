@@ -57,6 +57,7 @@ import {
   type ParityCase,
 } from "./calculatorPanelParity.harness";
 import { calculatorCtx } from "./PricingCalculator";
+import { itemListRuleOrder } from "./rate-master/itemListRuleOrder";
 
 // ── the fixtures, as snapshotted from the live site on 2026-10-06 ───────────────────────────────
 
@@ -611,5 +612,130 @@ describe("SLICE 12d-6 -- a layered thickness on both surfaces (owner (a) + U4)",
     });
     expect((panel as { values?: Record<string, number> }).values).toEqual({ supply_rate: 615, install_rate: 224, combined_rate: 839 });
     expect((calc as { values?: Record<string, number> }).values).toEqual({ supply_rate: 615, install_rate: 224, combined_rate: 839 });
+  });
+});
+
+/**
+ * SLICE 12d-8 / T2 (owner standing rule 1, approved 2026-10-08) -- EVERY DERIVATION-TAB RULE HAS A PARITY CASE.
+ *
+ * The 12d-7 sweep found that a rule can fire on the panel and silently NOT fire on the calculator (F-1: the
+ * stale-pick clearing let a ruled default re-price a cleared pick; F-2: the option match discarded the reader's
+ * note; F-3: a size typed into a model-opened box was cleared). So each rule the Derivation tab lists for
+ * Insulation and ADP is run here through BOTH paths on the LIVE v33 asset (read at runtime, never the dated
+ * `parityMaster.json` snapshot -- these are rules, and the rules are the asset's), and the two must agree
+ * unless an owner ruling says they cannot, BY NAME:
+ *
+ *   T6 / U4   a layered thickness can only be TYPED on the calculator, and the typed box takes a single
+ *             number -- the calculator refuses where the panel prices (12d-1b / 12d-6).
+ *   R4        a cladding the family does not offer (foil on Acoustic, glass cloth on sheet insulation) is NOT a
+ *             dropdown option on the calculator, so the pick is cleared under R1 and the row refuses with the
+ *             "choose again" sentence where the panel refuses with the rule's own (12d-8, owner R4 option b).
+ *   F_row_text_not_an_input   the calculator has no row text, so `named_in_row` / `refuse_on_unit_class.words`
+ *             cannot fire there (12d-4a, accepted by owner).
+ *   C_unit_not_offered   a BoQ row may arrive in a unit the family has NO rule for (the panel refuses "no SKU per
+ *             sq.m ...") or one the picker hides (`units_not_offered`, owner S10) -- the calculator's picker offers only
+ *             the classes the family prices in, so the two surfaces are fed different units BY DESIGN and the
+ *             divergence is the unit class itself, never a figure computed from the same inputs.
+ *
+ * The covered set is pinned EQUAL to the set `itemListRuleOrder` generates (the same guard as
+ * `ruleReachability.test.ts`), so a new rule with no parity case fails here too. A listed exclusion that
+ * STOPS differing fails too -- a stale exclusion hides a rule that now reaches the calculator.
+ */
+describe("SLICE 12d-8 / T2 -- one parity case per Derivation-tab rule, on the live v33 asset", () => {
+  const live = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+    new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v33.json", import.meta.url),
+  );
+  const cfg33 = new Map<string, RateCategoryConfig>(live.category_configs.map((c) => [c.category_id, c]));
+  const items33: RateMasterItem[] = live.items.map((it) => ({ ...it, discipline: live.discipline } as RateMasterItem));
+  const INS = "hvac_insulation", ADP = "hvac_adp";
+  const NR = "Nitrile Rubber Insulation", THM = "Thermal Nitrile Insulation",
+    ACO = "Acoustic Nitrile Insulation", FGB = " Fiberglass Rigid Board Insulation, Density 48Kg/m3", CLO = "Cladding Only";
+  const NIT = { item: NR, cladding: "26G Aluminium", thickness_mm: "19", pipe_size_mm: "50" };
+  const THMI = { item: THM, cladding: "No", thickness_mm: "19" };
+  type Expect = "agree" | { excludedBy: string; what?: string };
+  interface RuleCase { id: string; rule: string; c: ParityCase; expect: Expect }
+  const mk = (cat: string) => (id: string, rule: string, unit: string, item: Record<string, string>, expect: Expect = "agree", extra: Partial<ParityCase> = {}): RuleCase =>
+    ({ id, rule, c: { cat, unit, desc: "", attrs: {}, items: [item], ...extra }, expect });
+  const ins = mk(INS), adp = mk(ADP);
+  const T6U4 = { excludedBy: "T6 (12d-1b) + U4 (12d-6): a typed thickness is a single number; the calculator refuses what the panel composes" };
+  const R4 = { excludedBy: "owner R4 option (b), 12d-8: the cladding is not offered on this family, so the calculator clears it under R1 and refuses with its own sentence" };
+  const ROWTEXT = { excludedBy: "F_row_text_not_an_input (12d-4a, accepted by owner): the calculator has no row text, so the word rule cannot fire there" };
+  const UNIT = { excludedBy: "C_unit_not_offered: the calculator's picker offers only the classes the family prices in, so the two surfaces are fed different units by design", what: "item unit class" };
+  /** Tab lines that are NOT panel-path rules (a catalogue rule the pricer never reads), by name. */
+  const NOT_PANEL_RULES = ["A catalogue cell derived from another row's cell follows its base"];
+  const INCH = "1-1/4" + '"';
+
+  const CASES: RuleCase[] = [
+    ins("I1", "The row's unit decides which kind of rate applies", "sqft", THMI),
+    ins("I2", "The item's own kind decides which products can price it", "RMT", NIT),
+    ins("I3", "A row that names no material takes the kind its row implies", "RMT", { ...NIT, item: "None" }),
+    ins("I4", "A material the model could not match to any kind refuses", "RMT", { ...NIT, item: "none of these", material_as_written: "XLPE foam" }),
+    ins("I5", "A material the catalogue does not stock refuses by name, whatever kind was picked", "RMT", { ...NIT, material_as_written: "EPDM closed cell" }),
+    ins("I6", "That kind's rule for that unit", "sqm", NIT, UNIT),
+    ins("I7", "The facts that rule needs before it can price", "RMT", { item: NR, cladding: "26G Aluminium", thickness_mm: "19" }),
+    ins("I8", "A thickness the model writes as layers is priced as those layers", "RMT", { ...NIT, thickness_mm: "Double layer of 19mm thick" }, T6U4),
+    ins("I9", "Several thickness values stated take the highest", "RMT", { ...NIT, thickness_mm: "13 / 19 / 25" }),
+    ins("I10", "A pipe size written in inches is converted to millimetres", "RMT", { ...NIT, pipe_size_mm: INCH }),
+    ins("I11", "A fact the row does not mention takes its ruled value", "RMT", { ...NIT, cladding: "None" }),
+    ins("I12", "Aluminium Foil as the cladding on Nitrile Rubber Insulation, Tubular Puf Insulation is priced as 26G Aluminium", "RMT", { ...NIT, cladding: "Aluminium Foil" }),
+    ins("I13", "Aluminium Foil as the cladding on Acoustic Nitrile Insulation refuses", "sqm", { item: ACO, cladding: "Aluminium Foil", thickness_mm: "19" }, R4),
+    ins("I14", "Glass Cloth as the cladding on a per-sq.m row of Thermal Nitrile Insulation, Acoustic Nitrile Insulation, Fiberglass Rigid Board Insulation, Density 48Kg/m3 refuses", "sqm", { ...THMI, cladding: "Glass Cloth with paint" }, R4),
+    ins("I15", "A cladding named in the row's own text but read as not mentioned refuses", "RMT", { ...NIT, cladding: "None" }, ROWTEXT, { desc: "Nitrile insulation with 26G aluminium cladding" }),
+    ins("I16", "A Fiberglass Rigid Board Insulation, Density 48Kg/m3 row stating its own figure in the insulation material as written carries a line saying what was priced", "sqm", { item: FGB, cladding: "No", thickness_mm: "25", material_as_written: "Fiberglass rigid board 32 kg/m3" }),
+    ins("I17", "Fitting the stated pipe size to the catalogue", "RMT", NIT),
+    ins("I18", "Fitting the stated thickness to the catalogue", "RMT", { ...NIT, pipe_size_mm: "19.05", thickness_mm: "30" }),
+    ins("I19", "Then the priced steps below, in their own order", "RMT", NIT),
+    ins("I20", "A rate read live from another catalogue row", "sqm", { item: CLO, cladding: "26G Aluminium" }),
+    ins("I21", "A cost the rules compute from the Pricing Inputs and the row's own geometry is shown greyed, never typed", "RMT", NIT),
+    ins("I23", "The rate converts to the unit the row is written in", "sqft", THMI),
+    ins("I24", "Multiplied by how many of the item one unit of the row pays for", "RMT", NIT),
+    adp("A1", "The row's unit decides which kind of rate applies", "nos", { family: "VCD", variant: "GI rectangular", size_mm: "600x600" }),
+    adp("A2", "The item's own kind decides which products can price it", "nos", { family: "grille, type not stated", damper: "with", size_mm: "600x150" }),
+    adp("A3", "A material the model could not match to any kind refuses", "nos", { family: "none of these", damper: "with", dia_mm: "200" }),
+    adp("A4", "That kind's rule for that unit", "rmt", { family: "spigot", dia_mm: "200" }, UNIT),
+    adp("A5", "A kind the catalogue does not price in the row's unit", "nos", { family: "double-skin plenum", thickness_mm: "25", size_mm: "600x600" }, UNIT),
+    adp("A6", "The facts that rule needs before it can price", "nos", { family: "actuator", ul: "no" }),
+    adp("A7", "A fact the row does not mention takes its ruled value", "nos", { family: "round diffuser", damper: "None", dia_mm: "200" }),
+    adp("A8", "A ruling that replaces a value the row DID state", "nos", { family: "fire damper", variant: "motorised", ul: "yes", size_mm: "600x600" }),
+    adp("A9", "Fitting the stated diameter to the catalogue", "nos", { family: "round diffuser", damper: "with", dia_mm: "220" }),
+    adp("A10", "Fitting the stated neck size to the catalogue", "nos", { family: "square diffuser", damper: "with", neck_mm: "320" }),
+    adp("A10b", "A stated outer size is matched beside the neck size on square diffuser", "nos", { family: "square diffuser", damper: "with", size_mm: "595x595" }),
+    adp("A11", "Fitting the stated torque to the catalogue", "nos", { family: "actuator", ul: "no", torque: "12" }),
+    adp("A12", "Fitting the stated panel ratio to the catalogue", "nos", { family: "control panel", panel_ratio: "5" }),
+    adp("A13", "Fitting the stated plenum thickness to the catalogue", "sqm", { family: "double-skin plenum", thickness_mm: "30" }),
+    adp("A14", "Then the priced steps below, in their own order", "nos", { family: "round diffuser", damper: "with", dia_mm: "200" }),
+    adp("A16", "The rate converts to the unit the row is written in", "sqft", { family: "VCD", variant: "GI rectangular" }),
+    adp("A17", "Multiplied by how many of the item one unit of the row pays for", "nos", { family: "round diffuser", damper: "with", dia_mm: "200", qty_per_row_unit: "2" }),
+  ];
+
+  it("THE GUARD: the rules these cases name EQUAL the rules the live config generates (Insulation 24, ADP 18)", () => {
+    for (const cat of [INS, ADP]) {
+      const generated = itemListRuleOrder(cfg33.get(cat)!, items33).map((l) => l.title);
+      const named = new Set([...CASES.filter((r) => r.c.cat === cat).map((r) => r.rule), ...NOT_PANEL_RULES]);
+      expect({ cat, uncovered: generated.filter((t) => !named.has(t)), dead: [...named].filter((t) => !generated.includes(t) && !NOT_PANEL_RULES.includes(t)) })
+        .toEqual({ cat, uncovered: [], dead: [] });
+    }
+    for (const t of NOT_PANEL_RULES) expect(itemListRuleOrder(cfg33.get(INS)!, items33).some((l) => l.title === t)).toBe(true);
+  });
+
+  it.each(CASES.map((r) => [r.id, r] as const))("%s", (_, r) => {
+    const run = runParity(cfg33, items33, r.c, "full");
+    if (r.expect === "agree") {
+      expect({ id: r.id, rule: r.rule, divergences: run.divergences }).toEqual({ id: r.id, rule: r.rule, divergences: [] });
+    } else {
+      // EXCLUDED by name: the two paths MUST differ (a listed exclusion that stops differing is a stale exclusion) ...
+      expect({ id: r.id, excludedBy: r.expect.excludedBy, diverges: run.divergences.length > 0 }).toEqual({ id: r.id, excludedBy: r.expect.excludedBy, diverges: true });
+      if (r.expect.what) {
+        // ... on the named axis (the unit class: the two were fed different units, so any figure difference is the unit's)
+        expect({ id: r.id, what: run.divergences.map((d) => d.what) }).toMatchObject({ id: r.id, what: expect.arrayContaining([r.expect.what]) });
+      } else {
+        // ... and never on a FIGURE both sides produced -- a divergence is always one side withholding
+        expect({ id: r.id, bothPriced: hasPrice(run.panel) && hasPrice(run.calculator) }).toEqual({ id: r.id, bothPriced: false });
+      }
+    }
+  });
+
+  it("the exclusions are exactly the seven named ones", () => {
+    expect(CASES.filter((r) => r.expect !== "agree").map((r) => r.id)).toEqual(["I6", "I8", "I13", "I14", "I15", "A4", "A5"]);
   });
 });
