@@ -33,7 +33,7 @@ are the guard — if a last-run date is old, assume the rig needs checking befor
 | `recheck12d4b_runner.py` | 12d-4b step 3: the 12d-3 runner scoped to the set (`_suggest_worker(only_rows=...)`), cap-guarded at 300 calls, one resume-retry, resumable progress | **12d-4b, 2026-10-08** -- 0 errors / halts / retries |
 | `recheck12d4b_analyse.py` | 12d-4b item 4 a-f + the Review Pack's P1 / P2 / P4: stored 12d-3 answers vs the fresh ones, both priced through the current rules; the Excel | **12d-4b, 2026-10-08** |
 | `audit12d3_analyse.py` | 12d-3 analysis: the automatic reading + rule checks, the stratified 60-row hand-review dump, the second-opinion merge, the Excel (host; openpyxl) | **12d-3, 2026-10-08** — `2026-10-10_12d3_Audit_Rows.xlsx` |
-| `mint_hvac_v34_piping.py` | 12e-1: mints HVAC v34 = v33 + the 40-row Piping catalogue (`build`: workbook sheet -> candidate, uids through the ONE mint, validated offline, no DB write; `load`: pre-load snapshot, `load_rate_master(replace=True)`, canonical export). Container, bench python | **12e-1, 2026-10-09** -- build 375 items / 10 configs; load batch `rmbulk-fede1f42b846`, pre-load snapshot `BRMS-26-00069`; the committed file is the DB export re-ordered into the series' file convention (items in global `item_uid` order, configs in creation order + the new one last) with the top-level `intentional_removals` key the exporter does not emit carried from v33; mint gate PASS |
+| `mint_hvac_v34_piping.py` | 12e-1: mints HVAC v34 = v33 + the 40-row Piping catalogue (`build`: workbook sheet -> candidate, uids through the ONE mint, validated offline, no DB write; `load`: pre-load snapshot, `load_rate_master(replace=True)`, canonical export). 12e-1b: `name` phase -- v35 = v34 + `attributes.item_name` (the sheet's column A, verbatim, MANDATORY on every Piping item) + its definition FIRST in the Piping config; uids kept, no mint. Container, bench python | **12e-1b, 2026-10-10** -- `name` 375 / 10, 40 named, definitions `item_name, pipe_type, size_mm`; load batch `rmbulk-d012e907473f`, pre-load snapshot `BRMS-26-00127`, retirements_without_reason 0; the same two hand steps after the export (re-order into the series convention, carry `intentional_removals`); mint gate v34 -> v35 PASS. (12e-1, 2026-10-09: build 375 / 10, load batch `rmbulk-fede1f42b846`, snapshot `BRMS-26-00069`, gate PASS) |
 
 ---
 
@@ -110,6 +110,15 @@ convention (content asserted byte-equal to the previous asset per uid / category
 (2) the exporter does not emit the top-level `intentional_removals` key that v29 onwards carry (the
 declared `calculator_only` removal), so it is carried from the previous asset -- without it
 `mint_completeness_check.py` reports one UNDECLARED removal (`top:intentional_removals`).
+
+12e-1b added the third phase, `name` (owner 2026-10-10: the item name "should be kept exactly as per the
+excel file. we cant drop it."; ruling option (a)): v35 = v34 + `attributes.item_name` on every Piping item --
+the sheet's column A text verbatim, matched by `source.row`, uids KEPT (nothing is minted) -- plus the
+`item_name` definition FIRST in the Piping config (a plain choice over the four sheet texts, label "Item", no
+`attributes_from_spec`: the spec reader has no Piping rules). The key is MANDATORY: the offline validation
+refuses a Piping item without it, and `build` now carries it too, so a future re-mint cannot drop it. The
+viewer and the rate file show an attribute ONLY when the config declares it, which is why the key and the
+definition travel together. `load` and the two hand steps are unchanged.
 
 ### `hvac_v1_attrs_for.py` — ⚠️ PROVENANCE ONLY, NEVER RUN
 

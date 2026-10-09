@@ -234,6 +234,14 @@ reader. A category without the key is byte-identical to before (`spec_categories
 the fix for a wrong attribute is always the text or the reader's rules, never the cell. A flagged item must never
 match in pricing.
 
+**A CATALOGUE ITEM KEEPS THE SHEET'S OWN ITEM TEXT, VERBATIM, AS A DECLARED ATTRIBUTE (owner 2026-10-10, slice 12e-1b:
+"it should be kept exactly as per the excel file. we cant drop it").** The Rate Master grid and the rate file show an
+attribute ONLY when the category config declares it in `attribute_definitions`, so the key and its definition travel
+together: Insulation keeps its column A as `type`, ADP as the spec-read `item_name`, and Piping (HVAC v35) as a plain
+`item_name` declared FIRST -- rendered after brand and unit, before the other attributes; in the all-categories file a
+plain `item_name` shares ADP's text column (one column, told apart by `category`). The key is mandatory on every Piping
+item (`test_piping_v34.test_07`; no loader validator checks declared attributes against items).
+
 **A SPEC SUGGESTION IS STORED ONLY AFTER A USER CONFIRMS IT; A CONFIRMED ITEM RECORDS WHO AND WHEN (owner-locked,
 T-a / T-b).** When the exact read refuses, `spec_reader.suggest_spec` offers ONE best match by FIXED RULES -- the synonym
 table, a one-letter correction of a word of five or more letters to a UNIQUE family word, the exact rules re-run --

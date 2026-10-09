@@ -45734,3 +45734,92 @@ Piping has items and no rules: the pricing rules (`pipelines` / an item-list blo
 predicates; the calculator and the Rate Master page already list it. The exporter-order and `intentional_removals` hand
 steps belong in the next mint instrument too (or in the exporter, by a ruling). The 12e-0c whole-set hash should be
 re-derived from the preserved baseline jsonl with a recorded canonicalisation before it is used as a gate again.
+
+## Slice 12e-1b — PIPING ITEM NAME: HVAC v35 = v34 + THE SHEET'S "Item" COLUMN (2026-10-10) — SHIPPED
+
+**Owner ruling (2026-10-10):** "the rate master is missing the item name column. it should be kept exactly as per the excel
+file. we cant drop it." The slice first STOPPED at AC1 (verify-first): Insulation and ADP carry the sheet's column A under
+two different shapes — Insulation as the plain attribute `type` (label "Type", first attribute column after brand and unit),
+ADP as the spec-read `item_name` (`attributes_from_spec: true`, the leading editable text column, the spec reader's source of
+truth) — and NO item of any kind carries a top-level name key (the item doctype has no name field). The viewer and the rate
+file show an attribute ONLY when the category config declares it in `attribute_definitions`, so the prompt's "attributes and
+the Piping config byte-equal to v34" could not hold under any renderable shape. Resume addendum 02:20, **"option a is ok"**:
+`attributes.item_name`, label "Item", a plain choice over the four sheet texts in sheet order, declared FIRST in the Piping
+config, NO `attributes_from_spec` (the spec reader has no Piping rules), no selector / panel flag (Insulation's `type`
+definition carries none either — verified).
+
+**Built (feat `ce05edd7d`, 5 files by explicit path).** `mint_hvac_v34_piping.py` keeps its name (the README lists one mint
+instrument, no one-per-version convention) and gains the `name` phase: v35 = v34 + `item_name` on the 40 Piping items
+(matched by `source.row`, the key FIRST in `attributes`, uids KEPT — nothing minted) + the definition prepended to the Piping
+config; offline validation now REFUSES a Piping item without the key; `build` carries it too. Load: pre-load snapshot
+`BRMS-26-00127` (375 / 10), `loader.load_rate_master(replace=True)` -> batch `rmbulk-d012e907473f`, 375 / 10,
+`retirements_without_reason` 0; the committed `rate_master_hvac_all_v35.json` is the export re-ordered into v34's item /
+config order with `intentional_removals` carried (every carried atom asserted equal to the export and to v34). Column A of
+the workbook's `Piping` sheet: 40 rows, NO merged cell, NO blank, no trailing space, FOUR texts (`Refrigerant Piping/Copper
+Piping` rows 2-14, `Chilled Water Piping / MS Piping` 15-27, `PVC Pipe` 28-35, `CPVC Pipe` 36-41).
+
+**AC evidence.** AC3: `build_v35_12e1b.py` — exactly 40 items changed, each by the one key; the Piping config by the one
+definition; the other 9 configs, every uid, rate, unit, source and top-level key equal; mint gate v34 -> v35 PASS, `--latest`
+history walk clean, kinds disjoint vs Electrical v66. Live: HVAC == v35 (375 / 10, 0 differing either way), HVAC minus the
+key / definition == v34 (0 differing), Electrical == v66 (1,402 / 13); no Electrical / Insulation / ADP file in the diff.
+AC5: the 12e-1 method re-run — 13,365 stored rows / 23 configs / 1,777 items through the 12d-8 panel-path harness -> output
+BYTE-IDENTICAL (`cmp`) to the 12e-0c baseline jsonl. **HASH METHOD, recorded:** (A) the file form = sha256 of the harness
+jsonl bytes, one record per stored row in run order — `b589c254427e9f97fbb9b9e2c05602f4af041e912c6fd92ac8bf5d1c646a0a4c`
+(12e-0c baseline, 12e-1 and 12e-1b all equal); (B) the row form (the 12e-0c `hash_method`, `hash_ac7_12e1.py`) = per row,
+sha256 of the compact sorted-key JSON of `{kind, values, reason, list{rowPriced, reason, totals, unitNote, items[{family,
+state, reason, figures, fields[{id, value, note, options}], working}]}, attrs, derivation}`; whole set = sha256 over the
+lines `"<key>\t<rowhash>\n"` in file order — `c975713864a6810cc3494ab0b5270b454107b99c12b1f20a68f7d6d5ec5698c9` (baseline
+and 12e-1b equal). The 12e-0c-recorded `646031bc...` remains an unpreserved canonicalisation; use (A) or (B) as the gate.
+Zero model calls: capture log 444 before the load and after the harness; 466 after the targeted suites (22 `stub-model` /
+`test-model` / `m` rows from the suites' fake clients). AC8: the exporter's mode-B column union adds the two spec text
+columns once and keeps a non-spec row's `item_name` OUT of the "other attributes" list, so the all-categories HVAC file carries
+ONE `item_name` column (index 5, after unit) shared by ADP's spec text (95 / 95 named) and Piping's plain attribute
+(40 / 40 named, `item_detail` blank), told apart by `category`; its preview = 0 rates changed / 0 added / 0 other /
+368 unchanged / 0 errors — no code change. The per-category Piping file: `item_uid, discipline, category, brand, unit,
+item_name, pipe_type, size_mm, rates...`, preview 0 / 0 / 40 unchanged / 0 (xlsx and csv).
+
+**Pins moved v34 -> v35 under mechanical authority, never deleted:** `CURRENT_HVAC_ASSET` (test_rate_master 11519) and the
+six name pins (18823 / 18969 / 19086 / 19314 / 19492 / 19582); `test_extraction_coercion` 3501; `test_piping_v34`: V35
+current, `test_01`'s v34 -> v35 comparison normalised for the one key and the one definition, `test_02` attribute keys,
+`test_04` definitions `[item_name, pipe_type, size_mm]`, `test_06` INVERTED (newest 35, v34 still on disk). NEW `test_07`:
+POSITIVE — the 40 names equal the sheet's column A row by row, four texts in sheet order 13 / 13 / 8 / 6, the definition first
+and plain; NEGATIVE — a missing, blank or foreign name, a sheet text on the wrong row, a definition not first, or a spec flag
+is REFUSED by the asset check (no loader validator checks declared attributes against items). Counts unchanged (375 / 10);
+no price pin; `parityMaster.json` UNTOUCHED (the parity pins count configs and read v33 by name; servedVsStored compares
+rates by uid against the LATEST asset). Vacuity: `item_name` removed from ONE item in the v35 file -> `test_01`, `test_02`,
+`test_07` red; restored, sha identical.
+
+### Tests (measured in-session)
+
+Targeted before the feat commit: `test_piping_v34` 10 / 10; `test_rate_master` 742 OK; `test_extraction_coercion` 208 OK;
+vitest `servedVsStoredPricing` 6 + `calculatorPanelParity` 78 OK (run because they read the latest asset on disk; no
+frontend file changed, so the frontend suite did not run — the 12e-1 log is its standing count). Full Python suite after the
+feat commit (Desktop `2026-10-10_12e1b_python_full.log`): 8,037 tests (8,036 + `test_07`) in 1,628 s, FAILED failures 7 + errors 6 = 13 = EXACTLY 12e-1's list: the 12 12e-0c knowns + `tasks.test_vendor_category_sync.test_daily_window_picks_a_wo_touched_since` (run 03:10-03:37 IST, inside the 00:00-05:30 IST window 12e-1 A8 measured) -- no new failure; capture log 466 -> 555, every new line a suite stub. `residence_check`: F5 120 vs 117, F2 221 vs 217 — the same
+figures 12e-1 measured with its changes stashed; no frontend file changed.
+
+### Browser cert (C1-C5; screenshots `2026-10-10_12e1b_screens/`)
+
+De-stale in full (22 PIDs TERM'd, 0 left, ports free, pycache 211 -> 0, `.vite` purged, bench ping after 217 s, vite 46 s;
+PROOF 1: served TRANSFORMED `rateMasterRegistry.ts` carries `hvac_piping` x1 and ten HVAC ids; PROOF 2: fresh python reads the
+Piping config's definitions `item_name, pipe_type, size_mm` and 40 / 40 named). Site data cleared from the page (SW
+unregistered, storage and hint cookies cleared); the server session survived, so no credential was typed. C1: Rate Master ->
+HVAC -> Insulation: `actions, brand, unit, Type, Insulation material, Cladding, ...` — the sheet's column A sits after brand
+and unit (233 items, batch `rmbulk-d012e907473f`); ADP for contrast: `Item, Item detail, spec, brand, unit, ...`. C2: Piping:
+`actions, brand, unit, Item, Pipe type, Pipe size / dia (mm), ...` — the same position; 40 rows, counts 13 / 13 / 8 / 6; row 6
+= `Refrigerant Piping/Copper Piping` Copper 31.7 (110 / 1950); row 15 = `Chilled Water Piping / MS Piping` MS 300 (1200 /
+4480 `derived`); batch chip `rmbulk-d012e907473f` = the v35 load. C3: "This category" (Excel) -> `rate_master_hvac_hvac_piping
+(1).xlsx` 8,843 bytes, 40 rows, `item_name` column 6 with the four texts, cell-for-cell equal to the API export; "All
+categories" -> `rate_master_hvac_all_categories.xlsx` 51,698 bytes, 368 rows, ONE `item_name` column: Piping 40 / 40 named,
+ADP 95 / 95 named, Insulation blank, cell-for-cell equal to the API export; the browser's own Piping download fed back through
+the ACTUAL file input (the upload tool accepts only session paths, so the download was copied into the session scratchpad
+first — no in-page File this time) -> "0 rates changed / 0 items added / 40 rows unchanged / 0 errors ... nothing to apply",
+Cancel. C4: calculator -> Piping = "Rate attributes for this category haven't been defined yet — coming soon.", no price;
+calculator -> Insulation, Nitrile Rubber Insulation, 26G Aluminium, pipe Other 50, thickness unanswered -> **556 / 224 / 780**
+(12d-8's figures). C5: Electrical 1,402 / 13, item and config hashes identical start and end; HVAC 375 / 10, content == v35
+after the cert; capture log 466 before and after the cert (0 calls). Cert writes: NONE beyond the catalogue load (the only
+other HVAC batch, `rmbulk-919ada2943fa`, is `test_live_01`'s documented freeze-and-supersede of MS 300 / MS 250).
+
+**What 12e-2 inherits.** Piping items now carry their sheet name; the pricing rules can read `item_name` like any attribute.
+A served-payload name assertion (the live class) was deliberately not added — the prompt asked for one test. The domain doc
+(`boq-rate-master.md` § Load-bearing invariants) now carries the rule that a catalogue item keeps the sheet's own item text as
+a DECLARED attribute, with the three shapes named.
