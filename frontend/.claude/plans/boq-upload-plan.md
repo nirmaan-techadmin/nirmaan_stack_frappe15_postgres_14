@@ -45580,3 +45580,57 @@ DOM read, filed as text beside the screenshots.
   unchanged.
 - **C10** P3 hashes 12/12 equal to the start (HVAC 335 items / 9 configs, Electrical 1,402 / 13); capture log 244
   lines at start and end; Fast render ON on all three sheets afterwards; no override used (no sheet was locked).
+
+## Slice 12e-0c — POST-SYNC STATE CHECK (read-only; 2026-10-09) — DONE (Desktop `2026-10-09_12e0c_Report.md`)
+
+On 2026-10-09 Abhishek fast-forwarded develop to `d75647dbf`, rebased the three local 12d-8 commits onto it
+(`640b0d741` / `73c5895f8` / `bcb2f55f5` -> `e3e9d81d5` / `c59d54393` / `294e2e693`, pushed), kept a backup branch
+`feature/boq-pricing-helper-backup` at `bcb2f55f5` with one stash (the `.claude/settings.local.json` noise), wiped the
+local site and restored PRODUCTION's backup `20261009_135042-stack_nirmaan_app`, then ran `bench migrate`; the scheduler
+is disabled. 12e-0c measured; nothing was fixed or committed.
+
+- **Rebase integrity:** HEAD = origin = `294e2e693`; the three commits sit directly on develop; `git diff bcb2f55f5 HEAD`
+  is EMPTY in every product path (`rate-helper/`, `pages/pricing/`, `services/boq_rate_master/`, this plan) and develop
+  carried nothing newer there either. **The hand-resolved conflict on the docs commit kept the OLD 1,115-line
+  `frontend/CLAUDE.md` wholesale and dropped develop's 61-line pointer rewrite of it**, while root `CLAUDE.md` took
+  develop's slim version -- repaired in 12e-0d below. `patches.txt` +3 lines are develop's.
+- **Rate master:** the live HVAC asset is content-identical to `rate_master_hvac_all_v33.json` (335 items / 9 configs,
+  batch `rmbulk-197fc13d6e86`, loaded 2026-10-09 10:53 onto the restored data) and Electrical to
+  `rate_master_electrical_all_v66.json` (1,402 / 13, `rmbulk-c4638dec58a2`); items keyed by `item_uid`, configs by
+  `category_id`, both directions, 0 differences. The snapshot `version` is a per-database counter (production HVAC 1..3,
+  Electrical 21..30), not the asset N.
+- **Corpus (production):** 341 BoQs, 1,152 current committed sheets, 99,204 current nodes, 57,172 rate-editable rows.
+  Piping 2,020 resolved-eligible / **1,650 rate-editable** / 103 BoQs (12e-0's dev figures were 1,398 / 1,143); Insulation
+  960 / **645** / 111; ADP 5,253 / **3,948** / 116. The AC7 blast-radius population (every stored row of every ACTIVE
+  `BoQ Rate Suggestion Run` at its sheet's current version) is **13,365** rows (Electrical 13,077 / HVAC 270 / 18
+  uncategorised; 101 active runs) where dev's was 5,439. The 12d-3 audit's 83 Insulation run docs are gone (dev-only);
+  Insulation has 1 production run, ADP 9. AI toggle ON (claude-opus-4-8), second opinion OFF per config.
+- **Baselines for 12e-1:** `2026-10-09_12e0c_frontend_full.log` -- vitest 164 files / 5,814 tests, 1 failure = the known
+  `writeOffControl` timeout; `2026-10-09_12e0c_python_full.log` -- **8,027 tests, FAILED (6 failures, 6 errors)**, none in
+  BoQ pricing / rate master: `api/boq/wizard/test_update_sheet_draft.TestMigrateWorkPackageToMulti` (2 + tearDownClass),
+  `api/expense_requests/test_expense_requests` (3 + tearDownClass), `api/expense_requests/test_fixture_completeness`,
+  `doctype/boq_sheet_draft/test_boq_sheet_draft`, `doctype/ceo_hold_reason/test_ceo_hold_reason`,
+  `api/outflow_import/test_review.TestTheSettledLedgerSplit`, `api/payments/test_bulk_tds.TestBulkApproveTDS` -- develop's
+  areas or fixtures that assumed the dev data set; not investigated (read-only slice). **Runbook correction: the full
+  Python suite needs `bench --site localhost run-tests --app nirmaan_stack` in the container -- the verbatim
+  `bench run-tests --app nirmaan_stack` refuses ("Please specify --site sitename", no `sites/currentsite.txt`).**
+  Price baseline `2026-10-09_12e0c_price_baseline.json` (+ `.md`): 13,365 rows through the 12d-8 AC7 harness at HEAD,
+  whole-set hash `646031bc0e0c7d0598cd2b381244bc64dd659b0c0264bd3754f95f307491a193`, zero model calls (capture log
+  244/244 around the harness). The Python suite itself wrote into the restored DB and its errored tearDowns stranded
+  68 Expense Requests, 5 Projects, 4 test BoQs, 21 sheet drafts (report-only; not deleted) and appended 89 mocked-client
+  capture lines (`test_rate_suggest.py`'s canned errors, not live API traffic).
+
+## Slice 12e-0d — RATE-MASTER RE-PROOF + CONFLICT REPAIR (docs commit only; 2026-10-09) — SHIPPED
+
+- **Part A.** The one `BoQ Rate Master Item` modified during the Python suite is `BRMI-26-15812` (Electrical pricing
+  input `tray_discount`, uid `rmi-cc2ea5426664`): `test_rate_master.test_ng_02_ZERO_is_ACCEPTED` calls the product
+  endpoint `update_rate_master_item(rates_patch={"discount": 0.0})`, which re-saves the row with the SAME content
+  (the Version row shows `attributes` / `rates` re-written as JSON strings parsed-equal to the dicts) and bumps
+  `modified` / `modified_by`; its cleanup restores `rates` with `update_modified=False`. Fields differing from v66:
+  NONE (kind / brand / unit / attributes / rates all SAME; the asset carries no `modified`). The full 2.1 content check
+  re-run: HVAC 335 / 9 and Electrical 1,402 / 13, 0 differences either way -> the 3.2 baseline was not re-run.
+- **Part B.** `frontend/CLAUDE.md` is byte-identical to `d75647dbf`'s 61-line pointer file again (every target exists at
+  HEAD); the two 12d-8 rules moved VERBATIM into `frontend/CODING_STANDARDS.md` § Writing a test. No test reads either
+  file by name (grep of `frontend/src/**/*.test.*` and `nirmaan_stack/**/test_*.py` for `readFileSync` / `open(` of
+  `CLAUDE.md` / `CODING_STANDARDS.md`: none), so no suite ran. The 12d-8 entry above already says `ruleReachability`
+  has 161 tests; the "164" was in the Desktop 12d-8 report only.
