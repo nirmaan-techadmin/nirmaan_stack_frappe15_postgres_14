@@ -25,6 +25,23 @@ Owner rulings carried (2026-10-09): 40 items all per metre; sizes in the sheet's
 install flat 110 BCS; copper 31.7 install 220 (the sheet carries it); no rounding; MS 300 = 2 x MS 150
 and MS 250 = MS 150 + MS 100 as LIVE links; one category at a time; every item carries its own
 supply / install markup (ruling revised 2026-10-09 17:39); NO pricing (pipelines {}).
+
+SLICE 12e-1b (owner 2026-10-10: "the rate master is missing the item name column. it should be kept
+exactly as per the excel file. we cant drop it."; ruling "option a is ok"): EVERY PIPING ITEM CARRIES
+`attributes.item_name` = ITS SHEET COLUMN A TEXT, VERBATIM -- the key is MANDATORY, never optional. The
+Piping config declares it FIRST in `attribute_definitions` as a plain choice over the four sheet texts
+(label "Item", NO `attributes_from_spec` -- the spec reader has no Piping rules, so spec mode would
+store every item not_understood). It is the same shape Insulation's `type` definition carries (no
+selector / panel flag), rendered where Insulation's column A renders: after brand and unit, before
+Pipe type. The viewer and the rate file show an attribute ONLY when the config declares it, which is
+why the definition and the key travel together.
+
+  name    the third phase, HVAC v35 = v34 + that key: read the workbook's column A per row, stamp
+          `item_name` on the base asset's 40 Piping items (matched by `source.row`, every other key
+          untouched, uids KEPT -- nothing is minted), insert the definition first in the Piping config,
+          validate offline exactly as `build` does, write the candidate. NO database write; `load` then
+          runs as before, and the same two hand steps follow the export.
+`build` (a fresh mint) carries the key and the definition too, so a future re-mint cannot drop it.
 """
 import argparse, copy, json, os, sys
 
@@ -52,7 +69,12 @@ def read_sheet(path):
         raise SystemExit("sheet header differs from the verified shape: %r" % (rows[0][:12],))
     out = []
     for excel_row, r in enumerate(rows[1:], start=2):
-        item = str(r[COLS["item"]]).strip()
+        raw = r[COLS["item"]]
+        if raw is None or not str(raw).strip():
+            raise SystemExit("row %d: column A (Item) is blank -- every Piping item needs its sheet name (12e-1b)" % excel_row)
+        # 12e-1b: the name is kept VERBATIM (whitespace and slashes as written); only a trailing space goes
+        item_name = str(raw).rstrip(" ")
+        item = item_name.strip()
         if item not in PIPE_TYPE_BY_ITEM:
             raise SystemExit("row %d: unknown Item text %r" % (excel_row, item))
         num = lambda k: r[COLS[k]]
@@ -60,13 +82,76 @@ def read_sheet(path):
             if not isinstance(num(k), (int, float)):
                 raise SystemExit("row %d: %s is not a number: %r" % (excel_row, k, num(k)))
         out.append({
-            "excel_row": excel_row, "pipe_type": PIPE_TYPE_BY_ITEM[item], "unit": str(r[COLS["unit"]]).strip(),
+            "excel_row": excel_row, "item_name": item_name, "pipe_type": PIPE_TYPE_BY_ITEM[item], "unit": str(r[COLS["unit"]]).strip(),
             "size_mm": float(num("size_mm")), "supply_markup": float(num("supply_markup")), "install_markup": float(num("install_markup")),
             "cost_supply": float(num("cost_supply")), "cost_install": float(num("cost_install")),
         })
     if len(out) != 40:
         raise SystemExit("expected 40 data rows, read %d" % len(out))
     return out
+
+
+def item_name_definition(rows):
+    """12e-1b: the FIRST attribute definition of the Piping config -- a plain choice over the sheet's column A
+    texts, verbatim, in sheet order (first seen). The shape Insulation's `type` definition carries."""
+    values = []
+    for r in rows:
+        if r["item_name"] not in values:
+            values.append(r["item_name"])
+    return {"id": "item_name", "label": "Item", "type": "choice", "values": values,
+            "note": "The sheet's own Item text (column A), verbatim -- every Piping item carries it (owner 2026-10-10: "
+                    "'it should be kept exactly as per the excel file. we cant drop it.'). A plain attribute, not a spec-read one."}
+
+
+def _validate_candidate(config, items):
+    """The offline checks both minting phases run: the loader's own validators + the derived-rate consistency."""
+    from nirmaan_stack.services.boq_rate_master import config_validation
+    from nirmaan_stack.services.boq_rate_master.loader import _validate_items, _validate_one_config
+    _validate_one_config(config, "category_configs[hvac_piping]")
+    config_validation._validate_config(config)
+    _validate_items(items)
+    by_uid = {it["item_uid"]: {"rates": it["rates"]} for it in items}
+    bad = config_validation.derived_rate_updates([config], by_uid)
+    if bad:
+        raise SystemExit("derived cells disagree with their base in the candidate: %r" % bad)
+    missing = [it["item_uid"] for it in items if not str(it["attributes"].get("item_name") or "").strip()]
+    if missing:
+        raise SystemExit("12e-1b: every Piping item carries item_name; missing on %r" % missing)
+
+
+def name_items(workbook, base, out):
+    """12e-1b `name`: v35 = base (v34) + `attributes.item_name` on the 40 Piping items + the definition, first.
+    Matched by `source.row`; uids kept; nothing else touched; NO database write."""
+    import frappe
+    os.chdir("/workspace/development/frappe-bench/sites")
+    frappe.init(site="localhost"); frappe.connect()
+    rows = read_sheet(workbook)
+    by_row = {r["excel_row"]: r for r in rows}
+    payload = json.load(open(base, encoding="utf-8"))
+    items, stamped = [], 0
+    for it in payload["items"]:
+        if it["kind"] != KIND:
+            continue
+        r = by_row.get(it["source"]["row"])
+        if r is None or it["source"]["sheet"] != SHEET:
+            raise SystemExit("Piping item %s has no sheet row to read its name from: %r" % (it["item_uid"], it["source"]))
+        if r["pipe_type"] != it["attributes"]["pipe_type"] or float(r["size_mm"]) != float(it["attributes"]["size_mm"]):
+            raise SystemExit("Piping item %s does not match sheet row %d" % (it["item_uid"], it["source"]["row"]))
+        if "item_name" in it["attributes"]:
+            raise SystemExit("Piping item %s already carries item_name" % it["item_uid"])
+        it["attributes"] = dict([("item_name", r["item_name"])] + list(it["attributes"].items()))   # the name FIRST, as declared
+        items.append(it); stamped += 1
+    if stamped != 40:
+        raise SystemExit("expected to stamp 40 Piping items, stamped %d" % stamped)
+    config = next(c for c in payload["category_configs"] if c["category_id"] == CATEGORY_ID)
+    if any(d.get("id") == "item_name" for d in config["attribute_definitions"]):
+        raise SystemExit("the Piping config already declares item_name")
+    config["attribute_definitions"] = [item_name_definition(rows)] + config["attribute_definitions"]
+    _validate_candidate(config, items)
+    json.dump(payload, open(out, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
+    print("candidate written:", out, "| items", len(payload["items"]), "| configs", len(payload["category_configs"]),
+          "| named", stamped, "| definitions", [d["id"] for d in config["attribute_definitions"]])
+    frappe.destroy()
 
 
 def build(workbook, base, out):
@@ -84,7 +169,7 @@ def build(workbook, base, out):
         uid = csv_importer.mint_item_uid("HVAC", taken)     # the ONE mint
         items.append({
             "kind": KIND, "brand": None, "unit": r["unit"],
-            "attributes": {"pipe_type": r["pipe_type"], "size_mm": r["size_mm"]},
+            "attributes": {"item_name": r["item_name"], "pipe_type": r["pipe_type"], "size_mm": r["size_mm"]},   # 12e-1b: the name, first
             "rates": {"cost_supply": r["cost_supply"], "cost_install": r["cost_install"],
                       "supply_markup": r["supply_markup"], "install_markup": r["install_markup"]},
             "source": {"sheet": SHEET, "row": r["excel_row"]},
@@ -103,6 +188,7 @@ def build(workbook, base, out):
         "category_display": "Piping",
         "item_kinds": [KIND],
         "attribute_definitions": [
+            item_name_definition(rows),   # 12e-1b: the sheet's Item text, FIRST
             {"id": "pipe_type", "label": "Pipe type", "type": "choice", "values": ["Copper", "MS", "PVC", "CPVC"]},
             {"id": "size_mm", "label": "Pipe size / dia (mm)", "type": "number_choice", "values": sizes},
         ],
@@ -114,14 +200,7 @@ def build(workbook, base, out):
                  "it can never price a BoQ row and the calculator shows 'coming soon' (12e-2 brings the rules). The two MS links are "
                  "LIVE: MS 300 = 2 x MS 150 and MS 250 = MS 150 + MS 100 on both cost columns, recomputed on every write of the base.",
     }
-    _validate_one_config(config, "category_configs[hvac_piping]")
-    config_validation._validate_config(config)
-    _validate_items(items)
-    # the loader's own post-load consistency check, run offline on the candidate
-    by_uid = {it["item_uid"]: {"rates": it["rates"]} for it in items}
-    bad = config_validation.derived_rate_updates([config], by_uid)
-    if bad:
-        raise SystemExit("derived cells disagree with their base in the candidate: %r" % bad)
+    _validate_candidate(config, items)   # the loader's own validators + the post-load consistency check, offline
     payload = copy.deepcopy(v33)
     payload["items"] = v33["items"] + items
     payload["category_configs"] = v33["category_configs"] + [config]
@@ -153,11 +232,13 @@ def load(candidate, canonical):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("phase", choices=["build", "load"])
+    ap.add_argument("phase", choices=["build", "name", "load"])
     ap.add_argument("--workbook"); ap.add_argument("--base"); ap.add_argument("--out")
     ap.add_argument("--candidate"); ap.add_argument("--canonical")
     a = ap.parse_args()
     if a.phase == "build":
         build(a.workbook, a.base, a.out)
+    elif a.phase == "name":
+        name_items(a.workbook, a.base, a.out)
     else:
         load(a.candidate, a.canonical)

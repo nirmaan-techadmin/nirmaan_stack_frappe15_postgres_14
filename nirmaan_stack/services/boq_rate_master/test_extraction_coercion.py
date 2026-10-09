@@ -3498,7 +3498,7 @@ class TestSlice12d4cModelCall(FrappeTestCase):
             cls.v32 = json.load(fh)
         with open(_asset_path(CURRENT_HVAC_ASSET), "r", encoding="utf-8") as fh:
             cls.v33 = json.load(fh)
-        assert CURRENT_HVAC_ASSET == "rate_master_hvac_all_v34.json"   # 12e-1
+        assert CURRENT_HVAC_ASSET == "rate_master_hvac_all_v35.json"   # 12e-1; 12e-1b: v35 (+ item_name)
 
     _cfgs = staticmethod(TestSlice12d1bModelCall._cfgs)
     _row = staticmethod(TestSlice12d1bModelCall._row)
