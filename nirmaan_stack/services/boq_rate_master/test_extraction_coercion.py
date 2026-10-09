@@ -3498,7 +3498,7 @@ class TestSlice12d4cModelCall(FrappeTestCase):
             cls.v32 = json.load(fh)
         with open(_asset_path(CURRENT_HVAC_ASSET), "r", encoding="utf-8") as fh:
             cls.v33 = json.load(fh)
-        assert CURRENT_HVAC_ASSET == "rate_master_hvac_all_v33.json"
+        assert CURRENT_HVAC_ASSET == "rate_master_hvac_all_v34.json"   # 12e-1
 
     _cfgs = staticmethod(TestSlice12d1bModelCall._cfgs)
     _row = staticmethod(TestSlice12d1bModelCall._row)
@@ -3524,6 +3524,10 @@ class TestSlice12d4cModelCall(FrappeTestCase):
 
     def test_mc4c_02_every_other_hvac_category_sends_a_byte_identical_call_v32_to_v33_NAMED(self):
         c32, c33 = self._cfgs(self.v32, "HVAC"), self._cfgs(self.v33, "HVAC")
+        # 12e-1: v34 added the data-only `hvac_piping` config; this pin is about v32 -> v33, so it is
+        # normalised out on the NEW side (the `_without_pricing_input_items` idiom) and NAMED here.
+        self.assertIn(("HVAC", "hvac_piping"), c33)
+        c33 = {k: v for k, v in c33.items() if k[1] != "hvac_piping"}
         self.assertEqual(set(c32), set(c33))
         payload = [extraction._ai_item(self._row())]
         checked = []

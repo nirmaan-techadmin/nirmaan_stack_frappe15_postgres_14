@@ -121,11 +121,11 @@ describe("the fixture names exactly what this test covers", () => {
     expect(RUNS.every((r) => r.version_current)).toBe(true);
   });
 
-  it("the catalogue snapshot is the live one: 22 configs, 1,402 Electrical + 335 HVAC active items (331 + the four 12d-4a Acoustic x GI SKUs)", () => {
-    expect(configs.size).toBe(22);
+  it("the catalogue snapshot is the live one: 23 configs, 1,402 Electrical + 375 HVAC active items (335 + the 40 Piping rows of 12e-1)", () => {
+    expect(configs.size).toBe(23);        // 12e-1: + hvac_piping (data-only)
     expect(master.items.Electrical).toHaveLength(1402);
-    expect(master.items.HVAC).toHaveLength(335);
-    expect(items).toHaveLength(1737);   // 1,402 + 335 (12d-4a: was 1733)
+    expect(master.items.HVAC).toHaveLength(375);   // 12e-1: 335 + 40
+    expect(items).toHaveLength(1777);   // 1,402 + 375 (12e-1: was 1737)
   });
 
   it("the 15 categories the corpus exercises", () => {
@@ -397,7 +397,7 @@ describe("every active SKU of every row-level category", () => {
       }
     }
     expect(bad).toEqual([]);
-    expect(total).toBe(1929);
+    expect(total).toBe(1970);   // 12e-1: 1,929 + the 40 Piping SKUs + its empty case -- every one declines on both paths
   }, 180000);
 
   it("the resolution paths this sweep reached, named", () => {
