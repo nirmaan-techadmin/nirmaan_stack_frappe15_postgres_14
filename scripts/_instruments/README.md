@@ -33,6 +33,7 @@ are the guard — if a last-run date is old, assume the rig needs checking befor
 | `recheck12d4b_runner.py` | 12d-4b step 3: the 12d-3 runner scoped to the set (`_suggest_worker(only_rows=...)`), cap-guarded at 300 calls, one resume-retry, resumable progress | **12d-4b, 2026-10-08** -- 0 errors / halts / retries |
 | `recheck12d4b_analyse.py` | 12d-4b item 4 a-f + the Review Pack's P1 / P2 / P4: stored 12d-3 answers vs the fresh ones, both priced through the current rules; the Excel | **12d-4b, 2026-10-08** |
 | `audit12d3_analyse.py` | 12d-3 analysis: the automatic reading + rule checks, the stratified 60-row hand-review dump, the second-opinion merge, the Excel (host; openpyxl) | **12d-3, 2026-10-08** — `2026-10-10_12d3_Audit_Rows.xlsx` |
+| `mint_hvac_v34_piping.py` | 12e-1: mints HVAC v34 = v33 + the 40-row Piping catalogue (`build`: workbook sheet -> candidate, uids through the ONE mint, validated offline, no DB write; `load`: pre-load snapshot, `load_rate_master(replace=True)`, canonical export). Container, bench python | **12e-1, 2026-10-09** -- build 375 items / 10 configs; load batch `rmbulk-fede1f42b846`, pre-load snapshot `BRMS-26-00069`; the committed file is the DB export re-ordered into the series' file convention (items in global `item_uid` order, configs in creation order + the new one last) with the top-level `intentional_removals` key the exporter does not emit carried from v33; mint gate PASS |
 
 ---
 
@@ -91,6 +92,24 @@ Runs the config validator over every asset JSON on disk. This is the mechanical 
 `CLAUDE.md`: *before switching such a gate on, sweep every asset on disk* — a new refusal that lands on
 a HISTORICAL asset is a defect in the current slice, not in that asset. It chdirs into the bench `sites/`
 directory, so it runs **in-container**.
+
+### `mint_hvac_v34_piping.py` — the Piping catalogue mint (12e-1)
+
+Two explicit phases, both in-container under the bench python. `build` reads the owner's HVAC workbook
+sheet `Piping` (header shape pinned in the file) plus the base asset, mints one `item_uid` per row through
+`csv_importer.mint_item_uid` (never inline), assembles the candidate (base items + 40 Piping items; base
+configs + the one data-only `hvac_piping` config carrying the two LIVE MS `derived_rates` links) and
+validates it offline with the loader's own config / item validators and `derived_rate_updates`; it writes
+no database row. `load` takes the pre-load snapshot, runs `loader.load_rate_master(replace=True)` on the
+candidate and exports the text from the database. Re-running `build` mints fresh uids by design; the
+committed file is the record. ⚠️ TWO HAND STEPS FOLLOW THE EXPORT, both measured in 12e-1: (1) the
+exporter orders items `kind asc, item_uid asc` and configs `category_id asc`, but the HVAC series files
+(v32 / v33 checked) hold items in GLOBAL `item_uid` order and configs in creation order with the newest
+last -- and the cross-version pins compare ORDERED lists -- so the export is re-ordered into that
+convention (content asserted byte-equal to the previous asset per uid / category while doing so);
+(2) the exporter does not emit the top-level `intentional_removals` key that v29 onwards carry (the
+declared `calculator_only` removal), so it is carried from the previous asset -- without it
+`mint_completeness_check.py` reports one UNDECLARED removal (`top:intentional_removals`).
 
 ### `hvac_v1_attrs_for.py` — ⚠️ PROVENANCE ONLY, NEVER RUN
 

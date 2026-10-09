@@ -45634,3 +45634,103 @@ is disabled. 12e-0c measured; nothing was fixed or committed.
   file by name (grep of `frontend/src/**/*.test.*` and `nirmaan_stack/**/test_*.py` for `readFileSync` / `open(` of
   `CLAUDE.md` / `CODING_STANDARDS.md`: none), so no suite ran. The 12d-8 entry above already says `ruleReachability`
   has 161 tests; the "164" was in the Desktop 12d-8 report only.
+## Slice 12e-0e — INVARIANT SURVIVAL CHECK AFTER DEVELOP'S CLAUDE.md SLIM-DOWN (2026-10-09) — DONE (no commit)
+
+Every rule the pre-slim root `CLAUDE.md` carried (375 extracted) was searched for in the slimmed tree (`CODING_STANDARDS.md`,
+the domain docs, `frontend/CODING_STANDARDS.md`): **0 missing**, so nothing was restored and nothing committed. Desktop
+`2026-10-09_12e0e_Report.md` + `_old_rules.md` hold the per-rule classification. One runbook correction found on the way and
+carried into 12e-1's docs commit: the in-container runner refuses `bench run-tests --app nirmaan_stack` ("Please specify
+--site sitename"); the whole-app line in `CLAUDE.md` § Commands now reads `bench --site localhost run-tests --app nirmaan_stack`.
+
+## Slice 12e-1 — PIPING CATALOGUE: HVAC v34 = v33 + 40 PIPING ITEMS, LIVE MS LINKS (2026-10-09) — SHIPPED
+
+**Owner rulings** (prompt + resume addendum 17:39): 40 items, all per metre, sizes in the sheet's own spelling, no rounding;
+copper install flat 110 BCS ("it is correct"), copper 31.7 install 220 (the sheet carries it); MS 300 = 2 x MS 150 and
+MS 250 = MS 150 + MS 100 as LIVE links; one category at a time; NO pricing; every item carries its OWN supply / install
+markup (revised 17:39 -- the HVAC principle); the Rate Master category list is driven by `rateMasterRegistry.ts`, so
+adding Piping also adds it to the calculator dropdown -- owner **"(b) Accept it"**: Piping appears there and shows the
+existing coming-soon card.
+
+**Built (feat `04a4812e6`, 10 files by explicit path).** `scripts/_instruments/mint_hvac_v34_piping.py` (`build`: the
+workbook's `Piping` sheet -> 40 items, uids through the ONE mint `csv_importer.mint_item_uid`, offline validation with the
+loader's own validators + `derived_rate_updates`, no DB write; `load`: pre-load snapshot `BRMS-26-00069` (335 / 9),
+`loader.load_rate_master(replace=True)` -> batch `rmbulk-fede1f42b846`, 375 items / 10 configs, `retirements_without_reason`
+0). Item shape: kind `hvac_piping_item`, unit `Mts`, attributes `{pipe_type, size_mm}`, rates `{cost_supply, cost_install,
+supply_markup, install_markup}`, source `{sheet: Piping, row}`. Config `hvac_piping` is DATA-ONLY (two defs, `pipelines {}`,
+one kind) -> `config_is_eligible` false -> the coming-soon card on a Piping BoQ row and in the calculator. The two MS links
+are `derived_rates` on BOTH cost columns, recomputed by the existing `loader.recompute_derived_after_write` on every write of
+a base; the cells export as the word `derived` and upload as untouched.
+
+**Two mint facts learned, both now in the instrument's docstring + `scripts/_instruments/README.md`:** (1) the exporter
+orders items `kind asc, item_uid asc` and configs `category_id asc`, but the HVAC series files (v32 / v33 measured) hold
+items in GLOBAL `item_uid` order and configs in creation order with the newest last -- and the cross-version pins compare
+ORDERED lists -- so the committed v34 is the export RE-ORDERED into that convention (every carried item / config asserted
+byte-equal to v33 while doing so); (2) the exporter does not emit the top-level `intentional_removals` key v29+ carry, so it
+is carried from v33 -- without it `mint_completeness_check.py` reports one UNDECLARED removal (`top:intentional_removals`).
+Mint gate v33 -> v34 PASS; `--latest` kinds disjoint vs Electrical v66, PASS, history walk clean after the commit.
+
+**AC evidence.** AC2: the 40 figures pinned against the sheet table (`test_piping_v34.test_02`; copper 31.7 = 1950 / 110 /
+0.5 / 1.0 -> BoQ install 220). AC3: `test_live_01` writes MS 150 +10 through `update_rate_master_item` and reads MS 300 +20 /
+MS 250 +10 (install untouched), restores; `test_05` NEGATIVE (unflattened link REFUSED, dangling base RAISES). AC4: live HVAC
+minus Piping == v33 by content (335 / 9, 0 differing either way), live Electrical == v66 (1,402 / 13); no Electrical /
+Insulation / ADP file in the diff. AC5: `test_04` (data-only, not eligible). AC6: the 12e-0c instrument re-run on the loaded
+catalogue (13,365 rows / 101 runs / 23 configs / 1,777 items) -> harness output BYTE-IDENTICAL to the 12e-0c baseline jsonl
+(sha256 `b589c254...6a0a4c`); the derived whole-set hash is unchanged by construction (ANOMALY: the 12e-0c hashing step's
+canonicalisation was not preserved and could not be re-derived -- `646031bc...` is not independently recomputed). AC7:
+`export_rate_master_csv(HVAC, hvac_piping)` xlsx + csv row_count 40, preview of each unchanged file 0 / 0 / 40 unchanged / 0
+errors; the all-categories HVAC file 368 rows (the 7 pricing inputs stay out) incl. 40 Piping, preview 0 changes. AC8: above.
+Zero model calls: capture log 333 before and after the load / harness; the 22 lines the test modules then added are all
+`stub-model` / `test-model` / `m` rows from the suites' fake clients.
+
+**Pins INVERTED, never deleted (blast radius measured by running the two modules, not by naming files):** `CURRENT_HVAC_ASSET`
+-> v34; the five "current is v33" name pins (v28..v32 `_01_INVERTED`); 12d-4c `v33_02` / `v33_03` and 12c `co_f1_08`
+byte-identical pins normalised on the NEW side with `_without_12e1_piping_items` / `_without_12e1_piping_config` (the
+`_without_pricing_input_items` idiom, a third time); `dr_02` 176 -> 182 (cell, base) pairs; `z07` mode-B derived fills 411 ->
+415; coercion `mc4c_02` names `hvac_piping` out of the v32 -> v33 comparison; registry nine -> ten + the two page lists;
+`RATE_MASTER_CONFIG_TARGETS` 22 -> 23; parity 22 -> 23 configs / 1,737 -> 1,777 items / 1,929 -> 1,970 cases; served 335 ->
+375 (computed 223 unchanged -- a Piping derived cell is STORED, never projected). `parityMaster.json` re-snapshotted from the
+live endpoint (items + computed cells; configs kept as the fixture held them + the Piping config). No price pin moved.
+Vacuity: dropping the MS 100 term from MS 250 `cost_supply` in the v34 file turns `test_03`, `test_dr_01` and `test_dr_02` red;
+restored, sha identical.
+
+### Tests (measured in-session)
+
+Targeted: `test_piping_v34` 9/9; `test_rate_master` 742 (10 blast-radius failures -> all inverted, re-run green by name);
+`test_extraction_coercion` 208 (1 -> inverted); vitest 9 files 864 (1 count pin -> inverted, 115/115 on re-run). Full suites
+at the end (Desktop `2026-10-09_12e1_python_full.log` / `_frontend_full.log`): Python **8,036 tests** (8,027 + the 9 new) / 13 failing = the 12 12e-0c knowns + ONE time-of-day flake in an untouched module (`tasks.test_vendor_category_sync.test_daily_window_picks_a_wo_touched_since`: the fixture stamps rows with the DB's UTC `now()` while the window keys on the site's IST `today()`, so it fails between 00:00 and 05:30 IST -- the suite crossed local midnight; re-run alone at 00:07 IST still red; reported, not repaired); frontend **164 files / 5,814 tests / 1 failing** = the 12e-0c known (`POAdjustment/writeOffControl.test.ts` admin-predicate mirror), byte-for-byte the same verdict line as 12e-0c.
+`residence_check.py`: F5 120 vs 117 and F2 221 vs 217 -- IDENTICAL with the slice's changes stashed (HEAD after the develop
+rebase), and the slice's frontend diff adds 0 `JSON.parse` / `updateDoc`; reported, baseline out of scope.
+
+### Browser cert (C1-C8; screenshots `2026-10-09_12e1_screens/`)
+
+BEFORE the load: C1a BOQ-26-00169 'HVAC' row 156 (category Piping) -> "Rate attributes for this category haven't been
+defined yet -- coming soon."; C1b the HVAC calculator lists nine categories, no Piping. De-stale run 2 after the feat commit
+(0 serving PIDs found -- the Docker VM had restarted at 13:19 UTC; pycache 32 -> 0, `.vite` purged), PROOF 1 from the served
+TRANSFORMED `rateMasterRegistry.ts` (`hvac_piping` x1, ten HVAC ids), PROOF 2 from a fresh python read (10 configs incl.
+`hvac_piping`, 375 / 40). C2: Rate Master -> HVAC lists ADP / Insulation / Piping / Pricing Inputs; Piping = 40 items, batch
+`rmbulk-fede1f42b846`; copper 31.7 = 110 install, markup 1; MS 300 = 4480 / 1200 `derived` (2 x MS 150 2240 / 600); MS 250 =
+3744 / 1000 `derived` (MS 150 + MS 100 1504 / 400). C3: the screen's Excel download = 8,599 bytes (= the API export), 42 sheet
+rows. C4: inline edit MS 150 2240 -> 2250: MS 300 4500 (+20), MS 250 3754 (+10), installs untouched; restored -> 4480 / 3744;
+DB read after = the pre-edit values (the only cert writes, by `admins@nirmaan.app`). C5: the same file fed to the upload
+input -> "0 rates changed / 0 items added / 40 rows unchanged / 0 errors ... nothing to apply", Cancel. C6: row 156 AFTER
+the load -> the SAME coming-soon card; the calculator lists ten categories, Piping -> the coming-soon card, no price. C7:
+the restored production DB holds NO `BoQ Rate Suggestion Run` for BOQ-26-00137 'CHW pipes , Valves', BOQ-26-00140 'HVAC
+Lowside Works ' or BOQ-26-00169 'HVAC' (0 runs each), so the 12d-8 PANEL figures cannot be reproduced without a model call
+-> re-certified on the CALCULATOR (the same compute path, no run needed) with 12d-8's own cases: Nitrile 26G, pipe Other 50,
+thickness unanswered -> "thickness not mentioned -> 9 mm, then the ladder", **556 / 224 / 780**; foil + 19 -> "foil on a
+pipe is priced as 26G cladding", **615 / 224 / 839**; ADP fire damper, UL listed yes, variant UL, 600 x 600, nos -> **7830 /
+692 / 8522**. All three equal 12d-8's figures to the rupee. C8: HVAC 375 active items / 10 configs (sorted item hash
+`918ab910...`), Electrical 1,402 / 13; AC4 re-run after the cert identical; Fast render restored ON on all three sheets.
+
+**Environment anomalies (not product defects):** the bench died 7 minutes after EACH of two starts (13:30:51 and 13:43:08
+UTC) -- the RQ worker lost `redis-queue` ("Temporary failure in name resolution", then "Redis connection timeout,
+quitting") and honcho stops every process with it; after the owner restarted Docker (17:48 UTC) bench run 3 stayed up. The
+step-4 grid edit re-created the two dependant rows (MS 300 / MS 250) under a new batch `rmbulk-315e64ba430d` -- the
+documented freeze-and-supersede of `recompute_derived_after_write` (uid durable, name regenerates), content identical.
+
+### What 12e-2 inherits
+
+Piping has items and no rules: the pricing rules (`pipelines` / an item-list block) make it eligible by the ordinary
+predicates; the calculator and the Rate Master page already list it. The exporter-order and `intentional_removals` hand
+steps belong in the next mint instrument too (or in the exporter, by a ruling). The 12e-0c whole-set hash should be
+re-derived from the preserved baseline jsonl with a recorded canonicalisation before it is used as a gate again.
