@@ -50,8 +50,19 @@ from nirmaan_stack.services.boq_rate_master import config_validation, extraction
 V33 = "rate_master_hvac_all_v33.json"
 V34 = "rate_master_hvac_all_v34.json"
 V35 = "rate_master_hvac_all_v35.json"   # 12e-1b: v34 + item_name on the 40 Piping items (+ its definition, first)
+V36 = "rate_master_hvac_all_v36.json"   # 12e-2: cost_supply = the sheet's BCS Pipe (G); 4 accessories inputs; the item-list Piping config
 KIND = "hvac_piping_item"
 CATEGORY = "hvac_piping"
+INPUT_KIND = "hvac_pricing_input"
+# 12e-2 (owner "option b, yes", 2026-10-10): the sheet's BCS Accessories (column H) per family, as FOUR Pricing Inputs
+ACCESSORIES = {"Copper": 0.3, "MS": 0.6, "PVC": 0.6, "CPVC": 0.6}
+INPUT_IDS = {"Copper": "piping_accessories_copper", "MS": "piping_accessories_ms", "PVC": "piping_accessories_pvc", "CPVC": "piping_accessories_cpvc"}
+INPUT_LABELS = {"Copper": "Piping accessories - Copper", "MS": "Piping accessories - MS", "PVC": "Piping accessories - PVC", "CPVC": "Piping accessories - CPVC"}
+
+
+def _roundup(x):
+    import math
+    return math.ceil(round(x, 9))
 
 # 12e-1b: the sheet's column A ("Item"), read 2026-10-10 from the same workbook: no merged cell, no blank, no trailing
 # space; FOUR distinct texts, one per family, in sheet order. Rows 2-14 copper, 15-27 MS, 28-35 PVC, 36-41 CPVC.
@@ -81,6 +92,27 @@ SHEET = [
     ("CPVC", 40.0, 336.0, 30.0, 0.5, 0.4), ("CPVC", 32.0, 272.0, 20.0, 0.5, 0.4), ("CPVC", 25.0, 160.0, 20.0, 0.5, 0.4),
 ]
 FAMILY_COUNTS = {"Copper": 13, "MS": 13, "PVC": 8, "CPVC": 6}
+
+# 12e-2: the sheet's BCS Pipe (column G) and the two BoQ figures (K BoQ Supply, L BoQ Installation) per row, read
+# 2026-10-10 from the same workbook (sheet "Piping", rows 2-41): (pipe_type, size_mm, G, K, L). The BoQ figures are
+# what the calculator and the panel must reproduce to the rupee; G is what v36 stores as cost_supply.
+SHEET_G_K_L = [
+    ("Copper", 47.6, 2400.0, 4680.0, 220.0), ("Copper", 41.3, 2150.0, 4193.0, 220.0), ("Copper", 38.1, 1990.0, 3881.0, 220.0),
+    ("Copper", 34.9, 1832.0, 3573.0, 220.0), ("Copper", 31.7, 1500.0, 2925.0, 220.0), ("Copper", 28.6, 1250.0, 2438.0, 220.0),
+    ("Copper", 25.4, 1150.0, 2243.0, 220.0), ("Copper", 22.2, 930.0, 1814.0, 220.0), ("Copper", 19.1, 815.0, 1590.0, 220.0),
+    ("Copper", 15.9, 665.0, 1298.0, 220.0), ("Copper", 12.7, 480.0, 936.0, 220.0), ("Copper", 9.5, 220.0, 429.0, 220.0),
+    ("Copper", 6.4, 200.0, 390.0, 220.0),
+    ("MS", 300.0, 2800.0, 6720.0, 1680.0), ("MS", 250.0, 2340.0, 5616.0, 1400.0), ("MS", 200.0, 2000.0, 4800.0, 1120.0),
+    ("MS", 150.0, 1400.0, 3360.0, 840.0), ("MS", 125.0, 1300.0, 3120.0, 700.0), ("MS", 100.0, 940.0, 2256.0, 560.0),
+    ("MS", 80.0, 600.0, 1440.0, 420.0), ("MS", 65.0, 500.0, 1200.0, 350.0), ("MS", 50.0, 410.0, 984.0, 280.0),
+    ("MS", 40.0, 300.0, 720.0, 210.0), ("MS", 32.0, 250.0, 600.0, 175.0), ("MS", 25.0, 200.0, 480.0, 140.0),
+    ("MS", 19.0, 190.0, 456.0, 112.0),
+    ("PVC", 150.0, 505.0, 1212.0, 168.0), ("PVC", 100.0, 220.0, 528.0, 140.0), ("PVC", 75.0, 125.0, 300.0, 112.0),
+    ("PVC", 65.0, 110.0, 264.0, 84.0), ("PVC", 50.0, 105.0, 252.0, 56.0), ("PVC", 40.0, 90.0, 216.0, 42.0),
+    ("PVC", 32.0, 70.0, 168.0, 28.0), ("PVC", 25.0, 50.0, 120.0, 28.0),
+    ("CPVC", 75.0, 320.0, 768.0, 112.0), ("CPVC", 65.0, 280.0, 672.0, 84.0), ("CPVC", 50.0, 240.0, 576.0, 56.0),
+    ("CPVC", 40.0, 210.0, 504.0, 42.0), ("CPVC", 32.0, 170.0, 408.0, 28.0), ("CPVC", 25.0, 100.0, 240.0, 28.0),
+]
 
 
 def _asset_path(filename):
@@ -236,7 +268,10 @@ class TestSlice12e1AssetV34(FrappeTestCase):
         d = os.path.dirname(_asset_path(V35))
         ns = [int(m.group(1)) for f in os.listdir(d) for m in [re.match(r"rate_master_hvac_all_v(\d+)\.json$", f)] if m]
         self.assertNotEqual(max(ns), 34, "12e-1b: v34 is no longer the newest")
-        self.assertEqual(max(ns), 35)
+        # 12e-2: INVERTED again under mechanical authority -- v36 (the Piping prices) is the newest; v35 stays on disk
+        self.assertNotEqual(max(ns), 35, "12e-2: v35 is no longer the newest")
+        self.assertEqual(max(ns), 36)
+        self.assertTrue(os.path.exists(_asset_path(V35)), "v35 stays on disk as the 12e-1b record")
         self.assertTrue(os.path.exists(_asset_path(V34)), "v34 stays on disk as the 12e-1 record")
         self.assertFalse(os.path.exists(_asset_path("rate_master_hvac_all_v%d.json" % (max(ns) + 1))))
 
@@ -357,8 +392,15 @@ class TestSlice12e1LiveLinks(FrappeTestCase):
         served = rate_master.get_rate_master_items(discipline="HVAC", kind=KIND)
         self.assertEqual(served["count"], 40)
         by = {(it["attributes"]["pipe_type"], float(it["attributes"]["size_mm"])): it for it in served["items"]}
+        # 12e-2 (owner "option b"): INVERTED under mechanical authority -- the served cost_supply is the sheet's BCS
+        # Pipe (column G), no longer its Total BCS Supply (column I); I is reproduced from G and the family's
+        # accessories input on every row (the negative half: G is never I).
+        g_by = {(fam, size): g for fam, size, g, _k, _l in SHEET_G_K_L}
         for fam, size, sup, inst, sm, im in SHEET:
-            self.assertEqual(by[(fam, size)]["rates"], {"cost_supply": sup, "cost_install": inst, "supply_markup": sm, "install_markup": im})
+            g = g_by[(fam, size)]
+            self.assertEqual(by[(fam, size)]["rates"], {"cost_supply": g, "cost_install": inst, "supply_markup": sm, "install_markup": im})
+            self.assertNotEqual(g, sup)
+            self.assertEqual(_roundup(g * (1 + ACCESSORIES[fam])), sup, "%s %s: ROUNDUP(G x (1 + accessories)) == the sheet's I" % (fam, size))
             self.assertEqual(by[(fam, size)]["unit"], "Mts")
         # `computed_rates` is the cladding DISPLAY projection only (12d-2F); a Piping derived cell is a STORED figure the
         # loader / write paths keep in step, so no Piping uid is projected -- the grid marks it from the config's
@@ -376,3 +418,300 @@ class TestSlice12e1LiveLinks(FrappeTestCase):
         counts = plan["counts"]
         self.assertEqual((counts.get("rates_changed", 0), counts.get("items_added", 0), counts.get("other_changed", 0)), (0, 0, 0))
         self.assertEqual(counts.get("unchanged"), 40)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# SLICE 12e-2 -- HVAC v36 = v35 + PIPING PRICES (owner option "1", 2026-10-10 10:58; rulings "option b, yes",
+# Q14 / Q14a / Q17 / Q11 / Q16 / Q15 / Q10 / Q19 / Q18 / Q2 / Q12).
+#
+# What these tests protect, in plain English:
+#   08  v36 is v35 plus EXACTLY the ruled changes and nothing else: the 40 Piping items differ by cost_supply alone
+#       (now the sheet's BCS Pipe, column G), FOUR accessories inputs join the seven HVAC inputs in their shape,
+#       the Piping config gains the item-list block (and ADP's two flags on item_name), every other item / config /
+#       top-level key is byte-equal. NEGATIVE: a fifth input, a moved install cost or a touched Insulation item
+#       is reported by the same comparison.
+#   09  AC2(a) as a permanent pin: on every row ROUNDUP(G x (1 + the family's accessories)) == the sheet's Total
+#       BCS Supply (v35's cost_supply), the two MS links hold on column G (verified, loader-checked), and the
+#       sheet's BoQ figures K / L follow from G by the two-step rule -- so the stored BCS Pipe and the Pricing
+#       Input reproduce every figure the pricer sees. NEGATIVE: a wrong accessories share breaks the identity.
+#   10  the config is an ITEM-LIST config that RUNS (eligible on every surface -- owner S1, no staging switch):
+#       the four families, one per-metre block each with the P5 pipeline reading its own input; the P1-P4 keys;
+#       it validates through the loader's own gate. item_name is NEVER asked of the model (the model's questions
+#       are pipe_type / size_mm / pipe_class) and NEVER a selectable / panel definition (ADP's two flags).
+#   11  NEGATIVE, the validator: each 12e-2 config key refuses a wrong shape BY NAME (inch_mm_alt without inches
+#       or equal to 25.4, a foreign typed_entry, a non-positive near, a foreign below_smallest, a unit_refusal
+#       without {unit}, a family_text map to a non-family / from a family value / twice, a refuse of a family
+#       value, a panel_optional naming a read attribute). The shipped config passes.
+#   12  the four inputs are READ by the Piping pipelines only (the exporter's used-by walk sees them), each by
+#       exactly one family; no Insulation / ADP pipeline reads them.
+#   13  v36 is the newest HVAC asset on disk (derived, never a named future number); v35 stays.
+#
+#   TestSlice12e2Live (the LIVE site after the v36 load): live HVAC == v36 by content; the served inputs are
+#       eleven with the four factors; the served Piping config is the item-list one; every served Piping
+#       cost_supply is column G.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+class TestSlice12e2AssetV36(FrappeTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.v35 = _read(V35)
+        cls.v36 = _read(V36)
+        cls.cfg = next(c for c in cls.v36["category_configs"] if c["category_id"] == CATEGORY)
+        cls.cfg35 = next(c for c in cls.v35["category_configs"] if c["category_id"] == CATEGORY)
+
+    @staticmethod
+    def _inputs(asset):
+        return [it for it in asset["items"] if it["kind"] == INPUT_KIND]
+
+    def test_08_v36_is_v35_plus_the_ruled_changes_and_nothing_else(self):
+        a = {it["item_uid"]: it for it in self.v35["items"]}
+        b = {it["item_uid"]: it for it in self.v36["items"]}
+        new = [u for u in b if u not in a]
+        self.assertEqual([u for u in a if u not in b], [], "no v35 item is lost")
+        self.assertEqual(len(new), 4, "exactly four new items")
+        self.assertEqual(len(b), 379)
+        # the carried items: the 40 Piping rows differ by cost_supply ALONE; every other item is byte-equal
+        moved = [u for u in a if _norm(a[u]) != _norm(b[u])]
+        self.assertEqual(len(moved), 40)
+        for u in moved:
+            x, y = a[u], b[u]
+            self.assertEqual(x["kind"], KIND, "only a Piping item moves")
+            self.assertEqual({k: v for k, v in x.items() if k != "rates"}, {k: v for k, v in y.items() if k != "rates"})
+            self.assertEqual(list(x["rates"]), list(y["rates"]), "rate keys and their order kept")
+            self.assertEqual({k: v for k, v in x["rates"].items() if k != "cost_supply"}, {k: v for k, v in y["rates"].items() if k != "cost_supply"})
+            self.assertNotEqual(x["rates"]["cost_supply"], y["rates"]["cost_supply"])
+        for u in a:
+            if a[u]["kind"] != KIND:
+                self.assertEqual(_norm(a[u]), _norm(b[u]), "%s %s untouched" % (a[u]["kind"], u))
+        # the four inputs, in the shape of the seven (one value column each, unit factor, shared_by, name, remarks)
+        seven = {it["attributes"]["item"]: it for it in self._inputs(self.v35)}
+        self.assertEqual(len(seven), 7)
+        eleven = {it["attributes"]["item"]: it for it in self._inputs(self.v36)}
+        self.assertEqual(len(eleven), 11)
+        self.assertEqual(sorted(set(eleven) - set(seven)), sorted(INPUT_IDS.values()))
+        for fam, iid in INPUT_IDS.items():
+            it = eleven[iid]
+            self.assertEqual(sorted(it), sorted(seven["cladding_overlap"]), "the same top-level keys as an existing factor input")
+            self.assertEqual(sorted(it["attributes"]), sorted(seven["cladding_overlap"]["attributes"]))
+            self.assertEqual(it["unit"], "factor")
+            self.assertEqual(it["rates"], {"factor": ACCESSORIES[fam]})
+            self.assertEqual(it["attributes"]["name"], INPUT_LABELS[fam])
+            self.assertEqual(it["attributes"]["shared_by"], "piping")
+            self.assertEqual(it["source"], {"sheet": "Pricing Inputs", "row": 0})
+            self.assertRegex(it["item_uid"], r"^rmi-[0-9a-f]{12}$")
+            self.assertIn(it["item_uid"], new)
+        # the configs: only hvac_piping differs, and by the ruled keys
+        ca = {c["category_id"]: c for c in self.v35["category_configs"]}
+        cb = {c["category_id"]: c for c in self.v36["category_configs"]}
+        self.assertEqual([k for k in ca if _norm(ca[k]) != _norm(cb[k])], [CATEGORY])
+        self.assertEqual([c["category_id"] for c in self.v36["category_configs"]], [c["category_id"] for c in self.v35["category_configs"]])
+        p, q = self.cfg35, self.cfg
+        self.assertEqual(sorted(set(q) - set(p)), ["list_spec", "matching_mode"])
+        for k in p:
+            if k == "attribute_definitions":
+                self.assertEqual([{kk: v for kk, v in d.items() if kk not in ("selector", "panel")} for d in q[k]], p[k], "the three definitions' content is carried")
+                self.assertEqual([(d.get("selector"), d.get("panel")) for d in q[k]], [(False, False), (None, None), (None, None)], "ADP's two flags on item_name only")
+            elif k == "notes":
+                self.assertTrue(q[k].startswith(p[k]))
+            else:
+                self.assertEqual(_norm(p[k]), _norm(q[k]), "config key %r carried" % k)
+        self.assertEqual(q["derived_rates"], p["derived_rates"], "the two MS links are the same declarations, now on column G")
+        for k in set(self.v35) | set(self.v36):
+            if k in ("items", "category_configs"):
+                continue
+            self.assertEqual(_norm(self.v35.get(k)), _norm(self.v36.get(k)), "top-level key %r unchanged v35 -> v36" % k)
+        # NEGATIVE: the comparison sees a stray change -- a fifth input, a moved install cost, a touched Insulation item
+        bad = copy.deepcopy(self.v36)
+        bad["items"].append(dict(eleven["piping_accessories_ms"], item_uid="rmi-000000000001"))
+        self.assertEqual(len([it for it in bad["items"] if it["kind"] == INPUT_KIND]), 12)
+        bad = copy.deepcopy(self.v36)
+        victim = next(it for it in bad["items"] if it["kind"] == KIND)
+        victim["rates"]["cost_install"] += 1
+        self.assertNotEqual({k: v for k, v in a[victim["item_uid"]]["rates"].items() if k != "cost_supply"},
+                            {k: v for k, v in victim["rates"].items() if k != "cost_supply"})
+        bad = copy.deepcopy(self.v36)
+        ins = next(it for it in bad["items"] if it["kind"] == "hvac_insulation_item")
+        ins["rates"]["cost_insulation"] += 1
+        self.assertNotEqual(_norm(a[ins["item_uid"]]), _norm(ins))
+
+    def test_09_AC2a_the_sheet_reproduces_from_bcs_pipe_and_the_accessories_input_on_every_row(self):
+        by36 = _by_key(_piping(self.v36))
+        by35 = _by_key(_piping(self.v35))
+        self.assertEqual(len(SHEET_G_K_L), 40)
+        for fam, size, g, k, l in SHEET_G_K_L:
+            it = by36[(fam, size)]
+            acc = ACCESSORIES[fam]
+            self.assertEqual(it["rates"]["cost_supply"], g, "%s %s stores the sheet's BCS Pipe" % (fam, size))
+            i = _roundup(g * (1 + acc))
+            self.assertEqual(i, by35[(fam, size)]["rates"]["cost_supply"], "%s %s: ROUNDUP(G x (1 + %s)) == the sheet's Total BCS Supply (v35)" % (fam, size, acc))
+            self.assertEqual(_roundup(i * (1 + it["rates"]["supply_markup"])), k, "%s %s: BoQ Supply (K)" % (fam, size))
+            self.assertEqual(_roundup(it["rates"]["cost_install"] * (1 + it["rates"]["install_markup"])), l, "%s %s: BoQ Installation (L)" % (fam, size))
+        # the MS links hold on column G and the loader's own consistency check agrees
+        uid = lambda size: by36[("MS", size)]["item_uid"]
+        self.assertEqual(by36[("MS", 300.0)]["rates"]["cost_supply"], 2 * by36[("MS", 150.0)]["rates"]["cost_supply"])
+        self.assertEqual(by36[("MS", 250.0)]["rates"]["cost_supply"], by36[("MS", 150.0)]["rates"]["cost_supply"] + by36[("MS", 100.0)]["rates"]["cost_supply"])
+        by_uid = {it["item_uid"]: {"rates": it["rates"]} for it in self.v36["items"]}
+        self.assertEqual(config_validation.derived_rate_updates([self.cfg], by_uid), {})
+        want = config_validation.recompute_derived_values([self.cfg], by_uid)
+        self.assertEqual(want[(uid(300.0), "cost_supply")], 2800.0)
+        self.assertEqual(want[(uid(250.0), "cost_supply")], 2340.0)
+        self.assertEqual(want[(uid(300.0), "cost_install")], 1200.0)
+        # NEGATIVE: a wrong accessories share breaks the identity on at least one row of every family
+        for fam in ACCESSORIES:
+            broken = [s for f, s, g, _k, _l in SHEET_G_K_L if f == fam and _roundup(g * (1 + ACCESSORIES[fam] + 0.1)) == by35[(f, s)]["rates"]["cost_supply"]]
+            self.assertEqual(broken, [], "%s: a share 0.1 too high reproduces no row" % fam)
+
+    def test_10_the_config_is_an_item_list_config_that_runs_and_item_name_is_never_asked(self):
+        cfg = self.cfg
+        self.assertEqual(cfg["matching_mode"], "item_list")
+        ls = cfg["list_spec"]
+        self.assertEqual(ls["family_attribute_id"], "pipe_type")
+        self.assertEqual([d["id"] for d in ls["attribute_definitions"]], ["pipe_type", "size_mm", "pipe_class"])
+        self.assertEqual(ls["attribute_definitions"][0]["values"], ["Copper", "MS", "PVC", "CPVC"])
+        self.assertIs(ls["second_opinion"], False)
+        pr = ls["pricing"]
+        self.assertEqual(pr["kind"], KIND)
+        self.assertEqual(sorted(pr["families"]), ["CPVC", "Copper", "MS", "PVC"])
+        for fam, f in pr["families"].items():
+            self.assertEqual(sorted(f["units"]), ["length"], "%s: one per-metre block" % fam)
+            steps = f["units"]["length"]["pipelines"]["supply"]["steps"]
+            self.assertEqual([s["step"] for s in steps], ["rate_ref", "match_master_row", "component", "sum_components", "scale", "roundup", "scale", "roundup"])
+            self.assertEqual(steps[0]["ref"], {"kind": INPUT_KIND, "item": INPUT_IDS[fam]}, "%s reads ITS accessories input" % fam)
+            self.assertEqual((steps[0]["target"], steps[0]["result"]), ("factor", "acc"))
+            self.assertEqual(steps[4]["params"], {"acc_from_ctx": "acc"})
+            self.assertEqual(steps[6]["params"], {"m_from_ctx": "supply_markup"})
+            isteps = f["units"]["length"]["pipelines"]["install"]["steps"]
+            self.assertEqual([s["step"] for s in isteps], ["match_master_row", "component", "sum_components", "scale", "roundup"])
+            self.assertEqual(isteps[3]["params"], {"m_from_ctx": "install_markup"})
+            self.assertIn(INPUT_LABELS[fam], steps[2]["explain"], "the formula row names the accessories input (U7)")
+        self.assertEqual(pr["unit_classes"]["length"][0], "mts")
+        self.assertEqual(pr["unit_refusal"], "unit '{unit}' is not a length unit")
+        self.assertEqual(pr["numbers"]["size_mm"], {"from": ["size_mm"], "name": "pipe size", "unit": "mm", "inches": True, "inch_mm_alt": 25, "typed_entry": "one_size"})
+        self.assertEqual(pr["size_match"], {"dp": [2, 1], "near": 0.1, "below_smallest": "smallest"})
+        self.assertEqual([(m["from"], m["to"]) for m in pr["family_text"]["map"]], [("GI", "MS"), ("uPVC", "PVC"), ("HDPE", "PVC")])
+        self.assertEqual([(r["from"], r["refuse"]) for r in pr["family_text"]["refuse"]], [("SS", "No SKU in the catalogue for SS pipe - price this row by hand")])
+        self.assertEqual(pr["family_text"]["line"], "BoQ says {from} -> priced as {to} (owner rule)")
+        self.assertIn("{types}", pr["family_text"]["from_row"]["refuse"])
+        self.assertEqual(pr["panel_controls"], {"pipe_type": "dropdown_or_other", "size_mm": "dropdown_or_other"})
+        self.assertEqual(sorted(pr["panel_notes"]), ["pipe_type", "size_mm"])
+        self.assertEqual(pr["panel_optional"], ["pipe_class"])
+        self.assertEqual([(r["from_attr"], sorted(r["families"])) for r in pr["read_notes"]], [("pipe_class", ["CPVC", "Copper", "MS", "PVC"])])
+        self.assertIn("{family}", pr["read_notes"][0]["line"])
+        self.assertEqual(pr["label_attr"], "pipe_type")
+        self.assertEqual(cfg["pipelines"], {}, "no top-level pipelines: the blocks carry their own (the Insulation shape)")
+        # it RUNS, on every surface (owner S1: one predicate, no staging switch)
+        self.assertTrue(extraction.has_runnable_pricing_rules(cfg))
+        configs = {c["category_id"]: c for c in self.v36["category_configs"]}
+        self.assertTrue(extraction.config_is_eligible(cfg, configs), "priced on a BoQ row AND on the calculator")
+        self.assertFalse(extraction.has_runnable_pricing_rules(self.cfg35), "v35 did not run")
+        # the loader's own gate, as stored
+        config_validation._validate_config(loader._loaded_config(copy.deepcopy(cfg), "HVAC", self.v36.get("goldens") or {}))
+        for c in self.v36["category_configs"]:
+            config_validation._validate_config(loader._loaded_config(copy.deepcopy(c), "HVAC", self.v36.get("goldens") or {}))
+        # item_name: declared for the Rate Master, NEVER asked of the model, NEVER a panel definition
+        d0 = cfg["attribute_definitions"][0]
+        self.assertEqual(d0["id"], "item_name")
+        self.assertIs(d0["selector"], False)
+        self.assertIs(d0["panel"], False)
+        adp = next(c for c in self.v36["category_configs"] if c["category_id"] == "hvac_adp")
+        adp_name = next(d for d in adp["attribute_definitions"] if d["id"] == "item_name")
+        self.assertEqual((adp_name["selector"], adp_name["panel"]), (False, False), "the same two flags ADP's item_name carries")
+        spec = extraction.build_items_spec(cfg)
+        self.assertEqual([d["id"] for d in spec["attribute_definitions"]], ["pipe_type", "size_mm", "pipe_class"], "the model's questions (cert step 12)")
+        self.assertEqual(spec["family_attribute_id"], "pipe_type")
+        self.assertNotIn("item_name", [d["id"] for d in extraction.build_attribute_defs(cfg)])
+        ctx = extraction._group_context({("HVAC", CATEGORY): dict(cfg, discipline="HVAC")}, "HVAC", CATEGORY)
+        self.assertEqual(ctx["defs"], [], "an item-list config asks no row-level question")
+        self.assertEqual([d["id"] for d in ctx["items_spec"]["attribute_definitions"]], ["pipe_type", "size_mm", "pipe_class"])
+        # NEGATIVE: with the flags dropped item_name WOULD reach the row-level projection
+        plain = copy.deepcopy(cfg)
+        plain["attribute_definitions"][0] = {k: v for k, v in plain["attribute_definitions"][0].items() if k not in ("selector", "panel")}
+        self.assertIn("item_name", [d["id"] for d in extraction.build_attribute_defs(plain)])
+
+    def test_11_NEGATIVE_the_validator_refuses_every_12e2_key_in_a_wrong_shape_by_name(self):
+        def refused(mutate, needle):
+            cfg = copy.deepcopy(self.cfg)
+            mutate(cfg["list_spec"]["pricing"])
+            with self.assertRaises(frappe.ValidationError) as cm:
+                config_validation._validate_config(loader._loaded_config(cfg, "HVAC", {}))
+            self.assertIn(needle, str(cm.exception))
+        config_validation._validate_config(loader._loaded_config(copy.deepcopy(self.cfg), "HVAC", {}))   # the shipped config passes
+        refused(lambda pr: pr["numbers"]["size_mm"].pop("inches"), "inch_mm_alt needs inches: true")
+        refused(lambda pr: pr["numbers"]["size_mm"].update(inch_mm_alt=25.4), "other than 25.4")
+        refused(lambda pr: pr["numbers"]["size_mm"].update(inch_mm_alt=0), "positive number")
+        refused(lambda pr: pr["numbers"]["size_mm"].update(typed_entry="any"), "typed_entry must be one of")
+        refused(lambda pr: pr["size_match"].update(near=-0.1), "size_match.near must be a positive number")
+        refused(lambda pr: pr["size_match"].update(below_smallest="largest"), "below_smallest must be one of")
+        refused(lambda pr: pr.update(unit_refusal="not a length unit"), "carrying {unit}")
+        refused(lambda pr: pr["family_text"]["map"].append({"from": "ABS", "to": "ABS pipe", "rule": "x"}), "must name a priceable family")
+        refused(lambda pr: pr["family_text"]["map"].append({"from": "ms", "to": "MS", "rule": "x"}), "already a family value")
+        refused(lambda pr: pr["family_text"]["map"].append({"from": "gi", "to": "MS", "rule": "x"}), "mapped twice")
+        refused(lambda pr: pr["family_text"]["refuse"].append({"from": "GI", "refuse": "no", "rule": "x"}), "already mapped")
+        refused(lambda pr: pr["family_text"]["refuse"].append({"from": "Copper", "refuse": "no", "rule": "x"}), "is a family value and cannot refuse")
+        refused(lambda pr: pr["family_text"].update(line="priced as {to}"), "carrying {from} and {to}")
+        refused(lambda pr: pr["family_text"].update(from_row={"rule": "x", "refuse": "two types"}), "carrying {types}")
+        refused(lambda pr: pr["family_text"].update(extra=1), "unknown key(s): extra")
+        refused(lambda pr: pr.update(panel_optional=["size_mm"]), "read by the pricing and cannot be an optional box")
+        refused(lambda pr: pr.update(panel_optional=["pipe_type"]), "read by the pricing")
+        refused(lambda pr: pr.update(panel_optional=["nothing"]), "not an item attribute")
+        refused(lambda pr: pr.update(panel_readonly=["pipe_class"]), "also panel_readonly")
+        refused(lambda pr: pr.update(family_text={}), "must carry map and line")
+
+    def test_12_the_four_inputs_are_read_by_the_piping_pipelines_only_one_family_each(self):
+        from nirmaan_stack.services.boq_rate_master import csv_exporter
+        used = csv_exporter.pricing_input_used_by({c["category_id"]: c for c in self.v36["category_configs"]})
+        for fam, iid in INPUT_IDS.items():
+            n, cats = used.get(iid, (0, []))
+            self.assertEqual((n, cats), (1, [CATEGORY]), "%s is read at ONE site, by the Piping config alone" % iid)
+        # the seven Insulation inputs are untouched by the walk: still read by Insulation only
+        self.assertEqual(used["gi_sheet_rate"][1], ["hvac_insulation"])
+        # each input is read by exactly one family's pipeline, and every family reads exactly one input
+        pr = self.cfg["list_spec"]["pricing"]
+        reads = {}
+        for fam, f in pr["families"].items():
+            for pid, pl in f["units"]["length"]["pipelines"].items():
+                for s in pl["steps"]:
+                    if s["step"] == "rate_ref":
+                        reads.setdefault(s["ref"]["item"], set()).add(fam)
+        self.assertEqual(reads, {iid: {fam} for fam, iid in INPUT_IDS.items()})
+        # no Insulation / ADP pipeline reads a Piping input
+        for c in self.v36["category_configs"]:
+            if c["category_id"] == CATEGORY:
+                continue
+            self.assertFalse(any(iid in json.dumps(c) for iid in INPUT_IDS.values()), "%s reads no Piping input" % c["category_id"])
+
+    def test_13_v36_is_the_newest_hvac_asset_on_disk(self):
+        d = os.path.dirname(_asset_path(V36))
+        ns = [int(m.group(1)) for f in os.listdir(d) for m in [re.match(r"rate_master_hvac_all_v(\d+)\.json$", f)] if m]
+        self.assertEqual(max(ns), 36)
+        self.assertTrue(os.path.exists(_asset_path(V35)))
+        self.assertFalse(os.path.exists(_asset_path("rate_master_hvac_all_v%d.json" % (max(ns) + 1))))
+
+
+class TestSlice12e2Live(FrappeTestCase):
+    """LIVE site, after `loader.load_rate_master(v36, replace=True)` (batch rmbulk-a656afd62046). Read-only."""
+
+    def test_live_04_the_live_catalogue_is_v36_by_content_and_serves_eleven_inputs(self):
+        v36 = _read(V36)
+        a = {it["item_uid"]: it for it in v36["items"]}
+        rows = frappe.get_all("BoQ Rate Master Item", filters={"discipline": "HVAC", "active": 1},
+                              fields=["kind", "brand", "unit", "attributes", "rates", "item_uid"])
+        self.assertEqual(len(rows), 379, "load v36 first")
+        norm = lambda it: _norm({"kind": it["kind"], "brand": it.get("brand") or None, "unit": it.get("unit"),
+                                 "attributes": it["attributes"] if isinstance(it["attributes"], dict) else json.loads(it["attributes"] or "{}"),
+                                 "rates": it["rates"] if isinstance(it["rates"], dict) else json.loads(it["rates"] or "{}")})
+        live = {r["item_uid"]: norm(r) for r in rows}
+        self.assertEqual(set(live), set(a))
+        self.assertEqual([u for u in a if norm(a[u]) != live[u]], [])
+        served = rate_master.get_rate_master_items(discipline="HVAC", kind=INPUT_KIND)
+        self.assertEqual(served["count"], 11)
+        self.assertEqual({it["attributes"]["item"]: it["rates"] for it in served["items"] if it["attributes"]["shared_by"] == "piping"},
+                         {INPUT_IDS[f]: {"factor": ACCESSORIES[f]} for f in ACCESSORIES})
+        cfg = rate_master.get_rate_category_config(discipline="HVAC", category_id=CATEGORY)["config"]
+        self.assertEqual(cfg["matching_mode"], "item_list")
+        self.assertEqual(sorted(cfg["list_spec"]["pricing"]["families"]), ["CPVC", "Copper", "MS", "PVC"])
+        self.assertTrue(extraction.config_is_eligible(cfg))
+        pip = rate_master.get_rate_master_items(discipline="HVAC", kind=KIND)
+        by = {(it["attributes"]["pipe_type"], float(it["attributes"]["size_mm"])): it for it in pip["items"]}
+        for fam, size, g, _k, _l in SHEET_G_K_L:
+            self.assertEqual(by[(fam, size)]["rates"]["cost_supply"], g)

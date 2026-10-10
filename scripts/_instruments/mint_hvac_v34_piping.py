@@ -78,13 +78,16 @@ def read_sheet(path):
         if item not in PIPE_TYPE_BY_ITEM:
             raise SystemExit("row %d: unknown Item text %r" % (excel_row, item))
         num = lambda k: r[COLS[k]]
-        for k in ("size_mm", "supply_markup", "install_markup", "cost_supply", "cost_install"):
+        for k in ("size_mm", "supply_markup", "install_markup", "cost_supply", "cost_install", "bcs_pipe", "bcs_accessories", "boq_supply", "boq_install"):
             if not isinstance(num(k), (int, float)):
                 raise SystemExit("row %d: %s is not a number: %r" % (excel_row, k, num(k)))
         out.append({
             "excel_row": excel_row, "item_name": item_name, "pipe_type": PIPE_TYPE_BY_ITEM[item], "unit": str(r[COLS["unit"]]).strip(),
             "size_mm": float(num("size_mm")), "supply_markup": float(num("supply_markup")), "install_markup": float(num("install_markup")),
             "cost_supply": float(num("cost_supply")), "cost_install": float(num("cost_install")),
+            # 12e-2: the sheet's BCS Pipe (G), BCS Accessories (H) and the two BoQ figures (K, L) -- read, verified, never computed
+            "bcs_pipe": float(num("bcs_pipe")), "bcs_accessories": float(num("bcs_accessories")),
+            "boq_supply": float(num("boq_supply")), "boq_install": float(num("boq_install")),
         })
     if len(out) != 40:
         raise SystemExit("expected 40 data rows, read %d" % len(out))
@@ -114,7 +117,7 @@ def _validate_candidate(config, items):
     bad = config_validation.derived_rate_updates([config], by_uid)
     if bad:
         raise SystemExit("derived cells disagree with their base in the candidate: %r" % bad)
-    missing = [it["item_uid"] for it in items if not str(it["attributes"].get("item_name") or "").strip()]
+    missing = [it["item_uid"] for it in items if it["kind"] == KIND and not str(it["attributes"].get("item_name") or "").strip()]
     if missing:
         raise SystemExit("12e-1b: every Piping item carries item_name; missing on %r" % missing)
 
@@ -210,6 +213,226 @@ def build(workbook, base, out):
     frappe.destroy()
 
 
+# ---------------------------------------------------------------------------------------------------------
+# SLICE 12e-2 (owner option "1", 2026-10-10 10:58; rulings "option b, yes" / Q14 / Q14a / Q17 / Q11 / Q16 / Q15
+# / Q10 / Q19 / Q18) -- PHASE `price`: HVAC v36 = v35 + PIPING PRICES IN THE CALCULATOR AND ON A BoQ ROW.
+#
+#   (a) cost_supply on the 40 Piping items = the sheet's BCS Pipe (column G), VERIFIED FIRST: for all 40 rows
+#       ROUNDUP(G x (1 + the family's accessories)) must equal the sheet's Total BCS Supply (column I, what v35
+#       stores), or the phase stops naming the rows. cost_install, both markups, item_name, pipe_type, size_mm
+#       and the uids are untouched. The two MS links (derived_rates) now hold on column G (verified).
+#   (b) FOUR new `hvac_pricing_input` items in the shape of the seven HVAC inputs ("Piping accessories - Copper"
+#       0.30; "- MS", "- PVC", "- CPVC" 0.60), uids through the ONE mint.
+#   (c) the Piping config becomes an ITEM-LIST config in Insulation's shape: families keyed by pipe_type, one
+#       per-metre unit block each, the P5 pipeline (rate_ref to the family's input -> match -> BCS pipe ->
+#       x (1 + accessories) -> ROUNDUP -> x (1 + supply markup) -> ROUNDUP; install: x (1 + install markup)
+#       -> ROUNDUP), the P1 / P2 / P3 / P4 rules as config keys. `item_name` keeps its definition for the Rate
+#       Master (selector: false, panel: false -- ADP's flags) and is never asked of the model nor shown on the
+#       panel: the model's questions are `list_spec.attribute_definitions` alone.
+# Offline validation exactly as `build` / `name` (the loader's validators + the derived-rate consistency +
+# the asset check for item_name); NO database write. `load` then runs as before; the same two hand steps
+# (series order, intentional_removals) follow the export.
+# ---------------------------------------------------------------------------------------------------------
+ACCESSORIES = {"Copper": 0.3, "MS": 0.6, "PVC": 0.6, "CPVC": 0.6}      # the sheet's column H, per family
+INPUT_IDS = {"Copper": "piping_accessories_copper", "MS": "piping_accessories_ms",
+             "PVC": "piping_accessories_pvc", "CPVC": "piping_accessories_cpvc"}
+INPUT_KIND = "hvac_pricing_input"
+# the length spellings Insulation's unit table carries (12c), "mts" first so the calculator's picker reads "mts"
+LENGTH_SPELLINGS = ["mts", "rmt", "rm", "mtr", "m", "metre", "meter", "metres", "meters", "mt", "rmtr", "r.mt", "rmt.",
+                    "running metre", "running meter", "r.m", "lm", "mtrs", "rmts"]
+
+
+def _roundup(x):
+    import math
+    return math.ceil(round(x, 9))
+
+
+def piping_input_items(taken):
+    """The four accessories inputs, in the shape of the seven HVAC inputs (unit `factor`, one `rates.factor`)."""
+    from nirmaan_stack.services.boq_rate_master import csv_importer
+    out = []
+    for fam in ("Copper", "MS", "PVC", "CPVC"):
+        uid = csv_importer.mint_item_uid("HVAC", taken)     # the ONE mint
+        taken.add(uid)
+        out.append({
+            "kind": INPUT_KIND, "brand": None, "unit": "factor",
+            "attributes": {
+                "item": INPUT_IDS[fam],
+                "name": "Piping accessories - %s" % fam,
+                "remarks": "The accessories share on a %s pipe's BCS cost (the sheet's 'BCS Accessories' column): "
+                           "supply = ROUNDUP(BCS pipe x (1 + this)) before the supply markup. Read by the %s per-metre "
+                           "pipeline only." % (fam, fam),
+                "shared_by": "piping",
+            },
+            "rates": {"factor": ACCESSORIES[fam]},
+            "source": {"sheet": "Pricing Inputs", "row": 0},
+            "item_uid": uid,
+        })
+    return out
+
+
+def _supply_pipeline(fam):
+    label = "Piping accessories - %s" % fam
+    return {"output": ["supply"], "steps": [
+        {"step": "rate_ref", "ref": {"kind": INPUT_KIND, "item": INPUT_IDS[fam]}, "target": "factor", "result": "acc",
+         "explain": "pricing input: %s (factor)" % INPUT_IDS[fam]},
+        {"step": "match_master_row", "params": {"kind": KIND}, "explain": "match the pipe SKU (pipe type and size)"},
+        {"step": "component", "name": "pipe", "target": "cost_supply", "formula": "base",
+         "explain": "BCS pipe: the pipe's own cost from the sheet; the accessories share (the Pricing Input '%s') and the "
+                    "supply markup are added below" % label},
+        {"step": "sum_components", "result": "bcs_pipe", "explain": "BCS pipe"},
+        {"step": "scale", "target": "bcs_pipe", "result": "bcs_supply", "params": {"acc_from_ctx": "acc"}, "formula": "base*(1+acc)",
+         "explain": "BCS pipe x (1 + the accessories share)"},
+        {"step": "roundup", "target": "bcs_supply", "params": {"digits": 0}, "explain": "ROUNDUP(BCS supply, 0)"},
+        {"step": "scale", "target": "bcs_supply", "result": "supply", "params": {"m_from_ctx": "supply_markup"}, "formula": "base*(1+m)",
+         "explain": "BCS supply x (1 + the SKU's supply markup)"},
+        {"step": "roundup", "target": "supply", "params": {"digits": 0}, "explain": "ROUNDUP(supply, 0)"},
+    ]}
+
+
+def _install_pipeline():
+    return {"output": ["install"], "steps": [
+        {"step": "match_master_row", "params": {"kind": KIND}, "explain": "match the pipe SKU (pipe type and size)"},
+        {"step": "component", "name": "install", "target": "cost_install", "formula": "base",
+         "explain": "BCS install: the pipe's own installation cost from the sheet"},
+        {"step": "sum_components", "result": "bcs_install", "explain": "BCS install"},
+        {"step": "scale", "target": "bcs_install", "result": "install", "params": {"m_from_ctx": "install_markup"}, "formula": "base*(1+m)",
+         "explain": "BCS install x (1 + the SKU's install markup)"},
+        {"step": "roundup", "target": "install", "params": {"digits": 0}, "explain": "ROUNDUP(install, 0)"},
+    ]}
+
+
+def piping_pricing_config(base_config):
+    """The v36 Piping config: v35's config + matching_mode item_list + the list_spec (the model's three questions,
+    the pricing block with the P1-P5 rules) + ADP's two flags on the `item_name` definition. Everything else
+    (item_kinds, derived_rates, category_display, the three definitions' content) is carried verbatim."""
+    cfg = copy.deepcopy(base_config)
+    defs = cfg["attribute_definitions"]
+    assert [d["id"] for d in defs] == ["item_name", "pipe_type", "size_mm"], defs
+    defs[0] = dict(defs[0], selector=False, panel=False)   # never asked of the model, never on the panel (ADP's shape)
+    families = {}
+    for fam in ("Copper", "MS", "PVC", "CPVC"):
+        families[fam] = {"needs": [], "units": {"length": {"needs": ["size_mm"],
+                                                           "pipelines": {"supply": _supply_pipeline(fam), "install": _install_pipeline()}}}}
+    cfg["matching_mode"] = "item_list"
+    cfg["list_spec"] = {
+        "family_attribute_id": "pipe_type",
+        "attribute_definitions": [
+            {"id": "pipe_type", "label": "Pipe type", "type": "choice", "values": ["Copper", "MS", "PVC", "CPVC"],
+             "note": "Which pipe the row buys: refrigerant / copper piping is Copper; chilled-water MS piping is MS; PVC and "
+                     "CPVC as written. (The model instruction for GI, uPVC, HDPE, SS and 'cannot tell' is written in 12e-4.)"},
+            {"id": "size_mm", "label": "Pipe size", "type": "text",
+             "note": "The pipe's nominal size AS THE ROW WRITES IT, in mm or in inches (5/8\", 1-1/4\", 2 inch). Never converted."},
+            {"id": "pipe_class", "label": "Class / wall thickness", "type": "text",
+             "note": "A class, wall thickness, schedule or 'seamless' the row states for the pipe, copied as written. Recorded "
+                     "and shown; it never changes the price (the sheet has one rate per size)."},
+        ],
+        "second_opinion": False,
+        "pricing": {
+            "kind": KIND,
+            "label_attr": "pipe_type",
+            "unit_class_attr": "unit_class",
+            "unit_classes": {"length": LENGTH_SPELLINGS},
+            "unit_words": {"length": "metre"},
+            "unit_refusal": "unit '{unit}' is not a length unit",
+            "numbers": {"size_mm": {"from": ["size_mm"], "name": "pipe size", "unit": "mm", "inches": True, "inch_mm_alt": 25,
+                                    "typed_entry": "one_size"}},
+            "ladders": ["size_mm"],
+            "match_attrs": ["size_mm"],
+            "choice_attrs": [],
+            "size_match": {"dp": [2, 1], "near": 0.1, "below_smallest": "smallest"},
+            "family_text": {
+                "map": [
+                    {"from": "GI", "to": "MS", "rule": "Q16 GI is priced as MS (owner 2026-10-10)"},
+                    {"from": "uPVC", "to": "PVC", "rule": "Q16 uPVC is priced as PVC (owner 2026-10-10)"},
+                    {"from": "HDPE", "to": "PVC", "rule": "Q16 HDPE is priced as PVC (owner 2026-10-10)"},
+                ],
+                "refuse": [
+                    {"from": "SS", "refuse": "No SKU in the catalogue for SS pipe - price this row by hand",
+                     "rule": "Q16 SS refuses (owner 2026-10-10)"},
+                ],
+                "line": "BoQ says {from} -> priced as {to} (owner rule)",
+                "from_row": {"rule": "Q15 names that all land on one type price as that type; two different types with none chosen refuse (owner 2026-10-09)",
+                             "refuse": "two pipe types are named in this row ({types}) - pick the type"},
+            },
+            "families": families,
+            "panel_controls": {"pipe_type": "dropdown_or_other", "size_mm": "dropdown_or_other"},
+            "panel_notes": {
+                "pipe_type": "Pipe type as the BoQ writes it",
+                "size_mm": "Type the pipe size the BoQ states, in mm or in inches (5/8\", 1-1/4\", 2 inch). For an NB size type the number.",
+            },
+            "panel_optional": ["pipe_class"],
+            "read_notes": [
+                {"families": ["Copper", "MS", "PVC", "CPVC"], "from_attr": "pipe_class", "pattern": "^\\s*(\\S.*?)\\s*$",
+                 "line": "{match} stated -> priced at the one {family} rate (the sheet has no class rates)"},
+            ],
+        },
+    }
+    cfg["notes"] = (base_config.get("notes") or "") + (
+        " SLICE 12e-2 (owner option 1, 2026-10-10): the PRICING RULES, as an item-list config in Insulation's shape -- the "
+        "category is live on the calculator AND on a BoQ row the day its rules run (owner S1: no staging switch). "
+        "cost_supply is the sheet's BCS Pipe (column G); supply = ROUNDUP(ROUNDUP(BCS pipe x (1 + the family's accessories "
+        "Pricing Input)) x (1 + the SKU's supply markup)); install = ROUNDUP(BCS install x (1 + the SKU's install markup)). "
+        "The BoQ figures are the sheet's columns K / L unchanged. item_name is never asked of the model and never on the panel.")
+    return cfg
+
+
+def price_items(workbook, base, out):
+    """12e-2 `price`: v36 = base (v35) + cost_supply = BCS Pipe on the 40 Piping items (verified against column I
+    first) + the four accessories inputs + the item-list Piping config. Matched by `source.row`; uids kept; NO
+    database write."""
+    import frappe
+    os.chdir("/workspace/development/frappe-bench/sites")
+    frappe.init(site="localhost"); frappe.connect()
+    rows = read_sheet(workbook)
+    by_row = {r["excel_row"]: r for r in rows}
+    payload = json.load(open(base, encoding="utf-8"))
+    # (a) VERIFY FIRST: ROUNDUP(G x (1 + accessories)) == I on every row, and the MS links hold on G
+    bad = []
+    for r in rows:
+        acc = ACCESSORIES[r["pipe_type"]]
+        if _roundup(r["bcs_pipe"] * (1 + acc)) != r["cost_supply"] or abs(r["bcs_accessories"] - acc) > 1e-9:
+            bad.append((r["excel_row"], r["pipe_type"], r["size_mm"], r["bcs_pipe"], acc, r["cost_supply"]))
+    if bad:
+        raise SystemExit("AC2(a): ROUNDUP(G x (1 + accessories)) != I on %d row(s): %r" % (len(bad), bad))
+    g = {(r["pipe_type"], r["size_mm"]): r["bcs_pipe"] for r in rows}
+    if g[("MS", 300.0)] != 2 * g[("MS", 150.0)] or g[("MS", 250.0)] != g[("MS", 150.0)] + g[("MS", 100.0)]:
+        raise SystemExit("AC2: the MS links do not hold on column G: %r" % {k: v for k, v in g.items() if k[0] == "MS"})
+    items, stamped = [], 0
+    for it in payload["items"]:
+        if it["kind"] != KIND:
+            continue
+        r = by_row.get(it["source"]["row"])
+        if r is None or it["source"]["sheet"] != SHEET:
+            raise SystemExit("Piping item %s has no sheet row: %r" % (it["item_uid"], it["source"]))
+        if r["pipe_type"] != it["attributes"]["pipe_type"] or float(r["size_mm"]) != float(it["attributes"]["size_mm"]):
+            raise SystemExit("Piping item %s does not match sheet row %d" % (it["item_uid"], it["source"]["row"]))
+        if it["rates"]["cost_supply"] != r["cost_supply"]:
+            raise SystemExit("Piping item %s: v35 cost_supply %r is not the sheet's column I %r" % (it["item_uid"], it["rates"]["cost_supply"], r["cost_supply"]))
+        it["rates"] = dict(it["rates"], cost_supply=float(r["bcs_pipe"]))   # the one key that moves; order kept
+        items.append(it); stamped += 1
+    if stamped != 40:
+        raise SystemExit("expected to re-base 40 Piping items, did %d" % stamped)
+    # (b) the four inputs
+    taken = {it["item_uid"] for it in payload["items"]}
+    taken |= {(x["item_uid"] or "").strip() for x in frappe.get_all("BoQ Rate Master Item", filters={"discipline": "HVAC"}, fields=["item_uid"])}
+    inputs = piping_input_items(taken)
+    payload["items"] = payload["items"] + inputs
+    # (c) the config
+    idx = next(i for i, c in enumerate(payload["category_configs"]) if c["category_id"] == CATEGORY_ID)
+    config = piping_pricing_config(payload["category_configs"][idx])
+    payload["category_configs"][idx] = config
+    _validate_candidate(config, items + inputs)
+    from nirmaan_stack.services.boq_rate_master import extraction
+    assert extraction.has_runnable_pricing_rules(config) and extraction.config_is_eligible(config), "the rules must run"
+    assert [d["id"] for d in extraction.build_items_spec(config)["attribute_definitions"]] == ["pipe_type", "size_mm", "pipe_class"]
+    assert "item_name" not in [d["id"] for d in extraction.build_attribute_defs(config)]
+    json.dump(payload, open(out, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
+    print("candidate written:", out, "| items", len(payload["items"]), "| configs", len(payload["category_configs"]),
+          "| re-based", stamped, "| inputs", [i["item_uid"] for i in inputs])
+    frappe.destroy()
+
+
 def load(candidate, canonical):
     import frappe
     os.chdir("/workspace/development/frappe-bench/sites")
@@ -232,7 +455,7 @@ def load(candidate, canonical):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("phase", choices=["build", "name", "load"])
+    ap.add_argument("phase", choices=["build", "name", "price", "load"])
     ap.add_argument("--workbook"); ap.add_argument("--base"); ap.add_argument("--out")
     ap.add_argument("--candidate"); ap.add_argument("--canonical")
     a = ap.parse_args()
@@ -240,5 +463,7 @@ if __name__ == "__main__":
         build(a.workbook, a.base, a.out)
     elif a.phase == "name":
         name_items(a.workbook, a.base, a.out)
+    elif a.phase == "price":
+        price_items(a.workbook, a.base, a.out)   # 12e-2
     else:
         load(a.candidate, a.canonical)

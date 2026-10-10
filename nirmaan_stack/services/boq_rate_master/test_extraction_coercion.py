@@ -2321,10 +2321,15 @@ class TestItemListSlice4(FrappeTestCase):
         eligible = sorted(cat for (disc, cat) in self.cfgs
                           if extraction.build_items_spec(self.cfgs[(disc, cat)]) is not None
                           and extraction.config_is_eligible(self.cfgs[(disc, cat)], self.cfgs))
-        self.assertEqual(eligible, ["hvac_adp", "hvac_insulation"])
-        # NEGATIVE HALF KEPT: every category that is neither of those two still yields None
+        # INVERTED A THIRD TIME by SLICE 12e-2 (owner option 1, 2026-10-10): Piping becomes an item-list category
+        # whose rules RUN, and reaches extraction through the same generic arm -- EXACTLY three now.
+        self.assertEqual(eligible, ["hvac_adp", "hvac_insulation", "hvac_piping"])
+        pip = self.cfgs[("HVAC", "hvac_piping")]
+        self.assertEqual(pip.get("pipelines"), {})                        # the Insulation shape: no dead top-level entry
+        self.assertEqual([d["id"] for d in extraction.build_items_spec(pip)["attribute_definitions"]], ["pipe_type", "size_mm", "pipe_class"])
+        # NEGATIVE HALF KEPT: every category that is none of those three still yields None
         for key in self.cfgs:
-            if key not in (("HVAC", "hvac_adp"), ("HVAC", "hvac_insulation")):
+            if key not in (("HVAC", "hvac_adp"), ("HVAC", "hvac_insulation"), ("HVAC", "hvac_piping")):
                 self.assertIsNone(extraction.build_items_spec(self.cfgs[key]), key)
         self.assertIsNone(extraction.build_items_spec({"matching_mode": "item_list"}))   # mode without a spec
 
@@ -3498,7 +3503,7 @@ class TestSlice12d4cModelCall(FrappeTestCase):
             cls.v32 = json.load(fh)
         with open(_asset_path(CURRENT_HVAC_ASSET), "r", encoding="utf-8") as fh:
             cls.v33 = json.load(fh)
-        assert CURRENT_HVAC_ASSET == "rate_master_hvac_all_v35.json"   # 12e-1; 12e-1b: v35 (+ item_name)
+        assert CURRENT_HVAC_ASSET == "rate_master_hvac_all_v36.json"   # 12e-1; 12e-1b: v35 (+ item_name); 12e-2: v36 (the Piping prices)
 
     _cfgs = staticmethod(TestSlice12d1bModelCall._cfgs)
     _row = staticmethod(TestSlice12d1bModelCall._row)
