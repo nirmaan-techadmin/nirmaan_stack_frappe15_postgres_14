@@ -1051,6 +1051,34 @@ cleaner beside this one, or a cleaned string written back into a config, is how 
 another; the NEGATIVE pin (`plainEnglish.test.ts`) runs every Insulation and ADP case of the 12c-S sweep
 through both paths and refuses any code, `slice N`, `(owner` or snake_case token on any display string.
 
+**A PIPE'S PRICE IS TWO ROUNDUPS, AND THE ACCESSORIES SHARE IS A PRICING INPUT PER FAMILY, NEVER A FOLDED
+RATE (owner "option b, yes", 2026-10-10, slice 12e-2).** HVAC Piping stores the sheet's **BCS Pipe** (column G) as
+`cost_supply`; the sheet's "BCS Accessories" column is FOUR `hvac_pricing_input` items (`Piping accessories -
+Copper` 0.30; `- MS`, `- PVC`, `- CPVC` 0.60), each read by ONE family's per-metre pipeline through a `rate_ref`;
+`supply = ROUNDUP(ROUNDUP(BCS pipe x (1 + accessories)) x (1 + the SKU's supply markup))` and
+`install = ROUNDUP(BCS install x (1 + the SKU's install markup))`. ⚠️ **THE INNER ROUNDUP IS NOT OPTIONAL**: the
+sheet's Total BCS Supply is already a rounded figure and the BoQ markup applies to IT -- fold the two steps and
+copper 15.9 reads 1297.5 -> 1298 either way today but the identity `ROUNDUP(G x (1 + acc)) == I` that every
+other row rests on is gone (`test_piping_v34.test_09` pins it on all 40). The input is per FAMILY because the sheet
+states one share per family; a per-SKU share would be a stored figure nobody edits. Piping is an ITEM-LIST config
+(families keyed by `pipe_type`, one `length` block each, no top-level `pipelines` -- the Insulation shape), so it
+is live on the calculator AND on a BoQ row the day its rules run (owner S1: there is no staging switch);
+`item_name` keeps its definition for the Rate Master under ADP's two flags and is never asked of the model.
+
+**A STATED PIPE SIZE LANDS ON A RUNG BY A DECLARED LADDER, AND EACH RUNG IS A CONFIG KEY (owner Q14 / Q14a / Q17
+/ Q11, 2026-10-10).** The order is: mm at 2 dp -> 1 dp (`size_match.dp`) -> the inch read x 25.4 at the same
+depths -> the SECOND conversion x 25 (`numbers.<axis>.inch_mm_alt`, carried as an ALTERNATIVE read beside the
+exact one, never instead of it) -> the nearest stocked size within `size_match.near` (0.1 mm: 1-1/4" = 31.75 is
+the sheet's own 31.7) -> below the smallest -> the smallest (`size_match.below_smallest: "smallest"`, a
+DECLARATION of what the ladder has always done, which is what lets the line say "the smallest size") -> between
+-> the next size up -> above the largest -> refuse naming it. ⚠️ **Every rung is confined by key presence**:
+Insulation and ADP declare none of the four, and `resolveSize` itself never reads `near`, so their every hop and
+line is byte-identical. A value the PRICER types on a `typed_entry: "one_size"` axis must be ONE size (a number
+in mm, or an inch form whose fraction has a power-of-two denominator); "40/50" and "two inch" refuse with one
+message -- while a MODEL cell "40/50" still reads as a slash pair. A family answer written as the BoQ writes it is
+read by ONE reader (`family_text`: GI -> MS, uPVC / HDPE -> PVC with the line, SS refuses with its sentence, any
+other spelling refuses by name), shared by the calculator's typed "Other..." pipe type and the 12e-4 model path.
+
 ---
 
 ## Rate-master invariants filed under Domain Gotchas

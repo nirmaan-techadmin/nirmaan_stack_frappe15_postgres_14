@@ -45823,3 +45823,113 @@ other HVAC batch, `rmbulk-919ada2943fa`, is `test_live_01`'s documented freeze-a
 A served-payload name assertion (the live class) was deliberately not added — the prompt asked for one test. The domain doc
 (`boq-rate-master.md` § Load-bearing invariants) now carries the rule that a catalogue item keeps the sheet's own item text as
 a DECLARED attribute, with the three shapes named.
+
+## Slice 12e-2 — PIPING PRICES: HVAC v36, RULES P1-P5, DERIVATION, GUARDS (2026-10-10) — SHIPPED, WITH OPEN ITEMS
+
+**The slice first STOPPED** on its own condition ("no calculator-only switch exists"): owner S1 (12d-2) retired
+`calculator_only`, one predicate admits a category on every surface, and Piping was a row-level config that
+`itemListRuleOrder` cannot list. **Owner, resume addendum 2 (10:58): option "1"** — Piping is live on both surfaces the day
+its rules run, built as an ITEM-LIST config in Insulation's shape; `test_piping_v34.test_04`'s claim inverts (the v35 class
+still pins the v35 file as data-only). Amendment 1 (10:29): the typed "Other..." pipe type.
+
+**Built.** Commit `cbee9bec6` (feat, rate-master): `mint_hvac_v34_piping.py` gains the `price` phase (verify-first, offline
+validation, no DB write). v36 = v35 + (a) `cost_supply` = the sheet's BCS Pipe (column G) on the 40 Piping items — all 40
+rows satisfy ROUNDUP(G x (1 + accessories)) == column I, and the two MS links hold on G (2800 = 2 x 1400; 2340 = 1400 + 940);
+(b) four `hvac_pricing_input` items in the shape of the seven (`piping_accessories_copper` 0.30, `_ms` / `_pvc` / `_cpvc` 0.60;
+labels "Piping accessories - <family>", unit `factor`, `shared_by: piping`); (c) the Piping config: `matching_mode: item_list`,
+`list_spec` with three per-item questions (`pipe_type`, `size_mm`, `pipe_class`), families Copper / MS / PVC / CPVC each with ONE
+`length` block and its own pipelines (no top-level `pipelines`), `item_name` kept for the Rate Master under ADP's two flags
+(`selector: false, panel: false`). Loaded on dev: pre-load snapshot `BRMS-26-00185`, batch `rmbulk-a656afd62046`, 379 items /
+10 configs, `retirements_without_reason` 0; the committed file is the export re-ordered into the series convention with
+`intentional_removals` carried; mint gate v35 -> v36 PASS, `--latest` PASS. Live HVAC == v36, live with the changes undone ==
+v35, live Electrical == v66 (0 differing each).
+Commit `78f27bdb9` (feat, rate-helper): the pricer, the panel, the Derivation lines and the guards.
+
+**The validator's seven new optional keys** (`config_validation.py`; each absent on Insulation / ADP / Electrical, each with a
+NEGATIVE test refusing a wrong shape by name — `test_piping_v34.test_11`): `numbers.<axis>.inch_mm_alt`,
+`numbers.<axis>.typed_entry: "one_size"`, `size_match.near`, `size_match.below_smallest: "smallest"`, `unit_refusal`,
+`family_text {map, refuse, line, from_row}`, `panel_optional`.
+
+**The rules, as the Derivation tab lists them (14 lines, generated from the config):** the unit (P4: length; no unit / R/O
+priced per metre with the note; any other unit refuses "unit 'nos' is not a length unit"); the kind (4); P1 "A pipe type written
+as GI, uPVC, HDPE is priced as the kind it means" (line "BoQ says GI -> priced as MS"); "A pipe type the catalogue does not stock
+refuses by name" (SS: "No SKU in the catalogue for SS pipe - price this row by hand"; any other spelling: the R18 sentence);
+"A row naming one pipe type prices as it; two different ones with none chosen refuse" (Q15, the row's OWN text); the rule for the
+unit; the needs (pipe size); P2 inches (25.4, then 25); "A typed pipe size is one size, in mm or inches"; P3 the class line
+("Class C stated -> priced at the one MS rate (the sheet has no class rates)"); the ladder; P5 the priced steps (the four inputs
+by label); the derived cells (4 on 2 rows); the quantity.
+
+**The ladder table (typed on the calculator -> rung -> line), all pinned in `slice12e2.test.ts`:**
+`5/8"` Copper -> 15.9, 1298 / 220, "You typed 5/8" -> 15.875 mm -> priced as 15.9 mm (the sheet's own spelling of this size)";
+`1-1/4"` / `1 1/4"` / `1¼"` Copper -> 31.7 (the 0.1 mm rung), 2925 / 220; `4 inch` MS -> 100, 2256 / 560, "You typed 4 inch ->
+101.6 mm / 100 mm -> priced as 100 mm"; `2"` MS -> 50; `1 inch` Copper -> 25.4; `15.88` Copper -> 15.9; `15` MS -> 19 "(the
+smallest size)", 456 / 112; `110` PVC -> 150 "(next size up)", 1212 / 168; `50 NB` CPVC -> 50; `350` MS -> refuses "pipe size 350
+is above the largest size on the sheet (300)"; `40/50`, `two inch`, `40-50`, `as per spec`, `13+13` -> refuse "Type one pipe size,
+in mm or inches".
+
+**AC evidence.** AC1: `slice12e2.test.ts` AC1 block — copper 5/8" 1298 -> 1397 with the input patched to 0.40, back at 0.30, on
+the calculator path AND through `priceSkuExactItemList`; seen on screen (C7 / C8). AC2 above. AC3 / AC6: the 14 lines; structural
+vacuity (each key removed drops its line). AC4 (amended): eligible on every surface (`test_10`, `il_02`). AC5:
+`ruleReachability` guard Insulation 24 / ADP 18 / Piping 14 with 44 Piping cases; `calculatorPanelParity` Piping block (16
+generated cases, the 40 SKUs, 12 named paths, two named exclusions, vacuity). AC7: 13,365 rows / 23 configs / 1,781 items through
+the 12d-8 panel-path harness against the working tree -> BYTE-IDENTICAL to the 12e-0c baseline (sha256
+`b589c254427e9f97fbb9b9e2c05602f4af041e912c6fd92ac8bf5d1c646a0a4c`; row method
+`c975713864a6810cc3494ab0b5270b454107b99c12b1f20a68f7d6d5ec5698c9`); 0 rows differ. ⚠️ The amended class is EMPTY: no active
+run holds a Piping row, so nothing moved to "needs attributes". Zero model calls (capture 577 before and after the harness; the
+22 lines 555 -> 577 are the targeted suites' fake clients). AC8: the 40 figures named by family and size on both paths.
+
+**Pins inverted by name, never deleted (no price pin):** `CURRENT_HVAC_ASSET` v35 -> v36 + the six name pins + the coercion pin;
+`sv_01` inputs 7 -> 11, HVAC 375 -> 379; `an_07` typed notes 4 -> 6; `co_f1_12` used-by 7 -> 11; `p01` the key set (+3);
+`v33_02` normalised for the four inputs (`_without_12e2_piping_inputs`); `il_02` eligible item-list categories 2 -> 3;
+`test_06` newest 35 -> 36; `live_02` cost_supply = G; frontend: served 375 -> 379, parity 375 -> 379 / 1,777 -> 1,781 /
+row-level 1,970 -> 1,933, the panel's note-box count 2 -> 3, the plain-English sweep covers Piping. `parityMaster.json`
+re-snapshotted (items + computed cells; configs kept except `hvac_piping`). Vacuity: five mechanisms disabled in
+`itemListPricing.ts` -> 28 named tests red; restored byte-identical.
+
+### Browser cert (2026-10-10; screenshots `2026-10-10_12e2_screens/`)
+
+De-stale: 22 PIDs on TERM, 0 left, ports free, pycache 212 -> 0, `.vite` purged, ping after 233 s, vite 16 s; PROOF 1 the
+served transformed `itemListPricing` / `pricingSheetHelper` / `RateHelperPanel` carry this slice's code strings; PROOF 2 a
+runtime `import()` in the page returned `ONE_SIZE_MESSAGE` and the new edit op's result; backend serves v36. (The host wrapper
+of the de-stale was killed for low memory; the script completed inside the container.)
+C1 Copper Other 5/8" -> the conversion line, the working naming "Piping accessories - Copper (factor) = 0.3", 1298 / 220.
+C2 Copper 1-1/4" -> 31.7, 2925 / 220. C3 MS 4 inch -> 2256 / 560; MS 350 refuses naming 300; MS 15 -> 19 the smallest, 456 / 112.
+C4 Other GI 50 -> "BoQ says GI -> priced as MS", 984 / 280; Other uPVC 110 -> priced as PVC + next size up, 1212 / 168; Other SS
+-> the SS refusal, no price; Other ABC -> refused by name. C5 PVC 110 -> 150, 1212 / 168; CPVC 50 -> 576 / 56. C6 Class C -> the
+line, price unchanged. C7 Pricing Inputs: eleven rows; Copper 0.30 -> 0.40: copper 15.9 1,298 -> 1,397, 13 rows move.
+C8 calculator 1397 / 220; restored (panel + DB: 0.3, live == v36); calculator 1298 / 220. C9 viewer: copper 15.9 cost_supply 665,
+MS 300 2800 `derived`; the formula row names the four inputs; Derivation lists the 14 lines; Pipelines renders. C10 Insulation
+556 / 224 / 780; ADP 7830 / 692. Fast render OFF for row 156, ON after; "Use this value" never pressed.
+
+**CERT FINDINGS (reported, not repaired):**
+1. **Row 156 shows NO Piping panel before a run** (addendum items 2 / 4 could not be seen). `rowUsesPreRunHelper`: a row whose
+   own category is eligible never uses the before-run helper, so without a `BoQ Rate Suggestion Run` the panel shows the two
+   stub cards only — the rule Insulation / ADP rows follow. Hand-picking on a BoQ row needs a run (12e-4) or an owner ruling
+   changing that rule for every eligible category. Rows 156+ now carry the Suggest-rates tick box.
+2. **The impact panel lists all 40 Piping SKUs for one family's input** ("40 items", "changes the BoQ supply rate of 40 SKUs")
+   where 13 move; the figures themselves are exact (only the 13 copper rows show a change). `pricingInputReach` does not narrow a
+   family's pipeline by the family attribute when it is `pipe_type`. Its row label also shows the id `size_mm`.
+3. **The impact panel's Factor box turns typed "0.4" into "4"** keystroke by keystroke (set in one event it takes 0.4).
+4. **M1 not done:** the card still carries the shared "Pricing sheet" header; removing it for Piping alone needs a config key or
+   a change that also moves Insulation / ADP.
+5. The unit refusal ("nos") cannot be reached on the calculator (its picker offers `mts` only); pinned in tests on the panel path.
+6. Derivation line 10 prints the literal `{family}`; the size field is not rendered while the typed pipe type is refused.
+7. A MODEL-read "40/50" on this axis is read as a fraction of an inch (0.8" -> 25 mm) by the existing inch reader, while typed
+   it refuses — a named parity exclusion; for 12e-4.
+
+### Tests (measured in-session)
+
+Before = 12e-1b's Python log (8,037 / 13 knowns) and 12e-1's frontend log (164 files / 5,814 / 1 known), same start commit
+`ccf4457d6`. Targeted before commit 1: `test_piping_v34` 17, `test_rate_master` 742, `test_extraction_coercion` 208 (four pins
+inverted by name and re-run green). Targeted before commit 2: vitest `src/pages/boq-wizard/rate-helper` + `src/pages/pricing`,
+48 files / 2,611 tests green. Full suites after the last code commit (Desktop `2026-10-10_12e2_python_full.log` /
+`_frontend_full.log`): Python **8,044 tests** (8,037 + 7 new), FAILED failures 6 + errors 6 = the 12 12e-0c knowns (the
+daily-window flake did not fire: the run was outside 00:00-05:30 IST); frontend **165 files / 5,986 tests / 1 failing** = the
+known `POAdjustment/writeOffControl.test.ts`. Capture log 577 -> 666 during the full Python suite: 89 lines, the same composition
+12e-1 and 12e-1b recorded (`claude-opus-4-8` 49 from the mock-patched `test_rate_suggest` run doc, `m` 35, `test-model` 4,
+`stub-model` 1) -- zero real model calls. `residence_check`: F5 120 vs 117, F2 221 vs 217 -- the figures 12e-1 measured before
+its own changes; this slice adds no `JSON.parse` / `updateDoc`.
+
+**What 12e-3 / 12e-4 inherit.** The seven findings above; the Suggest-rates run now extracts Piping rows through the generic
+item-list prompt (12e-4 writes the model instructions before any run); the three cert images not saved by the tool (C2, C4 GI,
+C4 uPVC) have on-screen text reads only.

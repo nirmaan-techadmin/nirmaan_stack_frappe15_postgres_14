@@ -699,6 +699,25 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
   branches are unit-testable; the selected-row branch carries NO warning because it has no such
   consequence.
 - **Matching a stated value to a dropdown option must never discard meaning the pricer reads (layers, compositions); option matching runs only on values the pricer would read the same way** (12d-6, owner-locked: `computeItemList` skips `matchStatedToOption` for any value `readLayers` accepts -- the panel used to hand the pricer the option "19" for a model-read "Double layer of 19 mm" and price one layer).
+- **A pipe row's figure is two ROUNDUPs with the accessories share read from a per-family Pricing Input
+  (owner "option b, yes", 2026-10-10, slice 12e-2).** The Piping block's working reads, in order, the family's
+  `Piping accessories - <family>` input, `BCS pipe = <G>`, `BCS pipe x (1 + the accessories share)`,
+  `ROUNDUP(BCS supply, 0)`, `BCS supply x (1 + the SKU's supply markup)`, `ROUNDUP(supply, 0)`; install is
+  `BCS install x (1 + the SKU's install markup)`, rounded up. The inner ROUNDUP is the sheet's own Total BCS
+  Supply and must stay (the pins are `test_piping_v34.test_09` and `slice12e2.test.ts`, the 40 figures named by
+  family and size on BOTH paths). The impact panel prices the same way through `priceSkuExactItemList`.
+- **A typed pipe size lands on its rung by the declared ladder, and the field's line shows the whole read
+  (owner Q14 / Q14a / Q17 / Q11).** On an axis declaring `typed_entry: "one_size"`, the line reads
+  `You typed 5/8" -> 15.875 mm -> priced as 15.9 mm (the sheet's own spelling of this size)`,
+  `You typed 4 inch -> 101.6 mm / 100 mm -> priced as 100 mm` (the x 25 conversion landed),
+  `You typed 15 -> priced as 19 mm (the smallest size)`, `You typed 110 -> priced as 150 mm (next size up)`;
+  the 0.1 mm rung (`size_match.near`) is what takes 1-1/4" (31.75) to the sheet's 31.7. `LadderHop.how` is
+  written ONLY where a declaring key is present, so Insulation's `You typed 31.75 mm -> priced as 34.93 mm
+  (next size up)` is byte-identical. The pipe type is a CONTROL on Piping alone (`panel_controls.pipe_type:
+  dropdown_or_other`): a select of the stocked families plus "Other...", whose box is bound to what the pricer
+  TYPED (`familyControl.typedValue`, the family id in `edit.other`) while the block's heading shows the family
+  USED and the config's line sits beneath (`familyLine`, amber, in place of the built-in alias sentence);
+  Insulation and ADP (`dropdown`) keep the "Change item" picker alone.
 - **Rate-helper panel + Rate Master attribute semantics:** every invariant moved to `frontend/.claude/context/domain/pricing-rate-master-frontend.md` -- load it before any rate-helper work.
 
 ## Where the full component contracts live
