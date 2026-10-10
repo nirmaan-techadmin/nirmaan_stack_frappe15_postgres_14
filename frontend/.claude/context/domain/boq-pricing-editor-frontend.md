@@ -439,6 +439,20 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
   (a second Escape exits full-screen -- never trapped). Persisted to **`nirmaan-fullscreen-top-collapsed`**.
   EMBEDDED is untouched (`topCollapsed` only bites while `expanded`). **Memo shield + virtualizer math
   untouched** across all three.
+- **A two-way field always offers both values; a ladder pick ladders; an unstocked pair refuses by name (12e-2b,
+  owner 2026-10-10; full text in root `.claude/context/domain/boq-rate-master.md` § Load-bearing invariants, beside
+  S1).** Owner: *"for attributes whose options are yes/no, with/without type both values must be shown in the
+  dropdown else it becomes confusing ... valid for all disciplines all categories all attributes"*; D1 (a): *"two-way
+  = any choice field whose list FOR THIS FAMILY has exactly two values - worked out from the list, no config key, no
+  category or attribute named in code."* On the panel and the calculator alike (one helper serves both): the ONE test
+  is `itemListPricing.twoWayValues`; such a field is never narrowed and its pick is never cleared, and every other
+  field keeps the S1 narrowing. A hand-picked UL "yes" prices the UL 555 SKU through the model path's own override
+  (D2), and the variant field then shows what priced. A PICK on a field with a ladder that another answer unstocks is
+  laddered exactly as the same value typed, the field showing the value used with "<picked> is not stocked with <the
+  other answer> -> priced as <used> (<reason>)"; a choice field (no ladder) is still cleared with "choose again" and
+  never refilled by a default. A family change still starts the block blank (owner S1, kept). The refusal for an
+  unstocked combination reads "No SKU for <family>: <facts> - price this row by hand" on every HVAC item-list
+  category, built by `plainEnglish.noSkuSentence`.
 
 ### Rendering, virtualization and sockets
 

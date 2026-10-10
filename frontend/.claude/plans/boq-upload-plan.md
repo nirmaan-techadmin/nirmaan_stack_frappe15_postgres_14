@@ -45933,3 +45933,197 @@ its own changes; this slice adds no `JSON.parse` / `updateDoc`.
 **What 12e-3 / 12e-4 inherit.** The seven findings above; the Suggest-rates run now extracts Piping rows through the generic
 item-list prompt (12e-4 writes the model instructions before any run); the three cert images not saved by the tool (C2, C4 GI,
 C4 uPVC) have on-screen text reads only.
+
+---
+
+## Slice 12e-2b — TWO-WAY DROPDOWNS (ADP), UL WINS ON A HAND PICK, LADDER ON PICKS, THE PLAIN REFUSAL SENTENCE, AND THE 12e-2 CERT FINDINGS (2026-10-10) — SHIPPED
+
+Frontend only, code + tests, no mint: no asset, config, item, Pricing Input, BoQ, run or snapshot changed (live HVAC == v36,
+live Electrical == v66, 0 items / 0 configs differing after the cert; capture log 666 lines before the blast-radius replay and
+after the cert — zero model calls). Commit `d89254345` (feat), then the docs commit. From `482c1e375` (= origin). NOT PUSHED.
+Report: Desktop `2026-10-10_12e2b_Report.md` (+ Ledger, `2026-10-10_12e2b_screens/`, `2026-10-10_12e2b_frontend_full.log`).
+
+**The slice STOPPED once before any code**, on AC4: rewording every item-list refusal reached Insulation pins in four files
+outside the write list. Owner resume addendum (22:29): Decision 1 "option a" (every HVAC item-list refusal, Insulation
+included), Decision 2 "a colon form", and a NEW ruling — the ladder on picks (AC13). Two rulings were then taken in-session by
+question: **"Keep S1, in-family only"** (a family change still starts the block blank, so AC13 is proved only where another
+answer in the SAME block unstocks a ladder pick; Piping's proof and cert 4c are N/A; cert 4b uses a pipe-size change) and
+**"HVAC item-list rows"** (the impact panel's row label uses the panel field's label on item-list SKUs only).
+
+### Owner rulings (quoted)
+
+- Two-way: *"for attributes whose options are yes/no, with/without type both values must be shown in the dropdown else it
+  becomes confusing ... valid for all disciplines all categories all attributes"*; a picked unstocked pair refuses naming it.
+- D1 (a): two-way = any choice field whose list FOR THIS FAMILY has exactly two values — worked out from the list, no config
+  key, no category or attribute named in code.
+- D2: "UL wins" on both paths (slice 8 M-b). D3: the HVAC item-list unstocked-combination refusal in plain English; Electrical's
+  sentence left as it is. D4 (a): slot diffuser per sq.m / per nos keeps "damper not mentioned -> without" and refuses by name.
+- Actuator torque 3.5 with UL untouched -> the non-UL 6 NM: *"let it remain as it is"* (no change; pinned). M1: PARKED.
+- Ladder on picks: *"this should also follow the ladder mechanism with correct note. if user types 6 it should be matched with
+  8, attribute should show 8 and the note ... this is the general ladder rule we have."*
+
+### What was built (each with its one site)
+
+- **AC2 two-way** — `itemListPricing.twoWayValues(spec, attr, family)` (the definition's `values`, or `values_by_family[family]`,
+  of length two; the lists ride into the spec as `choice_defs`, derived by `itemListPricingSpec`, the `family_label` precedent —
+  not a config key). `itemFieldDefs` offers those two in the definition's order and skips the SKU narrowing. `unstockedPicks`
+  asks `itemFieldDefs`, so a picked two-way value is never cleared; the two helper sites that read the SKU list directly (the
+  model-value match and the unshowable check, recon anomaly 7) ask `twoWayValues` first. On v36: `ul`, `damper`, `insulated` on
+  ADP (25 of 25 families each); nothing on Insulation or Piping.
+- **AC3 / D2** — no second rule: a kept UL "yes" reaches `priceOneItem`, where the existing `override_when` sets `variant = UL`.
+  One display change: the variant field shows the override's value ("UL 555" + the rule) for a HAND-PICKED variant too, once
+  its own list can no longer show the pick; a pick the list still offers stays the pricer's (a picked foil still shows foil).
+- **AC4 / D3** — `plainEnglish.plainFact` / `noSkuSentence`; both refusal sites in `itemListPricing` call it through
+  `plainFactOf` (a choice by its definition's label, a number by its reader's name). `shortName` is gone.
+- **AC5 / D4** — falls out of AC2: the calculator's "without" is kept, both surfaces refuse with one sentence; the
+  `B_stale_pick` sweep entry is removed from `calculatorPanelParity.awaiting.ts` and parity is asserted by name.
+- **AC13 ladder on picks** — `unstockedPicks`: a stale pick on a field named in `spec.ladders` is NOT dropped; it is recorded
+  (`ladderedOut`: the pick and the answer(s) that unstocked it) and left on the item, where the pricer ladders it as it ladders
+  the same value typed (the same `typed: true` cell). `itemBlockView` opens the hop / refusal / composition line with
+  "<picked> is not stocked with <the other answer>" in place of "You typed <value>". Choice fields: unchanged (cleared, R1).
+- **AC6** — `itemListPricing.slashSizes` + `severalSizesMessage`, read in `priceOneItem` only on a reader declaring
+  `typed_entry: "one_size"`, for a model cell and a typed one alike; `isOneSizeEntry` accepts denominators to 64.
+- **AC7** — `itemListRuleOrder`: `{family}` -> the families the line serves; the unit line is written from the config's unit
+  classes when there is ONE ("a kind is priced per metre and has one rule for it"), unchanged when there are several. Line 9 was
+  corrected MID-CERT (it still said '40/50' got the one-size message); the de-stale was re-done.
+- **AC8** — `pricingInputReach`: per (input, column) the family whose pipeline read it; a row of a family none of whose
+  pipelines read the input is dropped at listing. A filter, not a re-key (re-keying reordered every Insulation input's columns).
+  `PricingInputImpactPanel.plainSkuLabel` relabels an item-list SKU's facts by the field's label.
+- **AC9** — `PricingInputImpactPanel.typeIntoField` / `fieldBoxText`: the box keeps the text as typed; the texts belong to one
+  `edited` object, so Cancel and Save drop them with no second reset.
+
+### The generated refusal sentences (AC4)
+
+| Case (from the entry point) | Before | After |
+|---|---|---|
+| fire damper per sq.m, Variant UL + UL no | no SKU for this combination (fire damper: variant UL, ul no) | No SKU for fire damper: UL listed no, variant UL - price this row by hand |
+| the same per number, 600 x 600 | ... (fire damper: variant UL, ul no, width 600, height 600) | No SKU for fire damper: UL listed no, variant UL, width 600, height 600 - price this row by hand |
+| slot diffuser per sq.m, damper never stated | ... (slot diffuser: damper without) | No SKU for slot diffuser: without damper - price this row by hand |
+| the same per number, 600 x 600 | ... (slot diffuser: damper without, width 600, height 600) | No SKU for slot diffuser: without damper, width 600, height 600 - price this row by hand |
+| slot diffuser per metre, without damper, 4 slots | ... (slot diffuser: damper without, slot count 4) | No SKU for slot diffuser: without damper, slot count 4 - price this row by hand |
+| slot diffuser per metre, with damper, 4 slots (stored row) | ... (slot diffuser: damper with, slot count 4) | No SKU for slot diffuser: with damper, slot count 4 - price this row by hand |
+| cross-talk per number 400 x 300 | ... (cross-talk: width 400, height 300) | No SKU for cross-talk: width 400, height 300 - price this row by hand |
+| round diffuser, damper "yes" (a value outside the list) | ... (round diffuser: damper yes) | No SKU for round diffuser: damper yes - price this row by hand |
+| fire damper, with sleeve + UL yes, on the frozen v10 config (no override) | ... (fire damper: variant with sleeve, ul yes) | No SKU for fire damper: UL listed yes, variant with sleeve - price this row by hand |
+| Acoustic Nitrile + GI framework (12d-2 sample, v29) | ... (Acoustic Nitrile Insulation: cladding GI Framework with perforated Al sheet) | No SKU for Acoustic Nitrile Insulation: cladding GI Framework with perforated Al sheet - price this row by hand |
+| Nitrile Rubber + foil with no value map | ... (Nitrile Rubber Insulation: cladding Aluminium Foil) | No SKU for Nitrile Rubber Insulation: cladding Aluminium Foil - price this row by hand |
+| Tubular PUF + glass cloth | ... (Tubular Puf Insulation: cladding Glass Cloth with paint) | No SKU for Tubular Puf Insulation: cladding Glass Cloth with paint - price this row by hand |
+
+The 12e-2 Piping tests produce none of this kind (Piping's refusals were already "No SKU in the catalogue for SS pipe - price
+this row by hand" / "pipe size 350 is above the largest size on the sheet (300)").
+
+### AC13 — the ladder fields, enumerated from the configs, and what reaches them
+
+| Category | Ladder fields (`list_spec.pricing.ladders`) | A pick another answer in the block can unstock |
+|---|---|---|
+| hvac_insulation | pipe size, thickness (both `dropdown_or_other`) | thickness, by the pipe size: 38 cases |
+| hvac_adp | diameter, neck size, torque, panel ratio, plenum thickness (all `dropdown`) | torque, by UL listed: 3 cases |
+| hvac_piping | pipe size (`dropdown_or_other`) | none: the block holds one ladder field and no other answer |
+
+`slice12e2b.test.ts` sweeps every family x unit class x (other field's option) x (a ladder option that answer takes off the
+list): 41 cases, each priced as a PICK and as the same value TYPED — figures, state, row reason and the value shown identical
+in all 41 (the slice's STOP condition did not fire). Named cases: actuator torque 6 then UL yes -> 8 NM UL, **23,925 / 800**,
+"6 nm is not stocked with UL listed yes -> priced as 8 nm (next size up)"; torque 10 -> 20 NM UL, 26,100 / 800; Tubular PUF
+thickness 25 then pipe 100 -> 65, **412 / 14**, "25 mm is not stocked with pipe size 100 -> priced as 65 mm (next size up)";
+Nitrile Rubber thickness 25 then pipe 6.35 -> composed 13 + 13, **466 / 238**, "25 mm is not stocked with pipe size 6.35 ->
+priced as 13 + 13 mm (26 mm, +1) -- above the largest stocked size (19 mm)" on the field and heading the working; NEGATIVE:
+Acoustic Nitrile + a picked Aluminium Foil is still cleared, "choose again: cladding", never refilled.
+
+### AC12 — blast radius (the recorded method: every stored row of every active run, panel path, vs the 12e-0c baseline)
+
+13,365 rows / 23 configs / 1,781 items. **22 rows differ, all `hvac_adp`, all fire damper / actuator / slot diffuser; 0 figures
+moved; 0 Insulation / Piping / Electrical rows.** After-file sha256 `00508eac37f4...7997`, row-method hash `1458f285...a0e8`
+(baseline `b589c254...0a4c` / `c9757138...98c9`). Capture log 666 before and after.
+
+| What moved | Rows | Detail |
+|---|---|---|
+| Option list only | 20 | `ul` gains its second value on 9 fire damper rows (BOQ-26-00325 r184 / r194, 00321 r130 / r133, 00327 r337, 00329 r245, 00336 r77, 00341 r50, 00340 r40) and 5 actuator rows (00325 r186 / r196, 00321 r95 / r131, 00329 r246); `damper` gains "without" on 6 slot diffuser rows (00329 r228-r230, r233-r235) |
+| Option list + the refusal sentence | 1 | BOQ-26-00325 'LOW SIDE HVAC BOQ' r243, slot diffuser: "... (slot diffuser: damper without)" -> "No SKU for slot diffuser: without damper - price this row by hand"; `damper` ["with"] -> ["with", "without"] |
+| The refusal sentence only | 1 | BOQ-26-00341 'HVAC Lowside works ' r87, slot diffuser: "... (slot diffuser: damper with, slot count 4)" -> "No SKU for slot diffuser: with damper, slot count 4 - price this row by hand" (row reason, block reason, the field note quoting it) |
+
+The dump's items file differs from 12e-2's in two `name` values only (the Piping accessories input 12e-2's cert edited and
+restored; `name` regenerates by design and is not part of any content hash).
+
+### Pins inverted by name, never deleted (before / after in each test's comment)
+
+`slice12d8.test.ts` x5 (PUF 100 + picked 25: refused -> 412 / 14 with the line; Nitrile 6.35 + picked 25: refused -> 466 / 238;
+fire damper motorised + UL yes: refused -> 7,830 / 692, the D2 case and the ONE price pin that moved by ruling; the panel-edit
+twin; the closed-list pick) + a new choice-field negative. `ruleReachability.test.ts`: `A8a-calc` excluded -> positive (the
+exclusion list goes six -> five), `R5xDefault`, `R5xCompose`, `R5xAbsentAsNone`, `R8xUnshowable` (wording), `P2e-ptyped`,
+`P2f-neg`; new `P2g-neg`, `R5xLadderTorque (AC13)`, `R5xChoiceStillClears (AC13 neg)`. `pricingSheetHelper.test.ts` E2E-1 live
+and frozen-v26. `itemListPricing.test.ts`: five wording pins, and the "UL narrows by torque" test given its real assertion at
+torque 6 and 3.5 (the SKUs stock one side; the field offers both). `slice12e2.test.ts`: the typed "40/50" message, and the
+model "40/50" pin (priced 25 mm -> refuses; AC6's ordered outcome). `calculatorPanelParity`: the `B_stale_pick` entry and
+its pin -> `[]` + a named parity test; the Piping "40/50" exclusion -> a parity test. `insulation12d2Sample.e2e.test.ts` x2 +
+`insulation12d2Expected.json` x1 (the sentence only). `insulation12d4a.e2e.test.ts` and `insulation12d4aRows.json` were added
+to the write list but needed NO change (their `before_12d3` reasons are a historic record the test does not compare on those rows).
+
+### Tests (measured in-session)
+
+Before = 12e-2's Desktop log, same start commit: 165 files / 5,986 tests / 1 failing (the known `POAdjustment/writeOffControl`
+5 s timeout). Targeted before the commit: vitest `src/pages/boq-wizard/rate-helper` + `src/pages/pricing`, **49 files / 2,712
+tests, all green**. FULL after the commit (`2026-10-10_12e2b_frontend_full.log`): **166 files / 6,087 tests / 1 failing = the
+same known timeout.** The Python suite was not run: no Python file changed. tsc app-wide: 3,170 errors at HEAD and 3,170
+after (measured both ways in-session with the working changes stashed and restored byte-identical); none in a product file
+this slice touched. `residence_check`: F5 120 vs 117 and F2 221 vs 217 — the figures 12e-2 recorded; this slice adds none.
+
+**Vacuity (each file restored byte-identical, sha256):** two-way branch off -> 34 red; ladder on picks off -> 14; the sentence
+back to the bracket -> 21; the slash rule off -> 7; the override shown only when unedited -> 4; the reach filter off -> 6; the
+box bound to the number -> 9; the label passthrough -> 2; `{family}` left -> 1; the unit line forced to the two-class sentence
+-> 1; restored -> 1,299 / 1,299 green.
+
+### Browser cert (2026-10-10 / 11; `2026-10-10_12e2b_screens/`)
+
+De-stale ran TWICE in full (a line-9 wording fix was made mid-cert): 24 then 22 PIDs on TERM, 0 left, ports 8000 / 8080 /
+9000 free, pycache 211 -> 0 and 25 -> 0, `.vite` removed, ping after 237 s and 197 s, vite 200 after 34 s and 37 s. PROOF 1
+both times from the served TRANSFORMED modules (`function twoWayValues`, `function slashSizes`, `noSkuSentence(`,
+`ladderedOut`, `famReaders`, `function typeIntoField`, `function plainSkuLabel`, "and has one rule for it"; the old wording
+as code: 0). PROOF 2 both times by a runtime `import()` in the page (`slashSizes("40/50")`, `noSkuSentence(...)`,
+`typeIntoField` over "0", "0.", "0.4" -> 0.4). The Chrome window reported hidden twice (the owner brought it forward both
+times; the second was caused by closing the old tab, which moved the tab group to a new window). Service worker unregistered,
+storage and IndexedDB cleared, hard refresh; cookies kept (no credentials entered), session `admins@nirmaan.app`.
+
+- **C1** fresh per-sq.m fire damper: UL listed lists yes and no, value "no" amber, 14,138 / 1,920; "yes" -> **21,750 / 1,920**,
+  Variant shows "UL 555" with "UL stated, so the UL 555 SKU is used (R-M-b)".
+- **C2** Variant motorised, UL yes: the same UL 555 price and line, no "choose again".
+- **C3** Variant UL + UL no: "Not priced — No SKU for fire damper: UL listed no, variant UL - price this row by hand", no price.
+  ⚠️ NOT reachable by hand: with UL "no" the Variant list does not offer "UL", and with UL "yes" it is already the selected
+  option; the state was set with a synthetic change event. The Variant select then shows "— select —" (its narrowed list has
+  no "UL").
+- **C4** actuator, torque 6 picked (8,410 / 800), then UL yes: torque shows **8**, "6 nm is not stocked with UL listed yes ->
+  priced as 8 nm (next size up)", **23,925 / 800**; the torque list narrows to 3.5 / 8 / 20.
+- **C4b** Tubular PUF, thickness 25 picked at pipe 25 (98 / 14), then pipe size 100: thickness shows **65**, "25 mm is not
+  stocked with pipe size 100 -> priced as 65 mm (next size up)", 412 / 14. (With thickness 25 answered the pipe LIST offers
+  only 25 / 32 / 40, so 100 was typed through "Other...": the stale pick arises on screen only that way.)
+- **C4c** N/A — owner: "Keep S1, in-family only"; a change of pipe type starts the block blank.
+- **C5** slot diffuser per sq.m, fresh: Damper lists with and without, value "without" amber, "Not priced — No SKU for slot
+  diffuser: without damper - price this row by hand"; "with" -> 12,992 / 2,864.
+- **C6** Piping, Copper, Other "40/50": "You typed 40/50: pipe size states two sizes (40 / 50) - pick one", not priced; `7/8"`
+  -> 22.2 mm, 1,814 / 220.
+- **C7** Rate Master -> HVAC -> Piping -> Derivation: 14 lines; line 6 "a kind is priced per metre and has one rule for it";
+  line 10 "... priced at the one Copper / MS / PVC / CPVC rate ..."; no "{family}", no "square metre"; line 9 as corrected.
+- **C8** Pricing Inputs (HVAC), "Piping accessories - Copper": ITEMS 13 (PVC 8, MS 13, CPVC 6), rows "Refrigerant Piping/Copper
+  Piping · Pipe size 15.9"; Factor typed Backspace, 0, ., 4 -> the box reads **0.4**, 15.9 goes 1,298 -> **1,397**, 13 rows
+  move. NOT SAVED: Cancel restored 0.3 on screen; DB read after: `{'factor': 0.3}`.
+- **C9** Pricing Inputs (Electrical), "Conduit installation share": 8 items in three categories, row labels unchanged ("MS · 20
+  · Generic"); 22.5 typed key by key reads 22.5; cancelled; DB `{'share': 0.2}`. All 35 ITEMS counts equal the pinned table.
+- **C10** Nitrile, 26G, Other 50, thickness unanswered: **556 / 224 / 780**; Piping copper 5/8": **1,298 / 220**.
+- **C11** live HVAC 379 items / 10 configs == v36 (0 differing), Electrical 1,402 / 13 == v66 (0 differing); capture 666.
+After the second de-stale, C1, C2, C4, C4b, C5, C6 and C10 were re-read from the DOM with the same outcomes. "Use this value"
+never pressed; no BoQ row opened; nothing written.
+
+### Findings (reported, not repaired)
+
+1. **Cert C3 cannot be reached by hand** (above), and the Variant select shows blank beside a refusal naming "variant UL".
+2. **"25/32" on the Piping size axis reads as an inch fraction** by the ruled test (32 is an inch denominator, 25 < 32):
+   19.84 mm, laddered from there. A BoQ meaning "25 or 32 mm" would price from that reading instead of refusing. The same
+   for any pair whose second number is 2, 4, 8, 16, 32 or 64 and larger than the first ("15/16", "25/64"). Not run; read from the rule.
+3. **"(R-M-b)" reaches the screen** in the UL line: the config's own rule text carries a tag the plain-English stripper does
+   not know (it strips R14, D9b ... and "(owner ...)"). Pre-existing on the model path; now also seen on a hand pick.
+4. **A stale ladder pick can only be produced through "Other..."** on Insulation (C4b): once thickness is answered the pipe
+   list is narrowed to the pipes that stock it.
+5. The Derivation tab's line 9 was wrong for an hour inside this slice (found on screen, fixed, re-certified).
+6. On the fire damper per NUMBER with no size typed, the fresh block shows "— select —" for Variant and UL (the row has not
+   reached the defaults yet); per sq.m it shows the amber defaults. Seen in the cert; not examined further.
+
+**What 12e-3 / 12e-4 inherit.** Findings 2 and 3; a Piping BoQ row still shows no panel before a run (12e-2 finding 1); M1 parked.

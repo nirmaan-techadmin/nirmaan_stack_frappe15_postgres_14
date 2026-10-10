@@ -668,6 +668,19 @@ the input's own cladding -- plausible figures and a row count of 224 where 68 mo
 are therefore NOT passed on that path: each SKU's branch comes from its own attributes, which is what
 makes the moved COUNT fall out of the product rather than a guess.
 
+**A FAMILY'S OWN PIPELINE REACHES THAT FAMILY'S SKUs, AND THE REACH WALK FILTERS, IT DOES NOT RE-KEY (12e-2b, the
+12e-2 cert's finding 2).** An item-list family's pipeline matches its row with the family bound from the ROW, which
+the walk's `literalWhere` rightly drops -- so "Piping accessories - Copper", read by the Copper pipeline alone,
+listed all 40 pipes where 13 move. `pricingInputReach` records, per (input, column), WHICH FAMILY'S pipeline read
+the input, and drops a row whose family attribute names a family none of whose pipelines did: copper 13, MS 13, PVC
+8, CPVC 6. ⚠️ Putting the family into the column's `where` gave the same SKUs in a different ORDER on every
+Insulation input; the filter leaves every other input's record byte-identical, and a column any un-owned pipeline
+read (a config's own `pipelines`: every Electrical category, ADP's shared default) is OPEN and never filtered.
+`PricingInputImpactPanel.test.ts` pins all 46 inputs of both disciplines by id. The panel's row label names an
+ITEM-LIST SKU's facts by the panel field's label ("Pipe size 15.9", "Thickness (mm) 25"), applied in the panel
+(`plainSkuLabel`); Electrical rows and the shared `skuLabel` are untouched (owner 2026-10-10: "HVAC item-list rows").
+A value box keeps the TEXT as typed (`typeIntoField`): bound to the parsed number, "0.4" typed key by key became 4.
+
 **A LADDER'S `label_attr` IS A CORRECTNESS KEY, NOT A DISPLAY ONE.** `buildModuleLadder` SKIPS any row
 whose label attribute is missing, so pointing it at an attribute the SKUs do not carry builds an EMPTY
 ladder and refuses EVERY row with *"no SKU for this combination"* -- naming a size, never the display
@@ -803,6 +816,35 @@ need at a time and RETURNS at the first missing one, so a row refusing for a mis
 pipe size. `ItemPriceResult.readValues` publishes every resolved fact for OPTIONS AND DISPLAY ONLY —
 nothing from it reaches `match_master_row`, so no price can move.
 
+**A TWO-WAY FIELD ALWAYS OFFERS BOTH VALUES, AND IS NEVER NARROWED OR CLEARED (owner, 2026-10-10, slice 12e-2b).**
+The ruling: *"for attributes whose options are yes/no, with/without type both values must be shown in the dropdown
+else it becomes confusing ... valid for all disciplines all categories all attributes"*; a picked pair the catalogue
+does not stock refuses with a line naming it. **D1 (a): "two-way = any choice field whose list FOR THIS FAMILY has
+exactly two values - worked out from the list, no config key, no category or attribute named in code."** It is the
+ONE exemption to S1 above, and it lives in ONE function, `itemListPricing.twoWayValues` (the definition's `values`,
+or `values_by_family[family]`, of length two): `itemFieldDefs` offers those two in the definition's order and skips
+`fieldOptionsFromSkus`, which removes all three ways a value used to be hidden at once -- another pick, a ruled
+default acting as a pick, and the row's unit class. Because the stale-pick rule asks `itemFieldDefs`, a picked
+two-way value is never cleared; the two helper sites that read the SKU list directly (the model-value match and the
+unshowable-value check in `pricingSheetHelper`) ask `twoWayValues` first, so they can never disagree with the field.
+On HVAC v36 it selects exactly `ul`, `damper` and `insulated` on ADP and nothing on Insulation or Piping; Electrical's
+two-valued attributes are static config lists and were always shown in full. **Every other field keeps narrowing**
+(torque still narrows under UL). ⚠️ **"UL WINS" ON BOTH PATHS (D2):** a hand-picked UL "yes" beside any variant
+prices the UL 555 SKU through the SAME `override_when` the model path uses (slice 8 M-b) -- it is NOT a refusal; the
+variant field then shows what priced ("UL 555", with the rule) whenever its own list can no longer show the pick.
+⚠️ **D4 (a):** a slot diffuser per sq.m / per number keeps the ruled default "damper not mentioned -> without" and
+REFUSES by name (only "with" is stocked at those units); the calculator and the panel now say the same sentence, so
+the one sweep divergence that was awaiting a ruling is gone. The model's instructions are untouched: the choice lists
+sent to the model are built in Python from the definitions and always carried both values.
+
+**AN UNSTOCKED COMBINATION REFUSES "No SKU for <family>: <facts> - price this row by hand" (owner D3, Decision 1
+"option a", Decision 2 "a colon form", 2026-10-10).** EVERY HVAC item-list refusal that used to read `no SKU for this
+combination (...)` -- Insulation included -- is built by `plainEnglish.noSkuSentence` from labels that already exist
+(a choice definition's label, a number reader's name): a with / without value reads before its label ("without
+damper"), every other fact reads "<label> <value>" with the label's first letter lowered unless its first word is all
+capitals ("UL listed no", "variant UL", "width 600"), two-way facts first, comma-joined. No config key carries the
+wording. Electrical's sentence ("No ... rate row matches ...") is left as it is, by ruling.
+
 **A PICK THE LATER ANSWERS NO LONGER STOCK IS CLEARED, NEVER SUBSTITUTED — AND THE RULE IS BOUNDED BY
 THREE CONDITIONS, TWO OF WHICH WERE LEARNED BY BREAKING THEM.** (1) Only a value the PRICER picked from a
 list: one typed through "Other…" must still ladder (composition and next-size-up exist for unstocked
@@ -811,6 +853,22 @@ exempt — it cannot have offered anything, and without this guard a correctly p
 both its sizes cleared and stopped pricing. (3) The test is **DIRECTIONAL, down the config's own `ladders`
 order**, because an unstocked pair is unstocked BOTH ways round and a symmetric check wipes the answer the
 pricer just gave.
+
+**BUT A PICK ON A FIELD THAT HAS A LADDER IS LADDERED, NOT CLEARED (owner, 2026-10-10, slice 12e-2b: "this should
+also follow the ladder mechanism with correct note ... this is the general ladder rule we have").** The rule above
+now holds for fields WITHOUT a ladder -- a choice such as cladding, variant or the family: cleared, "choose again",
+never refilled by a default (12d-8 R1 stands). For a field named in `list_spec.pricing.ladders` (Insulation pipe size
+and thickness; ADP diameter, neck, torque, panel ratio, plenum thickness; Piping size) `unstockedPicks` leaves the
+pick on the item, so the pricer resolves it with that field's own ladder EXACTLY as it resolves the same value typed
+or model-read -- the same cell, the same function, nothing copied: next size up, the smallest, a composition where
+the field composes, above the largest -> the refusal naming it. The field shows the value USED and the line reads
+"<picked> is not stocked with <the other answer> -> priced as <used> (<reason>)" -- "6 nm is not stocked with UL
+listed yes -> priced as 8 nm (next size up)"; a composition's line is the working's own, re-opened with the pick's
+words. The answer named is each earlier answer that, alone, takes the pick off the list. `slice12e2b.test.ts` sweeps
+every reachable case (41 on v36: torque under UL, Insulation thickness under pipe size) and fails if a laddered pick
+prices differently from the same value typed. ⚠️ **A FAMILY CHANGE STILL STARTS THE BLOCK BLANK (owner S1, re-ruled
+2026-10-10: "Keep S1, in-family only")** -- so a pick is never carried across a change of material or pipe type, and
+Piping, whose block holds one ladder field and no other answer, has no in-block case.
 
 **A TYPED FIELD'S NOTE IS GENERATED FROM WHAT THE PRICING READS, NOT WRITTEN PER FAMILY (owner S3/S4/S5,
 2026-10-06).** A `panel_notes` entry may be a LIST OF CLAUSES, each conditioned on a fact about the block
@@ -1075,7 +1133,12 @@ DECLARATION of what the ladder has always done, which is what lets the line say 
 Insulation and ADP declare none of the four, and `resolveSize` itself never reads `near`, so their every hop and
 line is byte-identical. A value the PRICER types on a `typed_entry: "one_size"` axis must be ONE size (a number
 in mm, or an inch form whose fraction has a power-of-two denominator); "40/50" and "two inch" refuse with one
-message -- while a MODEL cell "40/50" still reads as a slash pair. A family answer written as the BoQ writes it is
+message. ⚠️ **A SLASH ON THIS AXIS IS AN INCH FRACTION ONLY WHEN IT CAN BE ONE (12e-2b, the 12e-2 cert's finding
+7):** denominator 2, 4, 8, 16, 32 or 64 with a smaller numerator, with or without a whole number (7/8, 1-1/4, 1 1/4);
+anything else with a slash ("40/50", "50/65") states several sizes and refuses "pipe size states two sizes (40 / 50) -
+pick one" on the MODEL path and the typed path alike (`itemListPricing.slashSizes`) -- a model-read "40/50" used to
+read as 0.8 of an inch and price a 25 mm pipe. The test is confined by the same `typed_entry` key, so Insulation's
+pipe-size reader, which shares `readNumber`, is byte-identical. A family answer written as the BoQ writes it is
 read by ONE reader (`family_text`: GI -> MS, uPVC / HDPE -> PVC with the line, SS refuses with its sentence, any
 other spelling refuses by name), shared by the calculator's typed "Other..." pipe type and the 12e-4 model path.
 
@@ -2557,11 +2620,18 @@ invariants:
 
 ### Catalogue-fed pick-lists for conduit size and wiring core/thickness (F-1 / F-8)
 
-- **⚠️ A `values_from` LIST IS GLOBAL AND THERE IS NO ROW-FILTERING SUPPORT (owner ruling R3,
-  owner-locked).** `where` accepts LITERAL constants only -- all three resolvers
+- **⚠️ A `values_from` LIST'S `where` IS GLOBAL: IT TAKES LITERAL CONSTANTS ONLY, AND THE CONFIG CANNOT
+  FILTER A LIST BY THE ROW (owner ruling R3, owner-locked).** All three resolvers
   (`extraction.values_from_catalog`, the panel's `attributeOptions`, the Derivation screen's
-  `valuesFromOptions`) compare `a[k] === v`. **There is no `@attr` indirection anywhere**, so a list
-  cannot be narrowed by the row's own other attributes. `conduit_piping.size_mm`,
+  `valuesFromOptions`) compare `a[k] === v`; **there is no `@attr` indirection anywhere**, so no config can
+  declare a row-dependent list, and the list the MODEL is sent is always the whole kind. ⚠️ **WHAT IS
+  CURRENTLY TRUE ON THE PANEL (reworded at 12e-2b; the old line said the list "cannot be narrowed by the
+  row's own other attributes", which stopped being true at 12c-S):** since owner S1 (2026-10-06, see
+  "A DROPDOWN OFFERS ONLY VALUES THAT CAN STILL PRICE" in the Load-bearing invariants) the panel NARROWS a
+  `values_from` list at display time by the answers already given -- in code (`attributeOptions`), never by
+  a `where` -- and skips an answer that would empty it. A STATIC `values` list is never narrowed, which is
+  why every two-valued Electrical attribute has always shown both values; on the item-list engine the
+  one exemption to S1 is the TWO-WAY field (owner 2026-10-10, same section). `conduit_piping.size_mm`,
   `wiring_cabling.core` and `wiring_cabling.thickness_sqmm` therefore carry **NO `where` key at all**,
   and a test asserts that absence. point_wiring's equivalents DO carry one (`{material: COPPER,
   insulation: UNARMOURED}`) -- **that asymmetry IS the ruling, not an oversight**: those constants are
