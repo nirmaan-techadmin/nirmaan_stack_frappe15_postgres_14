@@ -121,11 +121,11 @@ describe("the fixture names exactly what this test covers", () => {
     expect(RUNS.every((r) => r.version_current)).toBe(true);
   });
 
-  it("the catalogue snapshot is the live one: 23 configs, 1,402 Electrical + 375 HVAC active items (335 + the 40 Piping rows of 12e-1)", () => {
-    expect(configs.size).toBe(23);        // 12e-1: + hvac_piping (data-only)
+  it("the catalogue snapshot is the live one: 23 configs, 1,402 Electrical + 379 HVAC active items (335 + the 40 Piping rows of 12e-1 + the 4 Piping accessories inputs of 12e-2)", () => {
+    expect(configs.size).toBe(23);        // 12e-1: + hvac_piping (data-only); 12e-2: the same config, now item-list
     expect(master.items.Electrical).toHaveLength(1402);
-    expect(master.items.HVAC).toHaveLength(375);   // 12e-1: 335 + 40
-    expect(items).toHaveLength(1777);   // 1,402 + 375 (12e-1: was 1737)
+    expect(master.items.HVAC).toHaveLength(379);   // 12e-1: 335 + 40; 12e-2: + 4 inputs
+    expect(items).toHaveLength(1781);   // 1,402 + 379 (12e-1: 1,777)
   });
 
   it("the 15 categories the corpus exercises", () => {
@@ -397,7 +397,11 @@ describe("every active SKU of every row-level category", () => {
       }
     }
     expect(bad).toEqual([]);
-    expect(total).toBe(1970);   // 12e-1: 1,929 + the 40 Piping SKUs + its empty case -- every one declines on both paths
+    // 12e-1: 1,929 + the 40 Piping SKUs + its empty case (every one declined on both paths);
+    // 12e-2: 1,933 -- Piping is an ITEM-LIST category now and its 40 SKUs are swept below by the item-list driver, so its
+    // 41 leave; the FOUR Piping accessories inputs are rows of the (row-level, data-only) Pricing Inputs category and join
+    // it, each declining on both paths exactly as the seven Insulation inputs always have
+    expect(total).toBe(1933);
   }, 180000);
 
   it("the resolution paths this sweep reached, named", () => {
@@ -483,6 +487,102 @@ describe("HVAC Insulation -- every family x unit class x ladder path", () => {
       expect([...paths]).toContain(p);
     }
   }, 60000);
+});
+
+describe("HVAC Piping -- every family x unit class x ladder path, every SKU, every resolution path (SLICE 12e-2, owner option 1)", () => {
+  // The committed v36 asset by name (the configs the live site serves since the 12e-2 load), not the served fixture:
+  // the fixture's configs are a dated snapshot by design; its ITEMS are re-snapshotted and equal the asset's.
+  const live = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+    new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v36.json", import.meta.url),
+  );
+  const cfg36 = new Map<string, RateCategoryConfig>(live.category_configs.map((c) => [c.category_id, c]));
+  const items36: RateMasterItem[] = live.items.map((it) => ({ ...it, discipline: live.discipline } as RateMasterItem));
+  const PIP = "hvac_piping";
+  const cfg = cfg36.get(PIP)!;
+  const cases = itemListCasesForCategory(cfg, items36);
+  const INCH = '"';
+  const pc = (family: string, size: string, extra: Partial<ParityCase> = {}): ParityCase =>
+    ({ cat: PIP, unit: "mts", desc: "", attrs: {}, items: [{ pipe_type: family, size_mm: size }], ...extra });
+
+  it("the generated sweep: 4 families x 1 unit class x (filled, above the largest, between, nothing) = 16 cases, not one divergence", () => {
+    expect(cases).toHaveLength(16);
+    expect(new Set(cases.map((c) => c.items?.[0]?.pipe_type as string))).toEqual(new Set(["Copper", "MS", "PVC", "CPVC"]));
+    const bad: string[] = [];
+    for (const c of cases) {
+      const r = runParity(cfg36, items36, c, "full");
+      if (r.divergences.length) bad.push(`${c.unit} ${JSON.stringify(c.items)}: ` + r.divergences.map((d) => `${d.what} P[${d.panel}] C[${d.calculator}]`).join(" | "));
+    }
+    expect(bad).toEqual([]);
+  }, 60000);
+
+  it("every one of the 40 SKUs agrees on both surfaces and prices (40 cases, named by family and size)", () => {
+    const skus = items36.filter((it) => it.kind === "hvac_piping_item");
+    expect(skus).toHaveLength(40);
+    const bad: string[] = [];
+    let priced = 0;
+    for (const sku of skus) {
+      const c = pc(String(sku.attributes.pipe_type), String(sku.attributes.size_mm));
+      const r = runParity(cfg36, items36, c, "full");
+      if (r.divergences.length) bad.push(`${sku.attributes.pipe_type} ${sku.attributes.size_mm}: ` + r.divergences.map((d) => d.what).join(" | "));
+      if (hasPrice(r.panel) && hasPrice(r.calculator)) priced++;
+    }
+    expect(bad).toEqual([]);
+    expect(priced).toBe(40);
+  }, 60000);
+
+  it("every resolution path, named: both inch conversions, the 0.1 mm rung, below the smallest, the next size up, above the largest, each value map, SS, the class line -- all agree", () => {
+    const named: Array<[string, ParityCase]> = [
+      ["5/8 inch -> 15.9 (x 25.4, 1 dp)", pc("Copper", `5/8${INCH}`)],
+      ["4 inch -> 100 (x 25)", pc("MS", "4 inch")],
+      ["1-1/4 inch -> 31.7 (the 0.1 mm rung)", pc("Copper", `1-1/4${INCH}`)],
+      ["15 -> 19 (below the smallest)", pc("MS", "15")],
+      ["110 -> 150 (next size up)", pc("PVC", "110")],
+      ["350 refuses (above the largest)", pc("MS", "350")],
+      ["GI -> MS (value map)", pc("GI", "50")],
+      ["uPVC -> PVC (value map)", pc("uPVC", "110")],
+      ["HDPE -> PVC (value map)", pc("HDPE", "50")],
+      ["SS refuses", pc("SS", "50")],
+      ["ABC refuses by name", pc("ABC", "50")],
+      ["Class C: the class line, no figure moves", { ...pc("MS", "50"), items: [{ pipe_type: "MS", size_mm: "50", pipe_class: "Class C" }] }],
+    ];
+    const bad: string[] = [];
+    const reached = new Set<string>();
+    for (const [label, c] of named) {
+      const r = runParity(cfg36, items36, c, "full");
+      for (const p of resolutionPaths(r.panel)) reached.add(p);
+      if (r.divergences.length) bad.push(`${label}: ` + r.divergences.map((d) => `${d.what} P[${d.panel}] C[${d.calculator}]`).join(" | "));
+    }
+    expect(bad).toEqual([]);
+    for (const p of ["item-list priced", "item-list refused", "item refused", "ladder size-up"]) expect([...reached]).toContain(p);
+  }, 60000);
+
+  it("exclusion, by name (owner P2, the T6 / U4 precedent): a MODEL '40/50' is read by the inch reader as a fraction (0.8\" = 20.32 -> 25) and prices on the panel, while the same text TYPED on the calculator is not one size and refuses -- the two surfaces MUST differ here", () => {
+    const c = pc("MS", "40/50");
+    const r = runParity(cfg36, items36, c, "full");
+    expect(r.divergences.length).toBeGreaterThan(0);
+    expect(hasPrice(r.panel)).toBe(true);
+    expect(hasPrice(r.calculator)).toBe(false);
+    expect((r.calculator as ItemListSuggestion).itemList!.items[0].reason).toBe("Type one pipe size, in mm or inches");
+  });
+
+  it("the ONE unit exclusion, by name: a row unit the picker does not offer ('nos') diverges by cause C and never produces a figure on either side (owner R12 / 12c-F)", () => {
+    const r = runParity(cfg36, items36, pc("MS", "50", { unit: "nos" }), "full");
+    expect(r.divergences.length).toBeGreaterThan(0);
+    expect(classifyDivergence(r, pc("MS", "50", { unit: "nos" }))).toBe("C_unit_not_offered");
+    expect(hasPrice(r.panel)).toBe(false);
+  });
+
+  it("VACUITY: handing the calculator a different size diverges (the comparison can see a Piping difference)", () => {
+    const c = pc("MS", "50");
+    const agree = runParity(cfg36, items36, c, "full");
+    expect(agree.divergences).toEqual([]);
+    const panelOnly = panelHelper(cfg36, items36, c);
+    const calcH = calculatorHelper(cfg36, items36);
+    const pr = panelOnly.compute(panelCtx(c), {});
+    const cr = calcH.compute(calculatorCtx("HVAC", PIP), { [ITEM_LIST_OVERRIDE_KEY]: JSON.stringify({ items: [{ base: null, family: "MS", attrs: { size_mm: "65" }, other: [] }] }), [ROW_UNIT_OVERRIDE_KEY]: "mts" });
+    expect((pr as ItemListSuggestion).values.supply_rate).toBe(984);
+    expect((cr as ItemListSuggestion).values.supply_rate).toBe(1200);
+  });
 });
 
 describe("db_switchgear BY NAME (owner P3: the 12c-S partial is covered here)", () => {

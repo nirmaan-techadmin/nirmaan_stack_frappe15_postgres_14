@@ -6,8 +6,8 @@
  * fired on the panel, because an EARLIER step on the path (option matching) rewrote the wording first. So:
  *
  *   T1  one named case per Derivation-tab rule of Insulation and ADP -- model-read, typed where a control
- *       exists, and its negative -- run through `makePricingSheetHelper(...).compute` on the LIVE v33 asset
- *       (read at runtime). PASS = the rule's OWN line / note / refusal appears AND the figure equals the
+ *       exists, and its negative -- run through `makePricingSheetHelper(...).compute` on the LIVE asset
+ *       (v33 at 12d-8; v36 since 12e-2, which adds the Piping rules P1-P5 -- read at runtime). PASS = the rule's OWN line / note / refusal appears AND the figure equals the
  *       pure pricer's over the same assembled inputs. EXCLUDED = an owner ruling forbids it on that path
  *       (T6 / U4 for a typed layered or slash thickness; R4 for a cladding the family does not offer).
  *
@@ -32,13 +32,14 @@ import {
 import { familyAttr, itemListPricingSpec, priceItemList } from "./itemListPricing";
 
 const ASSET = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
-  new URL("../../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v33.json", import.meta.url),
+  new URL("../../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v36.json", import.meta.url),   // 12e-2: v33 -> v36 (Insulation and ADP carried byte-equal; Piping gains its rules)
 );
 const CFG: Record<string, RateCategoryConfig> = Object.fromEntries(ASSET.category_configs.map((c) => [c.category_id, c]));
 const CONFIGS = new Map<string, RateCategoryConfig>(Object.entries(CFG));
 const ITEMS: RateMasterItem[] = ASSET.items.map((it) => ({ ...it, discipline: ASSET.discipline } as RateMasterItem));
 const INS = "hvac_insulation";
 const ADP = "hvac_adp";
+const PIP = "hvac_piping";   // 12e-2
 
 // ── the cases ───────────────────────────────────────────────────────────────────────────────────────
 type Edit = { base: number | null; family: string | null; attrs: Record<string, string>; other?: string[]; qty?: string };
@@ -75,6 +76,10 @@ const m = (base: Record<string, string>, over: Record<string, string | undefined
 };
 const calc = (family: string, attrs: Record<string, string>, other: string[] = [], qty?: string): Edit[] => [{ base: null, family, attrs, other, ...(qty !== undefined ? { qty } : {}) }];
 const ptyped = (attrs: Record<string, string>, other: string[] = [], qty?: string): Edit[] => [{ base: 0, family: null, attrs, other, ...(qty !== undefined ? { qty } : {}) }];
+// 12e-2: a pipe type TYPED through the family field's "Other..." box (the family id rides in `other`, as a size field's does)
+const typedType = (text: string, attrs: Record<string, string>, other: string[] = []): Edit[] => [{ base: null, family: text, attrs, other: ["pipe_type", ...other] }];
+const MS50 = { pipe_type: "MS", size_mm: "50" };
+const INCH = '"';
 
 // the exact TITLES `itemListRuleOrder` generates (verified by the guard below; a typo here fails the suite)
 const T = {
@@ -110,6 +115,12 @@ const T = {
   derived: "A catalogue cell derived from another row's cell follows its base",
   convert: "The rate converts to the unit the row is written in",
   qty: "Multiplied by how many of the item one unit of the row pays for",
+  // ── SLICE 12e-2: the Piping rules P1-P5 (the shared titles above cover P4 unit / P5 steps / the needs / qty) ──
+  pipeMap: "A pipe type written as GI, uPVC, HDPE is priced as the kind it means",
+  pipeRefuse: "A pipe type the catalogue does not stock refuses by name",
+  pipeRow: "A row naming one pipe type prices as it; two different ones with none chosen refuse",
+  typedSize: "A typed pipe size is one size, in mm or inches",
+  readClass: "A Copper, MS and 2 more row stating its own figure in the class / wall thickness carries a line saying what was priced",
 };
 /** Tab lines that are NOT panel-path rules (a catalogue / rate-master rule the pricer never reads), by name. */
 const NOT_PANEL_RULES: Record<string, string> = {
@@ -253,6 +264,58 @@ const CASES: Case[] = [
   { id: "A17a", rule: T.qty, cat: ADP, path: "panel", kind: "pos", unit: "nos", model: [{ family: "round diffuser", damper: "with", dia_mm: "200", qty_per_row_unit: "2" }], re: ["x 2 per row unit"], priced: true },
   { id: "A17b-neg", rule: T.qty, cat: ADP, path: "panel", kind: "neg", unit: "nos", model: [{ family: "round diffuser", damper: "with", dia_mm: "200", qty_per_row_unit: "None" }], re: [], not: ["per row unit"], priced: true },
   { id: "A17c-ptyped", rule: T.qty, cat: ADP, path: "ptyped", kind: "pos", unit: "nos", model: [{ family: "round diffuser", damper: "with", dia_mm: "200", qty_per_row_unit: "2" }], edits: ptyped({}, [], "3"), re: ["x 3 per row unit"], not: ["x 2 per row unit"], priced: true },
+
+  // ── PIPING (SLICE 12e-2, owner option 1; the rules P1-P5 on the live v36 asset) ─────────────────────
+  // P4 the unit
+  { id: "P4a", rule: T.unit, cat: PIP, path: "panel", kind: "pos", unit: "", model: [MS50], re: ["No unit on the BoQ row -> priced per metre"], priced: true },
+  { id: "P4b", rule: T.unit, cat: PIP, path: "panel", kind: "pos", unit: "R/O", model: [MS50], re: ["BoQ says R/O (rate only) -> priced per metre"], priced: true },
+  { id: "P4c-neg", rule: T.unit, cat: PIP, path: "panel", kind: "neg", unit: "nos", model: [MS50], re: ["unit 'nos' is not a length unit"], not: ["count, area or length"], priced: false },
+  { id: "P4a-calc", rule: T.unit, cat: PIP, path: "calc", kind: "pos", edits: calc("MS", { size_mm: "50" }), rowUnit: "mts", re: [], priced: true },
+  // P1 the kind: stocked, mapped, refused, read off the row
+  { id: "P1a", rule: T.kind, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [MS50], re: ["family:MS"], priced: true },
+  { id: "P1b-neg", rule: T.kind, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [{ pipe_type: "ABC", size_mm: "50" }], re: ["no SKU in the catalogue for 'ABC' -- the user decides"], priced: false },
+  { id: "P1c", rule: T.pipeMap, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [{ pipe_type: "GI", size_mm: "50" }], re: ["BoQ says GI -> priced as MS", "family:MS"], priced: true },
+  { id: "P1c-calc", rule: T.pipeMap, cat: PIP, path: "calc", kind: "pos", edits: typedType("GI", { size_mm: "50" }), rowUnit: "mts", re: ["BoQ says GI -> priced as MS", "family:MS"], priced: true },
+  { id: "P1c2-calc", rule: T.pipeMap, cat: PIP, path: "calc", kind: "pos", edits: typedType("uPVC", { size_mm: "110" }, ["size_mm"]), rowUnit: "mts", re: ["BoQ says uPVC -> priced as PVC", "You typed 110 -> priced as 150 mm (next size up)"], priced: true },
+  { id: "P1c3-calc", rule: T.pipeMap, cat: PIP, path: "calc", kind: "pos", edits: typedType("HDPE", { size_mm: "50" }), rowUnit: "mts", re: ["BoQ says HDPE -> priced as PVC", "family:PVC"], priced: true },
+  { id: "P1d-neg", rule: T.pipeMap, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [MS50], re: ["family:MS"], not: ["priced as MS", "BoQ says"], priced: true },
+  { id: "P1e", rule: T.pipeRefuse, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [{ pipe_type: "SS", size_mm: "50" }], re: ["No SKU in the catalogue for SS pipe - price this row by hand"], priced: false },
+  { id: "P1e-calc", rule: T.pipeRefuse, cat: PIP, path: "calc", kind: "pos", edits: typedType("SS", { size_mm: "50" }), rowUnit: "mts", re: ["No SKU in the catalogue for SS pipe - price this row by hand"], priced: false },
+  { id: "P1e2-calc", rule: T.pipeRefuse, cat: PIP, path: "calc", kind: "pos", edits: typedType("ABC", { size_mm: "50" }), rowUnit: "mts", re: ["no SKU in the catalogue for 'ABC' -- the user decides"], priced: false },
+  { id: "P1f-neg", rule: T.pipeRefuse, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [{ pipe_type: "PVC", size_mm: "50" }], re: ["family:PVC"], not: ["No SKU in the catalogue", "the user decides"], priced: true },
+  { id: "P1g", rule: T.pipeRow, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [{ pipe_type: "None", size_mm: "50" }], description: "MS / GI pipe 50 mm dia with fittings", re: ["BoQ names MS / GI -> priced as MS", "family:MS"], priced: true },
+  { id: "P1h", rule: T.pipeRow, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [{ pipe_type: "None", size_mm: "50" }], description: "copper or PVC drain pipe 50 mm", re: ["two pipe types are named in this row (Copper, PVC) - pick the type"], priced: false },
+  { id: "P1i-neg", rule: T.pipeRow, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [{ pipe_type: "None", size_mm: "50" }], description: "pipe 50 mm dia", headings: ["MS piping"], re: ["no pipe type could be told for this item"], not: ["BoQ names", "two pipe types"], priced: false },
+  // the rule for the unit, and the needs
+  { id: "P6a", rule: T.ruleForUnit, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [MS50], re: ["family:MS"], priced: true },
+  { id: "P6b-neg", rule: T.ruleForUnit, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [{ pipe_type: "Copper", size_mm: "15.9" }], re: [], not: ["no SKU per"], priced: true },
+  { id: "P7a", rule: T.needs, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [{ pipe_type: "MS" }], re: ["no pipe size stated"], priced: false },
+  { id: "P7b-neg", rule: T.needs, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [MS50], re: [], not: ["no pipe size stated"], priced: true },
+  { id: "P7a-calc", rule: T.needs, cat: PIP, path: "calc", kind: "pos", edits: calc("MS", {}), rowUnit: "mts", re: ["no pipe size stated"], priced: false },
+  // P2 the size: inches (both conversions), one size typed, the ladder
+  { id: "P2a", rule: T.inches, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [{ pipe_type: "Copper", size_mm: `5/8${INCH}` }], re: [`BoQ says 5/8${INCH} -> 15.875 mm -> priced as 15.9 mm (the sheet's own spelling of this size)`], priced: true },
+  { id: "P2a-calc", rule: T.inches, cat: PIP, path: "calc", kind: "pos", edits: calc("Copper", { size_mm: `5/8${INCH}` }, ["size_mm"]), rowUnit: "mts", re: [`You typed 5/8${INCH} -> 15.875 mm -> priced as 15.9 mm (the sheet's own spelling of this size)`], priced: true },
+  { id: "P2b-calc", rule: T.inches, cat: PIP, path: "calc", kind: "pos", edits: calc("MS", { size_mm: "4 inch" }, ["size_mm"]), rowUnit: "mts", re: ["You typed 4 inch -> 101.6 mm / 100 mm -> priced as 100 mm"], priced: true },
+  { id: "P2c-calc", rule: T.inches, cat: PIP, path: "calc", kind: "pos", edits: calc("Copper", { size_mm: `1-1/4${INCH}` }, ["size_mm"]), rowUnit: "mts", re: [`You typed 1-1/4${INCH} -> 31.75 mm -> priced as 31.7 mm (the sheet's own spelling of this size)`], priced: true },
+  { id: "P2d-neg", rule: T.inches, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [MS50], re: [], not: ["-> 50.8", "/ 50 mm"], priced: true },
+  { id: "P2e-ptyped", rule: T.typedSize, cat: PIP, path: "ptyped", kind: "pos", unit: "mts", model: [MS50], edits: ptyped({ size_mm: "40/50" }, ["size_mm"]), re: ["Type one pipe size, in mm or inches"], priced: false },
+  { id: "P2e-calc", rule: T.typedSize, cat: PIP, path: "calc", kind: "pos", edits: calc("MS", { size_mm: "two inch" }, ["size_mm"]), rowUnit: "mts", re: ["Type one pipe size, in mm or inches"], priced: false },
+  { id: "P2f-neg", rule: T.typedSize, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [{ pipe_type: "MS", size_mm: "40/50" }], re: ["pipe size 20.32 is not on the sheet -> 25 (next size up", "BoQ says 40/50 -> 20.32 mm -> priced as 25 mm (next size up)"], not: ["Type one pipe size"], priced: true },
+  { id: "P2g", rule: T.fitPipe, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [{ pipe_type: "PVC", size_mm: "110" }], re: ["pipe size 110 is not on the sheet -> 150 (next size up", "BoQ says 110 -> priced as 150 mm (next size up)"], priced: true },
+  { id: "P2h", rule: T.fitPipe, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [{ pipe_type: "MS", size_mm: "15" }], re: ["BoQ says 15 -> priced as 19 mm (the smallest size)"], priced: true },
+  { id: "P2i", rule: T.fitPipe, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [{ pipe_type: "Copper", size_mm: "31.75" }], re: ["pipe size 31.75 is 31.7 on the sheet", "BoQ says 31.75 -> priced as 31.7 mm (the sheet's own spelling of this size)"], priced: true },
+  { id: "P2j-neg", rule: T.fitPipe, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [{ pipe_type: "MS", size_mm: "350" }], re: ["pipe size 350 is above the largest size on the sheet (300)"], priced: false },
+  { id: "P2g-calc", rule: T.fitPipe, cat: PIP, path: "calc", kind: "pos", edits: calc("PVC", { size_mm: "110" }, ["size_mm"]), rowUnit: "mts", re: ["You typed 110 -> priced as 150 mm (next size up)"], priced: true },
+  { id: "P2h-calc", rule: T.fitPipe, cat: PIP, path: "calc", kind: "pos", edits: calc("MS", { size_mm: "15" }, ["size_mm"]), rowUnit: "mts", re: ["You typed 15 -> priced as 19 mm (the smallest size)"], priced: true },
+  // P3 the class
+  { id: "P3a", rule: T.readClass, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [{ ...MS50, pipe_class: "Class C" }], re: ["Class C stated -> priced at the one MS rate (the sheet has no class rates)"], priced: true },
+  { id: "P3a-calc", rule: T.readClass, cat: PIP, path: "calc", kind: "pos", edits: calc("MS", { size_mm: "50", pipe_class: "Class C" }), rowUnit: "mts", re: ["Class C stated -> priced at the one MS rate (the sheet has no class rates)"], priced: true },
+  { id: "P3b-neg", rule: T.readClass, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [MS50], re: [], not: ["stated -> priced at the one"], priced: true },
+  // P5 the priced steps, and the quantity
+  { id: "P5a", rule: T.steps, cat: PIP, path: "panel", kind: "pos", unit: "mts", model: [MS50], re: ["supply: pricing input: Piping accessories - MS (factor) = 0.6", "supply: BCS pipe x (1 + the accessories share) = 656", "supply: ROUNDUP(supply, 0) = 984", "install: ROUNDUP(install, 0) = 280"], priced: true },
+  { id: "P5b-neg", rule: T.steps, cat: PIP, path: "panel", kind: "neg", unit: "mts", model: [{ pipe_type: "MS", size_mm: "350" }], re: [], not: ["supply: pricing input"], priced: false },
+  { id: "P5c-ptyped", rule: T.qty, cat: PIP, path: "ptyped", kind: "pos", unit: "mts", model: [MS50], edits: ptyped({}, [], "2"), re: ["x 2 per row unit"], priced: true },
+  { id: "P5d-ptyped-neg", rule: T.qty, cat: PIP, path: "ptyped", kind: "neg", unit: "mts", model: [MS50], edits: ptyped({}, [], "0"), re: ["quantity per row unit '0' is not a positive number"], priced: false },
 ];
 
 /** ADP line 5 (`units_not_offered`) acts on the CALCULATOR'S UNIT PICKER, not on a row's price: it is covered
@@ -276,6 +339,7 @@ function run(c: Case) {
     excelRow: 1, description: c.path === "calc" ? "" : (c.description ?? ""), nodeType: "Line Item", category: c.cat, discipline: "HVAC",
     rateKinds: ["supply_rate", "install_rate", "combined_rate"], headings: c.path === "calc" ? [] : (c.headings ?? []), ownNotes: c.path === "calc" ? [] : (c.ownNotes ?? []),
   };
+  // 12e-2: the family CONTROL's line reaches the lines read here, exactly as the panel shows it
   if (c.path !== "calc" && c.unit !== undefined) ctx.unit = c.unit;
   const r = h.compute(ctx, overrides);
   if (!isSuggestion(r)) throw new Error(`${c.id}: expected a suggestion`);
@@ -290,6 +354,7 @@ function run(c: Case) {
     if (b.reason) lines.push(b.reason);
     if (b.skuLine) lines.push(b.skuLine);
     if (b.familyDefaulted) lines.push(b.familyDefaulted.rule);
+    if (b.familyLine) lines.push(b.familyLine);
     lines.push(...b.working);
     for (const f of b.fields) {
       if (f.note) lines.push(`${f.id}:${f.note}`);
@@ -314,8 +379,8 @@ const matches = (text: string, p: string | RegExp) => (typeof p === "string" ? t
 describe("T1 -- every Derivation-tab rule of Insulation and ADP fires from the panel's entry point (live v33)", () => {
   const titles = (cat: string) => itemListRuleOrder(CFG[cat], ITEMS).map((l) => l.title);
 
-  it("THE GUARD: the rules this file names EQUAL the rules the config generates (Insulation 24, ADP 18); a new rule without a case, or a case naming a dead rule, fails here", () => {
-    for (const cat of [INS, ADP]) {
+  it("THE GUARD: the rules this file names EQUAL the rules the config generates (Insulation 24, ADP 18, Piping 14); a new rule without a case, or a case naming a dead rule, fails here", () => {
+    for (const cat of [INS, ADP, PIP]) {
       const generated = new Set(titles(cat));
       const named = new Set([...CASES.filter((c) => c.cat === cat).map((c) => c.rule), ...PICKER_CASES.filter(() => cat === ADP).map((p) => p.rule), ...Object.keys(NOT_PANEL_RULES).filter((t) => generated.has(t))]);
       const uncovered = [...generated].filter((t) => !named.has(t));
@@ -324,12 +389,13 @@ describe("T1 -- every Derivation-tab rule of Insulation and ADP fires from the p
     }
     expect(titles(INS)).toHaveLength(24);
     expect(titles(ADP)).toHaveLength(18);
+    expect(titles(PIP)).toHaveLength(14);   // 12e-2: the Piping rules P1-P5 over the shared lines
     // every NOT-panel rule is a REAL tab line (never a stale excuse)
     for (const t of Object.keys(NOT_PANEL_RULES)) expect(titles(INS).includes(t) || titles(ADP).includes(t)).toBe(true);
   });
 
   it("every panel-path rule has a POSITIVE model-read case and a NEGATIVE (near-miss) case", () => {
-    for (const cat of [INS, ADP]) {
+    for (const cat of [INS, ADP, PIP]) {
       for (const t of titles(cat)) {
         if (t in NOT_PANEL_RULES || t === T.notOffered) continue;
         const mine = CASES.filter((c) => c.cat === cat && c.rule === t);
@@ -341,6 +407,7 @@ describe("T1 -- every Derivation-tab rule of Insulation and ADP fires from the p
 
   it.each(CASES.map((c) => [c.id, c] as const))("%s", (_, c) => {
     const { s, v, text, pure } = run(c);
+    if (c.cat === PIP && c.path !== "calc") expect(v.items[0]?.familyControl?.id).toBe("pipe_type");   // 12e-2: the family is a CONTROL on Piping
     for (const p of c.re) expect({ id: c.id, has: p, text }).toMatchObject({ has: p, text: expect.stringMatching(typeof p === "string" ? new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) : p) });
     for (const p of c.not ?? []) expect({ id: c.id, forbidden: p, hit: matches(text, p) }).toEqual({ id: c.id, forbidden: p, hit: false });
     if (c.priced !== undefined) expect({ id: c.id, priced: v.rowPriced }).toEqual({ id: c.id, priced: c.priced });

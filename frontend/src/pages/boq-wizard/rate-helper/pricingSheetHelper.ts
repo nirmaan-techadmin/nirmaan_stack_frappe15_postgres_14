@@ -73,6 +73,7 @@ import {
   listSpecDefs,
   priceItemList,
   sizeFieldHelp,
+  typedFieldNote,
   unitClassOf,
   type ExtractedListItem,
   type ItemFieldDef,
@@ -1700,6 +1701,11 @@ export function assembleItems(
     }
     // SLICE 12d-1b (owner T6): a value the PRICER typed is marked, so the pricer never parses it as layers.
     for (const [k, v] of Object.entries(e.attrs)) attributes[k] = { value: v === "" ? null : v, typed: true };
+    // SLICE 12e-2 (owner P1): a family TYPED through the family field's "Other..." box (recorded in `other`
+    // under the family attribute id, exactly as a size field records it) is marked typed too, so the
+    // `family_text` reader can tell a pricer's spelling from a model's answer. A block that never opened the
+    // box carries no such entry and is byte-identical.
+    if (e.family !== null && (e.other ?? []).includes(familyAttrId)) attributes[familyAttrId] = { value: e.family === "" ? null : e.family, typed: true };
     // SLICE 6c: an untyped quantity is passed as ABSENT, which the module has always priced as 1 -- so the
     // marking changes no rate anywhere.
     return { attributes, ...(e.qty !== undefined ? { qtyPerRowUnit: e.qty } : {}) };
@@ -1782,6 +1788,30 @@ export interface ItemFieldView extends ItemFieldDef {
    * value the pricing uses. The select keeps the real value (so it still matches an option and stays
    * editable -- see the controlled-select trap in frontend/CLAUDE.md); only the text changes. */
   optionLabels?: Record<string, string>;
+  /** SLICE 12e-2 (owner Q10, "read-only text when present"): a `panel_optional` box whose value the MODEL
+   * supplied and the pricer has not edited is shown as read-only text, not a box. Never set elsewhere. */
+  readOnly?: true;
+}
+
+/**
+ * SLICE 12e-2 (owner P1 + amendment 2026-10-10 10:29): THE FAMILY FIELD AS A CONTROL -- a dropdown of the
+ * stocked families plus "Other...", which opens a typed box ("Pipe type as the BoQ writes it"). Present ONLY
+ * when the config declares the family attribute's `panel_controls` entry `dropdown_or_other`; Insulation and
+ * ADP declare `dropdown`, keep their "Change item" picker and are byte-identical.
+ */
+export interface FamilyControlView {
+  /** the family attribute id (`list_spec.family_attribute_id`) -- what the panel's two family ops carry */
+  id: string;
+  /** the family definition's label ("Pipe type") */
+  label: string;
+  /** the stocked families, in the config's order */
+  options: string[];
+  /** the "Other..." box is open: the pricer chose it, or typed a spelling that is not a stocked family */
+  otherMode: boolean;
+  /** what the pricer typed (the box is bound to this, never to the resolved family) */
+  typedValue: string;
+  /** the config's note for the box ("Pipe type as the BoQ writes it") */
+  note?: string;
 }
 
 /** One item block, as the panel renders it. */
@@ -1795,6 +1825,13 @@ export interface ItemBlockView {
    * no material and its kind (unit, or a heading word) decided. Present ONLY on such a block, so every
    * other block is byte-identical; the panel shows it amber with the rule, like every other default. */
   familyDefaulted?: { value: string; rule: string };
+  /** SLICE 12e-2 (owner Q16 / Q15): the line under the family when `family_text` read the answer as another
+   * family ("BoQ says GI -> priced as MS") or off the row's own words. Present ONLY then; the panel shows it
+   * amber in place of its built-in alias sentence. */
+  familyLine?: string;
+  /** SLICE 12e-2 (owner P1): the family as a dropdown + "Other..." control -- present ONLY on a config that
+   * declares the family attribute `dropdown_or_other`. */
+  familyControl?: FamilyControlView;
   fields: ItemFieldView[];
   /** SLICE 12d-1a (owner R7): the attributes the config declares READ-ONLY (`panel_readonly`) that the
    * model answered on this item -- shown under the def's label, never a field, never matched. Empty
@@ -2027,7 +2064,32 @@ function itemBlockView(
    *  box the model opened stays open while the pricer types into it. */
   modelItem: ExtractedListItem | undefined = undefined,
 ): ItemBlockView {
-  const family = res.family ?? (typeof assembled.attributes.family?.value === "string" ? assembled.attributes.family.value : null);
+  const famId = familyAttr(spec);
+  const familyIsControl = spec.panel_controls?.[famId] === "dropdown_or_other";
+  const family = res.family ?? (typeof assembled.attributes.family?.value === "string" ? assembled.attributes.family.value : null)
+    // SLICE 12e-2 (owner P1): on a family CONTROL a typed spelling the reader refused (SS, ABC) still heads the
+    // block as written, so the refusal beneath reads against what was typed; every other category is unchanged
+    ?? (familyIsControl && typeof assembled.attributes[famId]?.value === "string" ? String(assembled.attributes[famId].value) : null);
+  /**
+   * SLICE 12e-2 (owner P1 + amendment, block 19 d): the family as a control. The typed box opens when the pricer
+   * chose "Other..." (recorded under the family id in `edit.other`) or when the value on the block is not a
+   * stocked family (the reader mapped or refused it) -- so a mapped GI keeps its box open with "GI" in it while
+   * the block's heading shows the family USED (MS). The note is the config's own (`panel_notes`).
+   */
+  const familyControl: FamilyControlView | undefined = familyIsControl
+    ? (() => {
+        const options = Object.keys(spec.families);
+        // the box shows what is ON the block as written -- the pricer's typed spelling, or the model's answer
+        // (the size box's `typedValue` reading); a resolved family never overwrites it
+        const onBlock = assembled.attributes[famId]?.value;
+        const typedValue = edit.family ?? (typeof onBlock === "string" && onBlock !== "None" ? onBlock : "");
+        const explicit = (edit.other ?? []).includes(famId);
+        const otherMode = explicit || (typedValue !== "" && !options.includes(typedValue));
+        const famDef = defs.find((d) => d.id === famId);
+        const note = typedFieldNote(spec, famId, new Set<string>(), options);
+        return { id: famId, label: famDef?.label ?? famId, options, otherMode, typedValue, ...(note ? { note } : {}) };
+      })()
+    : undefined;
   // SLICE 6b (V1, X2): the block's answers as they reached the matcher (defaults applied, ladders fitted) narrow
   // each dropdown's options exactly as they narrow the ladder's rungs
   // SLICE 12c-S: the answers that narrow each dropdown are EVERY fact this block resolved, not only
@@ -2093,7 +2155,31 @@ function itemBlockView(
      * box, 22.23 in the select, and no line at all connecting them. Comparing the two numbers catches
      * both roads to a substitution and still says nothing when nothing moved.
      */
-    if (hop && hop.requested !== hop.fitted) {
+    if (hop && hop.how !== undefined) {
+      /**
+       * SLICE 12e-2 (owner P2 / Q14 / Q14a / Q17 / Q11): on an axis that DECLARES its ladder rungs, the line
+       * shows the whole read -- what was entered, the number read from it (both conversions when the second
+       * one landed), and the rung with HOW it landed:
+       *   "You typed 5/8\" -> 15.875 mm -> priced as 15.9 mm (the sheet's own spelling of this size)"
+       *   "You typed 4 inch -> 101.6 mm / 100 mm -> priced as 100 mm"
+       *   "You typed 110 -> priced as 150 mm (next size up)" / "... -> priced as 19 mm (the smallest size)"
+       * `hop.how` is written only where a declaring key is present, so every other axis keeps the line below.
+       */
+      const entered = stated.trim() !== "" ? stated.trim() : fmtNum(hop.requested);
+      const bare = /^\s*\d+(?:\.\d+)?\s*$/.test(entered) && Number(entered) === hop.requested;
+      const read = bare ? "" : (hop.how === "alt" && typeof hop.alt === "number"
+        ? ` -> ${fmtNum(hop.requested)}${u} / ${fmtNum(hop.alt)}${u}`
+        : ` -> ${fmtNum(hop.requested)}${u}`);
+      const landed = hop.how === "exact" && hop.requested === hop.fitted
+        ? ""
+        : hop.how === "smallest" ? " (the smallest size)"
+        : hop.how === "up" ? " (next size up)"
+        : hop.how === "alt" ? ""
+        : " (the sheet's own spelling of this size)";
+      if (!(hop.how === "exact" && hop.requested === hop.fitted && bare)) {
+        note = `${said} ${entered}${read} -> priced as ${fmtNum(hop.fitted)}${u}${landed}`;
+      }
+    } else if (hop && hop.requested !== hop.fitted) {
       note = `${said} ${fmtNum(hop.requested)}${u} -> priced as ${fmtNum(hop.fitted)}${u} `
         + (hop.exact ? "(the sheet's own spelling of this size)" : "(next size up)");
     }
@@ -2205,12 +2291,17 @@ function itemBlockView(
     const modelOpened = !!f.allowOther && userEdited && modelOpenedField(spec, modelItem, f);
     const otherMode = !!f.allowOther
       && (explicitOther || (stated !== "" && !inOptions && (!userEdited || modelOpened)));
+    // SLICE 12e-2 (owner Q10): a `panel_optional` value the MODEL supplied and the pricer has not edited is
+    // read-only text ("read-only text when present"); the calculator, which has no model value, shows the box.
+    const modelGave = !!f.optional && !userEdited && typeof modelItem?.attributes?.[f.id]?.value === "string"
+      && String(modelItem?.attributes?.[f.id]?.value).trim() !== "";
     return {
       ...f,
       value,
       typedValue: stated,
       defaulted,
       ...(defaulted ? { rule: d!.rule } : {}),
+      ...(modelGave ? { readOnly: true as const } : {}),
       userEdited,
       otherMode,
       ...(note ? { note } : {}),
@@ -2245,6 +2336,11 @@ function itemBlockView(
     source: edit.base !== null && edit.family === null ? "model" : "user",
     family,
     familyRaw: res.familyRaw !== null && res.familyRaw !== family ? res.familyRaw : null,
+    // SLICE 12e-2 (owner Q16 / Q15 / P1): the `family_text` line, and the family CONTROL where the config
+    // declares the family attribute `dropdown_or_other` -- the typed box is bound to what the pricer typed
+    // (`edit.family`), never to the resolved family (the 12c FINISH lesson on the size box).
+    ...(res.familyLine ? { familyLine: res.familyLine } : {}),
+    ...(familyControl ? { familyControl } : {}),
     // SLICE 12d-1a (owner R2): the family was RULED, not read -- shown amber with its rule. A family
     // the pricer picked themselves is theirs, exactly as a typed field is never marked as a default.
     ...(res.familyDefaulted && edit.family === null ? { familyDefaulted: res.familyDefaulted } : {}),
@@ -2575,6 +2671,10 @@ function plainItemListView(view: ItemListView, items: ReadonlyArray<RateMasterIt
       ...(b.reason !== undefined ? { reason: p(b.reason) } : {}),
       ...(b.skuLine !== undefined ? { skuLine: p(b.skuLine) } : {}),
       ...(b.familyDefaulted ? { familyDefaulted: { ...b.familyDefaulted, rule: p(b.familyDefaulted.rule) } } : {}),
+      // SLICE 12e-2: the family line and the family control's note are display strings; `typedValue` and the
+      // options are what the control matches on and are never touched
+      ...(b.familyLine !== undefined ? { familyLine: p(b.familyLine) } : {}),
+      ...(b.familyControl ? { familyControl: { ...b.familyControl, ...(b.familyControl.note !== undefined ? { note: p(b.familyControl.note) } : {}) } } : {}),
       working: b.working.map(p),
       fields: b.fields.map((f) => ({
         ...f,
@@ -2600,7 +2700,13 @@ export type ItemEditOp =
   | { op: "remove"; index: number }
   /** SLICE 12c-S (F15): the pricer opened, or closed, this field's "Other..." box. `on` false also
    *  covers picking a real option, which is what takes the field back out of typing. */
-  | { op: "set_other"; index: number; id: string; on: boolean };
+  | { op: "set_other"; index: number; id: string; on: boolean }
+  /** SLICE 12e-2 (owner P1): the pricer opened the FAMILY field's "Other..." box (`id` = the family attribute
+   *  id, recorded in `other` exactly as a size field is); the block starts BLANK with no family (S1). */
+  | { op: "set_family_other"; index: number; id: string }
+  /** SLICE 12e-2 (owner P1): the pricer typed a family spelling into that box. The block starts BLANK for the
+   *  typed family (S1, as "Change item" does), the box stays open, and the ONE reader resolves it at compute. */
+  | { op: "set_family_text"; index: number; id: string; text: string };
 
 /** PURE. Apply one panel operation. A changed or added item starts BLANK (S1): family only, no attrs, qty 1. */
 export function applyItemEdit(state: ItemListEditState, op: ItemEditOp): ItemListEditState {
@@ -2638,6 +2744,14 @@ export function applyItemEdit(state: ItemListEditState, op: ItemEditOp): ItemLis
     case "change_family":
       if (!at(op.index)) return state;
       items[op.index] = { base: null, family: op.family, attrs: {} };
+      return { items };
+    case "set_family_other":
+      if (!at(op.index)) return state;
+      items[op.index] = { base: null, family: "", attrs: {}, other: [op.id] };
+      return { items };
+    case "set_family_text":
+      if (!at(op.index)) return state;
+      items[op.index] = { base: null, family: op.text, attrs: {}, other: [op.id] };
       return { items };
     case "add":
       items.push({ base: null, family: op.family, attrs: {} });

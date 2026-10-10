@@ -107,7 +107,9 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
   add("The row's unit decides which kind of rate applies",
       [classes.length ? `the units it knows: ${list(classes)}` : "",
        factors.length ? `${list(factors, 4)} convert to the catalogue's own unit` : "",
-       classes.length ? "a row with no unit, or a rate-only unit (R/O, QRO), is priced in the item's own unit and says so; a row stating several units refuses, naming them" : ""]
+       classes.length ? "a row with no unit, or a rate-only unit (R/O, QRO), is priced in the item's own unit and says so; a row stating several units refuses, naming them" : "",
+       // SLICE 12e-2 (owner Q19 / C2): the configured refusal for any other unit, in its own words
+       typeof pr.unit_refusal === "string" && pr.unit_refusal.trim() ? `any other unit refuses: ${plainSentence(String(pr.unit_refusal).replace("{unit}", "nos"))}` : ""]
         .filter(Boolean).join("; ") || undefined);
 
   // ── 2. the kind ───────────────────────────────────────────────────────────────────────────────────
@@ -117,6 +119,24 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
       [fams.length ? `${fams.length} kind${fams.length === 1 ? "" : "s"} in the catalogue` : "",
        aliases.length ? `${list(aliases, 3)} price as another kind` : ""]
         .filter(Boolean).join("; ") || undefined);
+
+  // ── 2b. SLICE 12e-2 (owner Q16 / Q15 / Q18): a kind written as the BoQ writes it ─────────────────
+  const famAttrId = String(ls?.family_attribute_id ?? "family");
+  const ft = pr.family_text;
+  if (ft && typeof ft === "object") {
+    const maps = ((ft.map ?? []) as any[]).filter((m) => m?.from && m?.to);
+    if (maps.length) {
+      add(`A ${name(famAttrId)} written as ${list(maps.map((m) => String(m.from)), 4)} is priced as the kind it means`,
+          `${list(maps.map((m) => `${String(m.from)} -> ${famWord(String(m.to))}`), 4)} -- with a line saying so`);
+    }
+    const refuses = ((ft.refuse ?? []) as any[]).filter((r) => r?.from && r?.refuse);
+    add(`A ${name(famAttrId)} the catalogue does not stock refuses by name`,
+        [...refuses.map((r) => `${String(r.from)}: ${plainSentence(r.refuse)}`), "any other spelling: no SKU in the catalogue for it -- the pricer decides"].join("; "));
+    if (ft.from_row && typeof ft.from_row === "object" && ft.from_row.refuse) {
+      add(`A row naming one ${name(famAttrId)} prices as it; two different ones with none chosen refuse`,
+          `the names in the row's own text, read through the same map; ${plainSentence(String(ft.from_row.refuse).replace("{types}", "the names found"))}`);
+    }
+  }
 
   const fwn = pr.family_when_none;
   if (fwn && typeof fwn === "object") {
@@ -171,7 +191,16 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
       add(`Several ${name(attr)} values stated take the highest`,
           "a bare slash list ('19 / 25 / 32'); a size range ('25 to 50') takes its top value; a comma list and a tolerance ('25 +/- 2') still refuse");
     }
-    if (rd?.inches) add(`A ${name(attr)} written in inches is converted to millimetres`, "a bare fraction (7/8\") is read as inches on this reader");
+    if (rd?.inches) {
+      // SLICE 12e-2 (owner Q14): the second conversion, where the reader declares one
+      const alt = typeof rd.inch_mm_alt === "number" ? `; converted at 25.4 ${rd.unit ?? "mm"} to the inch, then at ${rd.inch_mm_alt} where the first lands on no stocked size` : "";
+      add(`A ${name(attr)} written in inches is converted to millimetres`, `a bare fraction (7/8") is read as inches on this reader${alt}`);
+    }
+    // SLICE 12e-2 (owner P2): a typed entry on this axis is ONE size
+    if (rd?.typed_entry === "one_size") {
+      add(`A typed ${name(attr)} is one size, in ${rd.unit ?? "mm"} or inches`,
+          "a number (an NB number is mm) or an inch size (5/8\", 1-1/4\", 2 inch); '40/50' and 'two inch' refuse: Type one pipe size, in mm or inches");
+    }
   }
 
   // ── 5. the defaults (what is assumed) ─────────────────────────────────────────────────────────────
@@ -239,6 +268,9 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
   for (const a of ladders) {
     const bits = ["the stated size, else the next size the catalogue stocks"];
     if (pr.size_match?.dp?.length) bits.push("the same size written to a different precision counts as that size");
+    // SLICE 12e-2 (owner Q14a / Q17): the two declared rungs, in the order the ladder tries them
+    if (typeof pr.size_match?.near === "number") bits.push(`a size within ${pr.size_match.near} ${pr.numbers?.[a]?.unit ?? "mm"} of a stocked size counts as that size`);
+    if (pr.size_match?.below_smallest === "smallest") bits.push("below the smallest stocked size takes the smallest");
     if (a === composed) {
       bits.push(`above the largest stocked size, built from ${pr.compose.max_layers} or fewer layers`
                 + ` within ${pr.compose.tolerance} -- the fewest layers, then the closest, then the cheapest, all at one ${ladders.filter((x) => x !== composed).map(name).join(" / ") || "size"}`);

@@ -1211,9 +1211,16 @@ function ItemListBlocks({
               </button>
             </div>
           </div>
-          {b.familyRaw && (
+          {b.familyRaw && !b.familyLine && (
             <p className="pl-1 text-[10px] leading-tight text-amber-700 dark:text-amber-400">
               BoQ says &ldquo;{b.familyRaw}&rdquo;: priced as {b.family} (your rule).
+            </p>
+          )}
+          {/* SLICE 12e-2 (owner Q16 / Q15, amendment 2026-10-10): the config's own line for a family read as
+              another ("BoQ says GI -> priced as MS") -- amber, in place of the built-in sentence above. */}
+          {b.familyLine && (
+            <p className="pl-1 text-[10px] leading-tight text-amber-700 dark:text-amber-400" data-testid="item-family-line">
+              {b.familyLine}
             </p>
           )}
           {b.familyDefaulted && (
@@ -1229,6 +1236,55 @@ function ItemListBlocks({
             </p>
           ))}
           {picker?.mode === "change" && picker.index === i && familyPicker("Change to…")}
+          {/* SLICE 12e-2 (owner P1 + amendment 2026-10-10 10:29, block 19 d): the FAMILY AS A CONTROL -- a
+              dropdown of the stocked families plus "Other...", which opens a box bound to WHAT THE PRICER
+              TYPED ("Pipe type as the BoQ writes it"); the family USED heads the block above, the config's
+              line sits beneath. Present only on a config declaring the family `dropdown_or_other`; Insulation
+              and ADP (`dropdown`) keep the "Change item" picker alone and render exactly as before. */}
+          {b.familyControl && (
+            <div className="group/attr space-y-0.5" data-testid="item-family-control">
+              <label className="flex items-center justify-between gap-2 text-xs">
+                <span className="flex items-center gap-1 text-muted-foreground">{b.familyControl.label}</span>
+                <span className="flex items-center gap-1">
+                  <select
+                    className={cn("h-7 w-28 rounded border bg-background px-1 text-xs", b.state !== "priced" && !b.family && "border-red-500 dark:border-red-500")}
+                    value={b.familyControl.otherMode ? OTHER_VALUE : (b.familyControl.options.includes(b.familyControl.typedValue) ? b.familyControl.typedValue : "")}
+                    aria-label={b.familyControl.label}
+                    onChange={(e) => {
+                      if (e.target.value === OTHER_VALUE) {
+                        onEdit({ op: "set_family_other", index: i, id: b.familyControl.id });
+                        return;
+                      }
+                      if (e.target.value === "") { onEdit({ op: "set_family_text", index: i, id: b.familyControl.id, text: "" }); return; }
+                      onEdit({ op: "change_family", index: i, family: e.target.value });
+                    }}
+                  >
+                    <option value="">&mdash; select &mdash;</option>
+                    {b.familyControl.options.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                    <option value={OTHER_VALUE}>{OTHER_LABEL}</option>
+                  </select>
+                  {b.familyControl.otherMode && (
+                    <Input
+                      className="h-7 w-20 text-xs"
+                      value={b.familyControl.typedValue}
+                      aria-label={`${b.familyControl.label} -- as the BoQ writes it`}
+                      onChange={(e) => onEdit({ op: "set_family_text", index: i, id: b.familyControl.id, text: e.target.value })}
+                    />
+                  )}
+                </span>
+              </label>
+              {b.familyControl.otherMode && b.familyControl.note && (
+                <div className={NOTE_BOX_CLASS}>
+                  <Info className={NOTE_ICON_CLASS} aria-hidden />
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-[10px] leading-tight opacity-90">{b.familyControl.note}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {b.fields.map((f) => {
             const tone = f.blank
               ? "border-red-500 dark:border-red-500"
@@ -1310,6 +1366,9 @@ function ItemListBlocks({
                         />
                       )}
                     </span>
+                  ) : f.readOnly ? (
+                    // SLICE 12e-2 (owner Q10): a `panel_optional` value the model read -- read-only text when present
+                    <span className="h-7 w-28 truncate text-xs" data-testid={`item-optional-${f.id}`}>{f.value}</span>
                   ) : (
                     <Input
                       className={cn("h-7 w-28 text-xs", tone)}

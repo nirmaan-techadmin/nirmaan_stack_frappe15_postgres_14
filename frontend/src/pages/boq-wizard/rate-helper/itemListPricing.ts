@@ -37,7 +37,7 @@ import type {
   RateCategoryConfig,
   RateMasterItem,
 } from "../../pricing/rate-master/rateMasterTypes";
-import { resolveSize, composeSize, type SizeMatchSpec, type ComposeSpec } from "./ladderResolution";
+import { resolveSize, composeSize, nearestRung, type SizeMatchSpec, type ComposeSpec } from "./ladderResolution";
 
 // ---------------------------------------------------------------------------------------------------------
 // the config block (list_spec.pricing) -- mirrors the backend validator `_validate_list_pricing`
@@ -72,6 +72,40 @@ export interface NumberReader {
   /** SLICE 12d-1b (owner T2): a BARE slash list of ANY length ("19/ 25 / 32 mm") reads as its HIGHEST.
    * ABSENT => exactly two still take the higher (slice 11) and three or more refuse, so ADP is byte-identical. */
   several?: "highest";
+  /**
+   * SLICE 12e-2 (owner Q14, 2026-10-10): "for inch to mm conversion we should try the conversion using 1 inch
+   * = 2.5 mm also in addition to 1 inch = 2.54 mm" -- a SECOND millimetres-per-inch figure (25) carried as an
+   * ALTERNATIVE read beside the exact one (x 25.4). The ladder tries the exact read at every rounding depth
+   * first, then the alternative (4 inch: 101.6 lands on no MS rung, 100 does). Needs `inches: true`.
+   * ABSENT => one conversion, every other reader byte-identical.
+   */
+  inch_mm_alt?: number;
+  /**
+   * SLICE 12e-2 (owner P2): a value the PRICER types on this axis must be ONE size -- a number in mm (an NB
+   * number is mm; a trailing "mm" / "NB" accepted) or an inch form (5/8", 1-1/4", 1 1/4", 1¼", 2", 2 inch).
+   * "40/50" and "two inch" refuse with `ONE_SIZE_MESSAGE`. It also turns the field's line into the full read
+   * ("You typed 5/8\" -> 15.875 mm -> priced as 15.9 mm ..."). TYPED cells only; a model cell is read as
+   * before. ABSENT => the reader is byte-identical.
+   */
+  typed_entry?: "one_size";
+}
+
+/**
+ * SLICE 12e-2 (owner Q16 / Q15 / Q18, 2026-10-10) -- HOW A FAMILY ANSWER WRITTEN AS THE BoQ WRITES IT IS READ.
+ *
+ * The calculator's Pipe type "Other..." box (and, in 12e-4, the model's answer) may carry a spelling that is
+ * not a stocked family: GI prices as MS, uPVC and HDPE as PVC, each with the `line` said under the field; SS
+ * refuses with its own sentence; anything else refuses by name (the R18 sentence). ONE reader,
+ * `readFamilyText`, serves both paths. `from_row` (optional): when the answer is absent / "None", the family
+ * and map words found in the row's own text decide -- all on one family prices as it (marked as assumed),
+ * two different ones refuse with `refuse` ({types} = the names found).
+ */
+export interface FamilyTextSpec {
+  map: Array<{ from: string; to: string; rule: string }>;
+  refuse?: Array<{ from: string; refuse: string; rule: string }>;
+  /** "BoQ says {from} -> priced as {to} (owner rule)" */
+  line: string;
+  from_row?: { rule: string; refuse: string };
 }
 
 export interface ConversionOption {
@@ -325,6 +359,15 @@ export interface ItemListPricingSpec {
   refuse_on_unit_class?: RefuseOnUnitClass[];
   /** SLICE 12d-4a (owner D8): a working line generated from a copied text. ABSENT => no line. */
   read_notes?: ReadNote[];
+  /** SLICE 12e-2 (owner Q19 / C2): the sentence a unit outside the category's classes refuses with --
+   * "unit '{unit}' is not a length unit". ABSENT => the R12 sentence, byte-identical for every other category. */
+  unit_refusal?: string;
+  /** SLICE 12e-2 (owner Q16 / Q15 / Q18): how a family answer written as the BoQ writes it is read (the map,
+   * the refusals, the line, the row-text rule). ABSENT => a family answer is read exactly as before. */
+  family_text?: FamilyTextSpec;
+  /** SLICE 12e-2 (owner Q10): text item definitions the panel shows as an OPTIONAL typed box that no pricing
+   * rule reads (a class / wall thickness); a `read_notes` line may quote it. ABSENT => no box. */
+  panel_optional?: string[];
   numbers: Record<string, NumberReader>;
   ladders: string[];
   match_attrs: string[];
@@ -503,6 +546,23 @@ export interface LadderHop {
   requested: number;
   fitted: number;
   exact: boolean;
+  /**
+   * SLICE 12e-2 (owner Q14 / Q14a / Q17 / Q11): HOW the stated value landed on `fitted`, set on an axis that
+   * declares `typed_entry` / `inch_mm_alt` / `size_match.near` / `size_match.below_smallest` -- the field's line
+   * names it ("the sheet's own spelling of this size", "the smallest size", "next size up"). ABSENT on every
+   * other axis, so every existing hop is byte-identical.
+   *   exact      the stated value is a rung
+   *   precision  resolved by a rounding depth (15.875 -> 15.9)
+   *   alt        the SECOND inch conversion resolved it (4 inch: 101.6 no, 100 yes)
+   *   near       the nearest rung within `size_match.near` (31.75 -> 31.7)
+   *   smallest   below the smallest rung -> the smallest (owner Q17)
+   *   up         between two rungs -> the next size up (owner Q11)
+   */
+  how?: "exact" | "precision" | "alt" | "near" | "smallest" | "up";
+  /** the text as entered, when the reader read it from an inch form (for the line "You typed 5/8\" -> 15.875 mm") */
+  raw?: string;
+  /** the second conversion's value, when one was carried (101.6 mm / 100 mm) */
+  alt?: number;
 }
 
 export interface ItemPriceResult {
@@ -532,6 +592,9 @@ export interface ItemPriceResult {
   /** SLICE 12d-1a (owner R2): the family came from `family_when_none` -- the row named no material
    * and the row kind decided. Present ONLY on such an item (the amber mechanism, like `defaulted`). */
   familyDefaulted?: { value: string; rule: string };
+  /** SLICE 12e-2 (owner Q16 / Q15): the line said under the family when `family_text` read it as another
+   * family ("BoQ says GI -> priced as MS ...") or read it off the row's own words. Present ONLY then. */
+  familyLine?: string;
   /** The SKU unit class the pipelines ran against (after any conversion). */
   skuUnitClass: string | null;
   state: "priced" | "blank";
@@ -720,7 +783,36 @@ function unitWord(spec: ItemListPricingSpec, cls: string): string {
 // the number readers (R6, R16, R17) -- the model copies text AS WRITTEN; code reads it
 // ---------------------------------------------------------------------------------------------------------
 
-export type NumberRead = { value: number; note?: string } | { blank: string } | null;
+/** SLICE 12e-2: `alt` is the SECOND inch conversion (x `inch_mm_alt`) carried beside the exact read, for the
+ * ladder to try after the exact read lands on no stocked size; `raw` is the text as entered. Both are set ONLY
+ * on a reader declaring `inch_mm_alt`, so every other reader's result is byte-identical. */
+export type NumberRead = { value: number; note?: string; alt?: number; raw?: string } | { blank: string } | null;
+
+/**
+ * SLICE 12e-2 (owner P2): what a `typed_entry: "one_size"` axis accepts from a PRICER -- exactly ONE size:
+ *   a number in mm, whole or decimal, optionally followed by "mm", "NB" or "dia" ("50", "15.9", "50 NB");
+ *   an inch form: a fraction (5/8"), a mixed number with a space or a hyphen (1 1/4", 1-1/4"), a unicode vulgar
+ *   fraction (1¼"), a whole or decimal number of inches (2", 1.5 inch, 2 in, 4 inch) -- the fraction's
+ *   denominator must be a power of two up to 32 and its numerator smaller, so "40/50" is a LIST, not an inch.
+ * Everything else -- "40/50", "two inch", "40-50", "as per spec" -- refuses with `ONE_SIZE_MESSAGE`.
+ */
+export const ONE_SIZE_MESSAGE = "Type one pipe size, in mm or inches";
+const INCH_UNIT = String.raw`(?:"|”|''|\s*(?:in|inch|inches))`;
+const ONE_SIZE_FORMS: RegExp[] = [
+  /^\s*\d+(?:\.\d+)?\s*(?:mm|nb|dia|od|mm\s*dia|mm\s*od)?\s*$/i,
+  new RegExp(String.raw`^\s*(?:(\d+)[\s-]+)?(\d+)\s*/\s*(\d+)\s*${INCH_UNIT}?\s*$`, "i"),
+  new RegExp(String.raw`^\s*\d+(?:\.\d+)?\s*${INCH_UNIT}\s*$`, "i"),
+];
+export function isOneSizeEntry(text: string | number | null | undefined): boolean {
+  if (text === null || text === undefined) return false;
+  const s = unicodeFractions(String(text)).trim();
+  if (s === "") return false;
+  if (ONE_SIZE_FORMS[0].test(s) || ONE_SIZE_FORMS[2].test(s)) return true;
+  const m = s.match(ONE_SIZE_FORMS[1]);
+  if (!m) return false;
+  const num = Number(m[2]), den = Number(m[3]);
+  return [2, 4, 8, 16, 32].includes(den) && num > 0 && num < den;
+}
 
 const NUM_RE = /\d+(?:\.\d+)?/g;
 
@@ -965,8 +1057,13 @@ export function readNumber(text: string | number | null | undefined, reader: Num
     if (statedInInches || (frac && Number(frac[2]) !== 0)) {
       const mixed = s.match(/(\d+)[\s-]+\d+\s*\/\s*\d+/);
       const part = frac ? Number(frac[1]) / Number(frac[2]) : Number((s.match(/[\d.]+/) ?? ["0"])[0]);
-      const value = ((mixed ? Number(mixed[1]) : 0) + part) * 25.4;
+      const inches = (mixed ? Number(mixed[1]) : 0) + part;
+      const value = inches * 25.4;
       if (!Number.isFinite(value) || value <= 0) return { blank: `no number in '${raw}' for ${reader.name}` };
+      // SLICE 12e-2 (owner Q14): the second conversion rides beside the exact one, on this reader only
+      if (typeof reader.inch_mm_alt === "number" && Number.isFinite(reader.inch_mm_alt) && reader.inch_mm_alt > 0) {
+        return { value, alt: inches * reader.inch_mm_alt, raw };
+      }
       return { value };
     }
   } else if (statedInInches) {
@@ -1208,6 +1305,63 @@ export function familyWhenNone(
 }
 
 /**
+ * SLICE 12e-2 (owner Q16 / Q18, 2026-10-10). PURE. THE ONE READER of a family answer written as the BoQ writes
+ * it, shared by the calculator's "Other..." pipe-type box today and the 12e-4 model path tomorrow. The spelling
+ * is compared trimmed, whitespace-collapsed and case-insensitively against, in order:
+ *   a stocked family           -> that family (no line);
+ *   a `family_text.map` entry  -> its `to`, with the `line` ("BoQ says GI -> priced as MS ...");
+ *   a `family_text.refuse` one -> its sentence (SS: "No SKU in the catalogue for SS pipe - price this row by hand");
+ *   anything else              -> null: the caller refuses BY NAME with the R18 sentence (owner Q18).
+ * A blank answer is null too. A config without `family_text` resolves only a stocked spelling, exactly as before.
+ */
+export function readFamilyText(
+  spec: ItemListPricingSpec,
+  text: string | number | null | undefined,
+): { family: string; line?: string; rule?: string } | { refuse: string; rule: string } | null {
+  if (text === null || text === undefined) return null;
+  const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  const want = norm(String(text));
+  if (want === "" || want === "none") return null;
+  for (const fam of Object.keys(spec.families)) if (norm(fam) === want) return { family: fam };
+  const ft = spec.family_text;
+  if (!ft) return null;
+  for (const m of ft.map ?? []) {
+    if (norm(m.from) === want) {
+      return { family: m.to, line: ft.line.replace("{from}", m.from).replace("{to}", m.to), rule: m.rule };
+    }
+  }
+  for (const r of ft.refuse ?? []) if (norm(r.from) === want) return { refuse: r.refuse, rule: r.rule };
+  return null;
+}
+
+/**
+ * SLICE 12e-2 (owner Q15, clarified 2026-10-09). PURE. The family a row with NO family answer prices as, read
+ * off the ROW'S OWN TEXT through `family_text.from_row`: every stocked family name and every `map` spelling
+ * found at a word start (the ONE word test) is resolved through the map; names that all land on ONE family
+ * ("MS / GI") price as it, marked as assumed; two different ones refuse with the configured sentence naming
+ * them; none found -> null (the ordinary "no <family> could be told" refusal stands). A config without
+ * `from_row` reads nothing here.
+ */
+export function familyFromRowText(
+  spec: ItemListPricingSpec,
+  rowText: string,
+): { family: string; rule: string; named: string[] } | { refuse: string; rule: string } | null {
+  const fr = spec.family_text?.from_row;
+  if (!fr || !rowText.trim()) return null;
+  const words: Array<{ word: string; family: string }> = [];
+  for (const fam of Object.keys(spec.families)) words.push({ word: fam, family: fam });
+  for (const m of spec.family_text?.map ?? []) words.push({ word: m.from, family: m.to });
+  const found: Array<{ word: string; family: string }> = [];
+  for (const w of words) {
+    if (wordStartHit(rowText, [w.word]) !== null && !found.some((f) => f.word === w.word)) found.push(w);
+  }
+  if (!found.length) return null;
+  const families = [...new Set(found.map((f) => f.family))];
+  if (families.length === 1) return { family: families[0], rule: fr.rule, named: found.map((f) => f.word) };
+  return { refuse: fr.refuse.replace("{types}", found.map((f) => f.word).join(", ")), rule: fr.rule };
+}
+
+/**
  * SLICE 12d-4a (owner D7 + D11). PURE. The NAMED-MATERIAL refusal for one item, or null: the family is a
  * `no_sku_families` value (T5, 12d-1b), or an `unstocked_materials` word sits in the row's own text or in the
  * text the model copied as the material (D7) -- whatever family the model picked. ONE definition, read by
@@ -1286,10 +1440,37 @@ function priceOneItem(
     out.familyDefaulted = ruled;
     out.familyRaw = ruled.value;
   }
+  // SLICE 12e-2 (owner Q15): with NO family answer, a config declaring `family_text.from_row` reads the row's
+  // OWN text -- names that all land on one family price as it (a line says which words were read), two
+  // different ones refuse naming them. The calculator has no row text, so nothing fires there.
+  if ((out.familyRaw === null || out.familyRaw === "None") && spec.family_text?.from_row) {
+    const fromRow = familyFromRowText(spec, ownText);
+    if (fromRow && "refuse" in fromRow) return blank(fromRow.refuse);
+    if (fromRow) {
+      out.familyRaw = fromRow.family;
+      out.familyLine = `BoQ names ${fromRow.named.join(" / ")} -> priced as ${fromRow.family}`;
+      out.working.push(out.familyLine);
+    }
+  }
   // SLICE 12d-1a (owner R6): category-NEUTRAL -- the sentence names the family in the config's own label
   // ("no item family could be told", "no insulation material could be told"); it used to say "ADP kind".
   if (out.familyRaw === null || out.familyRaw === "None") return blank(`no ${(spec.family_label ?? "item family").toLowerCase()} could be told for this item`);
-  const family = spec.family_alias?.[out.familyRaw] ?? out.familyRaw;
+  let family = spec.family_alias?.[out.familyRaw] ?? out.familyRaw;
+  // SLICE 12e-2 (owner Q16 / Q18): a config declaring `family_text` reads the answer through the ONE reader --
+  // a stocked spelling (any case), a mapped one (GI -> MS, with its line), a refused one (SS, with its own
+  // sentence); anything else stays as written and refuses BY NAME below (the R18 sentence). A config without
+  // the key never reaches this and is byte-identical.
+  if (spec.family_text) {
+    const read = readFamilyText(spec, out.familyRaw);
+    if (read && "refuse" in read) return blank(read.refuse);
+    if (read) {
+      family = read.family;
+      if (read.line) {
+        out.familyLine = read.line;
+        out.working.push(read.line);
+      }
+    }
+  }
   out.family = family;
   if (spec.family_alias?.[out.familyRaw]) out.working.push(`'${out.familyRaw}' prices as ${family} (R3)`);
   // SLICE 12d-4a: the named-material refusal is ONE function (`namedMaterialRefusal`) -- the T5 no-SKU
@@ -1312,7 +1493,8 @@ function priceOneItem(
     try { m = String(src).match(new RegExp(rn.pattern, "i")); } catch { m = null; }
     if (!m) continue;
     if (rn.unless !== undefined && (m[1] ?? m[0]).trim() === rn.unless) continue;
-    out.working.push(rn.line.replace("{match}", m[0].trim()));
+    // SLICE 12e-2: `{family}` names the family the line is drawn for (one entry may serve several families)
+    out.working.push(rn.line.replace("{match}", m[0].trim()).replace("{family}", family));
   }
 
   // (2) the facts: stated -> as stated; "None" -> the ruled default (marked); absent -> omitted. Read over every
@@ -1322,6 +1504,8 @@ function priceOneItem(
   const readDefaulted: DefaultedAttr[] = [];
   const unreadable: Record<string, string> = {};
   const noneSaid = new Set<string>();
+  // SLICE 12e-2 (owner Q14): the SECOND inch conversion carried beside a read, per axis, for the ladder
+  const altReads: Record<string, { alt: number; raw: string }> = {};
   let layersFrom: { attr: string; raw: string; layers: number[] } | null = null;
   const notes: string[] = [];
   for (const attr of spec.match_attrs) {
@@ -1375,6 +1559,18 @@ function priceOneItem(
           }
         }
       }
+      // SLICE 12e-2 (owner P2): on a `typed_entry: "one_size"` axis a PRICER's entry must be ONE size -- a
+      // number in mm or an inch form; "40/50" and "two inch" refuse with the one message. TYPED cells only, so
+      // a model cell is read exactly as before; a reader without the key never reaches this.
+      if (got === null && reader.typed_entry === "one_size") {
+        for (const src of reader.from) {
+          const cell = item.attributes?.[src];
+          if (cell && cell.typed === true && cell.value !== null && cell.value !== "" && !isOneSizeEntry(cell.value)) {
+            got = { blank: ONE_SIZE_MESSAGE };
+            break;
+          }
+        }
+      }
       if (got === null) {
         for (const src of reader.from) {
           got = readNumber(rawValue(item, src), reader);
@@ -1382,6 +1578,7 @@ function priceOneItem(
         }
       }
       if (got === null) continue;
+      if ("value" in got && typeof got.alt === "number") altReads[attr] = { alt: got.alt, raw: got.raw ?? "" };
       if ("blank" in got) {
         // SLICE 12d-1b (owner T4): the compose axis may be STATED AS LAYERS ("65 mm + 32 mm"). A model answer
         // that reads so is carried to the composition path below; a pricer's TYPED entry is not (T6).
@@ -1697,13 +1894,38 @@ function priceOneItem(
     // not a miss. Resolving FIRST matters: without it, 22.2 would ladder UP to 28.58 and buy a size the
     // row never asked for. ABSENT `size_match` => `matched` is null and the ladder decides, as before.
     const sizes = rungs.map((r) => r.size);
-    const matched = resolveSize(want, sizes, spec.size_match);
+    let matched = resolveSize(want, sizes, spec.size_match);
+    /**
+     * SLICE 12e-2 (owner Q14 / Q14a, 2026-10-10) -- THE LADDER'S TWO EXTRA RUNGS, each by key presence.
+     *   `inch_mm_alt`     the SECOND inch conversion is tried at the same rounding depths after the exact one
+     *                     lands on no rung (4 inch: 101.6 is nothing, 100 is MS 100);
+     *   `size_match.near` after both, the NEAREST rung within `near` of the stated value counts as it
+     *                     (1-1/4" = 31.75 -> the sheet's own 31.7).
+     * Both are confined to the config that declares them: ADP and Insulation carry neither key, and `how`
+     * is written only when a declaring key took part, so every existing hop and line is byte-identical.
+     */
+    const altRead = altReads[attr];
+    let how: LadderHop["how"] | undefined;
+    if (matched) how = matched.exact ? "exact" : "precision";
+    if (!matched && altRead) {
+      const viaAlt = resolveSize(altRead.alt, sizes, spec.size_match);
+      if (viaAlt) { matched = { ...viaAlt, exact: false }; how = "alt"; }
+    }
+    const near = spec.size_match?.near;
+    if (!matched && typeof near === "number" && near > 0) {
+      for (const cand of [want, ...(altRead ? [altRead.alt] : [])]) {
+        const r = nearestRung(cand, sizes, near);
+        if (r !== null) { matched = { rung: r, dp: -1, exact: r === cand }; how = "near"; break; }
+      }
+    }
     if (matched && !matched.exact) {
       // ⚠️ THE SELECTION MUST TAKE THE RUNG, NOT THE STATED VALUE. The ladder only rewrites `sel` when it
       // moves a value UP, so a resolved value would otherwise stay as written -- and `sel` is what the SKU
       // match is built from, so the row would look resolved on screen and match nothing underneath.
       sel[attr] = matched.rung;
-      out.working.push(`${name} ${fmt(want)} is ${fmt(matched.rung)} on the sheet`);
+      out.working.push(how === "alt" && altRead
+        ? `${name} ${fmt(want)} (${altRead.raw}) is ${fmt(matched.rung)} on the sheet at ${fmt(spec.numbers[attr]?.inch_mm_alt ?? 25)} mm to the inch`
+        : `${name} ${fmt(want)} is ${fmt(matched.rung)} on the sheet`);
     }
     const fit = fitModuleLadder(rungs, matched ? matched.rung : want, "up");
     if (!fit) {
@@ -1738,7 +1960,12 @@ function priceOneItem(
       return { ...blank(`${name} ${fmt(want)} is above the largest size on the sheet (${fmt(top.size)})`), selection: sel };
     }
     resolvedLadders.add(attr);
-    out.ladderHops.push({ attr, name, requested: want, fitted: fit.modules, exact: fit.exact });
+    // SLICE 12e-2: `how` is written ONLY where a declaring key is present (owner Q17 / Q11 / Q14 / Q14a)
+    const declares = !!(spec.numbers[attr]?.typed_entry || spec.numbers[attr]?.inch_mm_alt
+      || spec.size_match?.near !== undefined || spec.size_match?.below_smallest !== undefined);
+    if (declares && how === undefined) how = fit.exact ? "exact" : (want < rungs[0].size ? "smallest" : "up");
+    out.ladderHops.push({ attr, name, requested: want, fitted: fit.modules, exact: fit.exact,
+      ...(declares ? { how, ...(altRead ? { raw: altRead.raw, alt: altRead.alt } : {}) } : {}) });
     if (!fit.exact) {
       out.working.push(`${name} ${fmt(want)} is not on the sheet -> ${fmt(fit.modules)} (next size up, R6)`);
       sel[attr] = fit.modules;
@@ -1916,7 +2143,13 @@ export function priceItemList(
     // the useful message and it shows FIRST -- "no unit" is true but not what the person needs to know.
     const material = extracted && extracted.length ? namedMaterialRefusal(spec, extracted[0], ownText) : null;
     if (material !== null) return { unit, unitClass: null, priced: false, reason: material, items: [] };
-    const reason = unit.trim() === "" ? "no unit on this row (R12)" : `unit '${unit.trim()}' is not a count, area or length unit (R12)`;
+    // SLICE 12e-2 (owner Q19 / C2): a config declaring `unit_refusal` names the unit in ITS sentence
+    // ("unit 'nos' is not a length unit"); every other category keeps the R12 sentence byte-for-byte.
+    const reason = unit.trim() === ""
+      ? "no unit on this row (R12)"
+      : spec.unit_refusal
+        ? spec.unit_refusal.replace("{unit}", unit.trim())
+        : `unit '${unit.trim()}' is not a count, area or length unit (R12)`;
     return { unit, unitClass: null, priced: false, reason, items: [] };
   }
   if (!extracted || !extracted.length) {
@@ -2072,6 +2305,9 @@ export interface ItemFieldDef {
   allowOther?: boolean;
   /** OWNER FA8: what to type here, in plain English -- shown under every field a person can type in. */
   typedNote?: string;
+  /** SLICE 12e-2 (owner Q10): a `panel_optional` text box -- shown, typeable, never mandatory, never matched;
+   * a `read_notes` line may quote it. Absent on every field the pricing reads. */
+  optional?: true;
 }
 
 /**
@@ -2276,6 +2512,19 @@ export function itemFieldDefs(
       optionSource,
     });
   }
+  /**
+   * SLICE 12e-2 (owner Q10): the `panel_optional` boxes -- a class / wall thickness the row may state. Rendered
+   * AFTER every field the pricing reads, as a plain text box that never refuses (the audit's three-condition
+   * rule: typed and rendered but NOT mandatory, so no note is required). A config declaring none appends
+   * nothing, which keeps every other category's field list byte-identical.
+   */
+  for (const id of spec.panel_optional ?? []) {
+    if (seenIds.has(id)) continue;
+    const d = defById.get(id);
+    if (!d || d.type !== "text") continue;
+    seenIds.add(id);
+    out.push({ id, label: d.label, allowNone: false, skuAttr: id, control: "text", optional: true });
+  }
   return out;
 }
 
@@ -2359,6 +2608,27 @@ export function sizeFieldHelp(
       lines.push(`An inch size is converted to ${reader.unit ?? "mm"}: ${hit[0]}" is `
                  + `${sizeText(Number((hit[1] * 25.4).toFixed(3)))} and matches ${sizeText(landed)}${unit}.`);
     }
+  }
+
+  // (2c) SLICE 12e-2 (owner Q14): the SECOND inch conversion, with an example chosen from the stocked sizes --
+  // a whole number of inches that lands on a rung at the alternative and on none at 25.4
+  if (reader.inches && typeof reader.inch_mm_alt === "number" && reader.inch_mm_alt > 0) {
+    const alt = reader.inch_mm_alt;
+    const n = [1, 2, 3, 4, 5, 6, 8, 10, 12].find((k) => nums.some((s) => Math.abs(s - k * alt) < 0.02) && !nums.some((s) => Math.abs(s - k * 25.4) < 0.02));
+    const eg = n !== undefined
+      ? `: ${n}" is ${sizeText(Number((n * 25.4).toFixed(3)))} / ${sizeText(n * alt)} and matches ${sizeText(nums.find((s) => Math.abs(s - n * alt) < 0.02)!)}${unit}`
+      : "";
+    lines.push(`An inch size that lands on no stocked size at 25.4 ${reader.unit ?? "mm"} to the inch is also tried at ${sizeText(alt)} ${reader.unit ?? "mm"} to the inch${eg}.`);
+  }
+  // (2d) SLICE 12e-2 (owner Q14a): the nearest stocked size within the declared distance
+  if (typeof spec.size_match?.near === "number" && spec.size_match.near > 0) {
+    const near = spec.size_match.near;
+    const r = nums.find((s) => !nums.some((o) => o !== s && Math.abs(o - (s + near / 2)) <= near)) ?? nums[0];
+    lines.push(`A size within ${sizeText(near)}${unit} of a stocked size is that size: ${sizeText(Number((r + near / 2).toFixed(4)))} is matched to ${sizeText(r)}${unit}.`);
+  }
+  // (2e) SLICE 12e-2 (owner Q17): below the smallest, where the config declares it
+  if (spec.size_match?.below_smallest === "smallest") {
+    lines.push(`A size below the smallest stocked size (${sizeText(smallest)}${unit}) is priced as the smallest.`);
   }
 
   // (3) BETWEEN TWO STOCKED SIZES -- the next size up
