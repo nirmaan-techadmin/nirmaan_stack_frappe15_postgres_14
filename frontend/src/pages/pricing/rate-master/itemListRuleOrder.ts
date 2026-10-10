@@ -158,8 +158,13 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
   }
 
   // ── 3. the rule for the unit, the facts it needs ──────────────────────────────────────────────────
+  // SLICE 12e-2b (12e-2 cert finding 6, AC7): the unit words come from the config's own unit classes. A
+  // category priced in ONE class (Piping: per metre) never reads "per square metre"; a category with several
+  // keeps the sentence it has always had, byte for byte.
   add("That kind's rule for that unit",
-      "a kind priced per metre and per square metre has a rule for each");
+      classes.length === 1
+        ? "a kind is priced per " + String(pr.unit_words?.[classes[0]] ?? classes[0]) + " and has one rule for it"
+        : "a kind priced per metre and per square metre has a rule for each");
   const notOffered: string[] = [];
   for (const [f, fv] of Object.entries<any>(pr.families ?? {})) {
     for (const u of fv?.units_not_offered ?? []) notOffered.push(`${famWord(f)} is not offered per ${pr.unit_words?.[u] ?? u}`);
@@ -199,7 +204,7 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
     // SLICE 12e-2 (owner P2): a typed entry on this axis is ONE size
     if (rd?.typed_entry === "one_size") {
       add(`A typed ${name(attr)} is one size, in ${rd.unit ?? "mm"} or inches`,
-          "a number (an NB number is mm) or an inch size (5/8\", 1-1/4\", 2 inch); '40/50' and 'two inch' refuse: Type one pipe size, in mm or inches");
+          "a number (an NB number is mm) or an inch size (5/8\", 1-1/4\", 2 inch); 'two inch' and '40-50' refuse: Type one pipe size, in mm or inches; a slash that is not an inch fraction ('40/50') refuses naming the two sizes, typed or read from the BoQ");
     }
   }
 
@@ -248,7 +253,7 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
   for (const r of (pr.read_notes ?? []) as any[]) {
     if (!r?.line) continue;
     add(`A ${list((r.families ?? []).map(famWord), 2)} row stating its own figure in the ${name(String(r.from_attr ?? ""))} carries a line saying what was priced`,
-        `'${String(r.line).replace("{match}", "<the stated figure>")}'${r.unless ? ` (not when the figure is ${String(r.unless)})` : ""}`);
+        `'${String(r.line).replace("{match}", "<the stated figure>").replace("{family}", (r.families ?? []).map(famWord).join(" / "))}'${r.unless ? ` (not when the figure is ${String(r.unless)})` : ""}`);
   }
 
   // ── 6b. a second key beside the primary size ─────────────────────────────────────────────────────

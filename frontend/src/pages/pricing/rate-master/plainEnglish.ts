@@ -54,6 +54,42 @@ function pricingInputIds(items: ReadonlyArray<PlainEnglishItem>): string[] {
   return [...ids].sort((a, b) => b.length - a.length);
 }
 
+/**
+ * SLICE 12e-2b (owner D3 + "a colon form", 2026-10-10) -- ONE FACT OF AN ITEM, IN WORDS.
+ *
+ * `label` is the field's own label (a choice definition's label, a number reader's name), `value` the value
+ * on the item. A with / without value reads before its label ("without damper"); every other fact reads
+ * "<label> <value>" ("UL listed no", "width 600"). The label's first letter is lowered unless its first word
+ * is all capitals ("Damper" -> "damper", "UL listed" kept). No category, family or attribute is named: the
+ * only words tested are the VALUE words "with" / "without", which is English grammar, not catalogue data.
+ */
+export interface PlainFact { label: string; value: string | number; twoWay?: boolean }
+
+const lowerLabel = (label: string): string => {
+  const s = String(label ?? "").trim();
+  const first = s.split(/\s+/)[0] ?? "";
+  if (first !== "" && first === first.toUpperCase() && /[A-Z]/.test(first)) return s;
+  return s.charAt(0).toLowerCase() + s.slice(1);
+};
+
+export function plainFact(fact: PlainFact): string {
+  const value = String(fact.value).trim();
+  const label = lowerLabel(fact.label);
+  return /^(with|without)$/i.test(value) ? `${value} ${label}` : `${label} ${value}`;
+}
+
+/**
+ * SLICE 12e-2b (owner D3, Decision 1 "option a", Decision 2 "a colon form"): the sentence EVERY HVAC item-list
+ * unstocked-combination refusal reads -- "No SKU for <family>: <facts> - price this row by hand", the two-way
+ * facts first, the rest in the order given, comma-joined. Built from existing labels; no config key. A family
+ * with no fact to name reads "No SKU for <family> - price this row by hand".
+ */
+export function noSkuSentence(family: string, facts: readonly PlainFact[]): string {
+  const ordered = [...facts.filter((f) => f.twoWay), ...facts.filter((f) => !f.twoWay)];
+  const body = ordered.map(plainFact).join(", ");
+  return `No SKU for ${String(family).trim()}${body ? `: ${body}` : ""} - price this row by hand`;
+}
+
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** A code token: `R14`, `D9b`, `T1`, `S6`, `Q8`, or `slice 11`. */

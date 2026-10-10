@@ -38,6 +38,7 @@ import type {
   RateMasterItem,
 } from "../../pricing/rate-master/rateMasterTypes";
 import { resolveSize, composeSize, nearestRung, type SizeMatchSpec, type ComposeSpec } from "./ladderResolution";
+import { noSkuSentence, type PlainFact } from "../../pricing/rate-master/plainEnglish";
 
 // ---------------------------------------------------------------------------------------------------------
 // the config block (list_spec.pricing) -- mirrors the backend validator `_validate_list_pricing`
@@ -343,6 +344,11 @@ export interface ItemListPricingSpec {
    * filled by `itemListPricingSpec` from `list_spec.attribute_definitions`, so a missing family
    * refuses in the category's own words and no category is named in code. */
   family_label?: string;
+  /** SLICE 12e-2b (owner D1 (a) / D3): each CHOICE definition's label and closed list, carried in from
+   * `list_spec.attribute_definitions` (the `family_label` precedent) so the module can (i) tell a TWO-WAY
+   * field -- one whose list for the family has exactly two values -- and (ii) name a fact by its label in
+   * the unstocked-combination refusal. Not a config key: `itemListPricingSpec` derives it. */
+  choice_defs?: Record<string, { label: string; values: string[]; values_by_family?: Record<string, string[]> }>;
   /** SLICE 8 (owner M-b): the overrides, applied AFTER the defaults and `derive_when_none` so they win over
    * both. ABSENT => nothing overrides and every row is byte-identical to before this slice. */
   override_when?: OverrideWhen[];
@@ -506,12 +512,47 @@ export function itemListPricingSpec(config: RateCategoryConfig | null | undefine
   const defs = (config as { list_spec?: { attribute_definitions?: Array<{ id?: unknown; label?: unknown }> } } | null | undefined)?.list_spec?.attribute_definitions;
   const famDef = Array.isArray(defs) ? defs.find((d) => d && d.id === (typeof famAttr === "string" && famAttr ? famAttr : "family")) : undefined;
   const famLabel = typeof famDef?.label === "string" && famDef.label.trim() ? famDef.label.trim() : undefined;
+  // SLICE 12e-2b (owner D1 (a) / D3): the choice definitions' labels and lists ride in the same way
+  const choiceDefs: NonNullable<ItemListPricingSpec["choice_defs"]> = {};
+  for (const d of (Array.isArray(defs) ? defs : []) as Array<{ id?: unknown; label?: unknown; type?: unknown; values?: unknown; values_by_family?: unknown }>) {
+    if (!d || typeof d.id !== "string" || d.type !== "choice") continue;
+    choiceDefs[d.id] = {
+      label: typeof d.label === "string" && d.label.trim() ? d.label.trim() : d.id,
+      values: Array.isArray(d.values) ? (d.values as unknown[]).map(String) : [],
+      ...(d.values_by_family && typeof d.values_by_family === "object" ? { values_by_family: d.values_by_family as Record<string, string[]> } : {}),
+    };
+  }
   return {
     ...(spec as ItemListPricingSpec),
     default_pipelines: pipelines,
     ...(typeof qtyAttr === "string" && qtyAttr ? { qty_attribute_id: qtyAttr } : {}),
     ...(typeof famAttr === "string" && famAttr ? { family_attribute_id: famAttr } : {}),
     ...(famLabel ? { family_label: famLabel } : {}),
+    ...(Object.keys(choiceDefs).length ? { choice_defs: choiceDefs } : {}),
+  };
+}
+
+/**
+ * SLICE 12e-2b (owner D1 (a), 2026-10-10): "two-way = any choice field whose list FOR THIS FAMILY has exactly
+ * two values - worked out from the list, no config key, no category or attribute named in code". The two values
+ * in the definition's order, or null when the field is not two-way for this family. PURE. It is the ONE test:
+ * `itemFieldDefs` (the dropdown offers both and is not narrowed), the helper's option-matching and unshowable
+ * checks, and the refusal sentence (two-way facts first) all read it.
+ */
+export function twoWayValues(spec: ItemListPricingSpec, attr: string, family: string | null | undefined): string[] | null {
+  const d = spec.choice_defs?.[attr];
+  if (!d) return null;
+  const values = (family && d.values_by_family?.[family]) || d.values;
+  return values.length === 2 ? [...values] : null;
+}
+
+/** SLICE 12e-2b (owner D3): one fact of an item as the plain-English sentence builder takes it -- a choice by
+ * its definition's label, a number by its reader's name (the names the old bracket already used). PURE. */
+export function plainFactOf(spec: ItemListPricingSpec, attr: string, value: string | number, family: string | null | undefined): PlainFact {
+  return {
+    label: spec.choice_defs?.[attr]?.label ?? spec.numbers[attr]?.name ?? attr,
+    value,
+    twoWay: twoWayValues(spec, attr, family) !== null,
   };
 }
 
@@ -811,7 +852,34 @@ export function isOneSizeEntry(text: string | number | null | undefined): boolea
   const m = s.match(ONE_SIZE_FORMS[1]);
   if (!m) return false;
   const num = Number(m[2]), den = Number(m[3]);
-  return [2, 4, 8, 16, 32].includes(den) && num > 0 && num < den;
+  return INCH_DENOMINATORS.includes(den) && num > 0 && num < den;
+}
+
+/**
+ * SLICE 12e-2b (12e-2 cert finding 7; AC6): ON A `typed_entry: "one_size"` AXIS A SLASH IS AN INCH FRACTION
+ * ONLY WHEN IT CAN BE ONE -- the denominator is 2, 4, 8, 16, 32 or 64 and the numerator is smaller than it,
+ * with or without a leading whole number (7/8, 1-1/4, 1 1/4). Anything else written with a slash ("40/50",
+ * "50/65") states SEVERAL SIZES and refuses, on the model path and the typed path alike -- a model-read
+ * "40/50" used to read as 0.8 of an inch and price a 25 mm pipe. Returns the sizes as written, or null when
+ * the text carries no slash or IS an inch fraction. PURE. Only a reader declaring the key reaches it, so
+ * every other axis (Insulation's pipe size, which shares `readNumber`) is byte-identical.
+ */
+export const INCH_DENOMINATORS: readonly number[] = [2, 4, 8, 16, 32, 64];
+export function slashSizes(text: string | number | null | undefined): string[] | null {
+  if (text === null || text === undefined) return null;
+  const s = unicodeFractions(String(text)).trim();
+  if (!s.includes("/")) return null;
+  const parts = s.split("/").map((p) => (p.match(/\d+(?:\.\d+)?/g) ?? []));
+  if (parts.length === 2 && parts[1].length >= 1 && parts[0].length >= 1) {
+    const num = Number(parts[0][parts[0].length - 1]), den = Number(parts[1][0]);
+    const wholeOk = parts[0].length <= 2 && parts[1].length === 1;
+    if (wholeOk && INCH_DENOMINATORS.includes(den) && num > 0 && num < den) return null;
+  }
+  const sizes = parts.flat();
+  return sizes.length >= 2 ? sizes : null;
+}
+export function severalSizesMessage(name: string, sizes: readonly string[]): string {
+  return `${name} states ${sizes.length === 2 ? "two" : "several"} sizes (${sizes.join(" / ")}) - pick one`;
 }
 
 const NUM_RE = /\d+(?:\.\d+)?/g;
@@ -1244,11 +1312,6 @@ function reasonName(spec: ItemListPricingSpec, attr: string): string {
   return spec.reason_names?.[attr] ?? spec.numbers[attr]?.name ?? attr;
 }
 
-/** The short label for a key inside a "no SKU for this combination" description. */
-function shortName(spec: ItemListPricingSpec, attr: string): string {
-  return spec.numbers[attr]?.name ?? attr;
-}
-
 function rawValue(item: ExtractedListItem, id: string): string | number | null {
   const cell = item.attributes?.[id];
   if (!cell) return null;
@@ -1263,8 +1326,8 @@ function reasonFromPipeline(spec: ItemListPricingSpec, family: string, sel: Reco
   const cond = last?.matchedCondition ?? "";
   if (last?.step === "match_master_row" && r.status === "no_match") {
     const keys = Object.keys(sel).filter((k) => k !== familyAttr(spec) && k !== spec.unit_class_attr);
-    const desc = keys.map((k) => `${shortName(spec, k)} ${String(sel[k])}`).join(", ");
-    return `no SKU for this combination (${family}${desc ? ": " + desc : ""})`;
+    // SLICE 12e-2b (owner D3 / Decision 2): the colon form, through the ONE plain-English builder
+    return noSkuSentence(family, keys.map((k) => plainFactOf(spec, k, sel[k], family)));
   }
   const m = label.match(/^attribute '([^']+)' missing or non-numeric/);
   if (m) return `no ${reasonName(spec, m[1])} stated`;
@@ -1562,6 +1625,14 @@ function priceOneItem(
       // SLICE 12e-2 (owner P2): on a `typed_entry: "one_size"` axis a PRICER's entry must be ONE size -- a
       // number in mm or an inch form; "40/50" and "two inch" refuse with the one message. TYPED cells only, so
       // a model cell is read exactly as before; a reader without the key never reaches this.
+      // SLICE 12e-2b (AC6): on the same axis a slash that cannot be an inch fraction states several sizes and
+      // refuses -- a MODEL cell and a TYPED one alike, before either reader sees it.
+      if (got === null && reader.typed_entry === "one_size") {
+        for (const src of reader.from) {
+          const sizes = slashSizes(rawValue(item, src));
+          if (sizes) { got = { blank: severalSizesMessage(reader.name, sizes) }; break; }
+        }
+      }
       if (got === null && reader.typed_entry === "one_size") {
         for (const src of reader.from) {
           const cell = item.attributes?.[src];
@@ -1887,8 +1958,8 @@ function priceOneItem(
      */
     if (!familyRows.some((it) => attr in (it.attributes ?? {}))) continue;
     if (!rungs.length) {
-      const desc = Object.entries(where).filter(([k]) => k !== familyAttr(spec) && k !== spec.unit_class_attr).map(([k, v]) => `${shortName(spec, k)} ${String(v)}`).join(", ");
-      return { ...blank(`no SKU for this combination (${family}${desc ? ": " + desc : ""})`), selection: sel };
+      const facts = Object.entries(where).filter(([k]) => k !== familyAttr(spec) && k !== spec.unit_class_attr).map(([k, v]) => plainFactOf(spec, k, v, family));
+      return { ...blank(noSkuSentence(family, facts)), selection: sel };
     }
     // SLICE 12c: a stated value and a rung that are the SAME size written to different precision are
     // not a miss. Resolving FIRST matters: without it, 22.2 would ladder UP to 28.58 and buy a size the
@@ -2488,7 +2559,18 @@ export function itemFieldDefs(
       fromSkus = fieldOptionsFromSkus(spec, skus.items, family, null, attr, skus.answers ?? {}, values);
     }
     const optionSource: "catalogue" | "definition" = fromSkus.length ? "catalogue" : "definition";
-    const base = fromSkus.length ? fromSkus : [...values];
+    /**
+     * SLICE 12e-2b (owner, 2026-10-10: "for attributes whose options are yes/no, with/without type both
+     * values must be shown in the dropdown else it becomes confusing ... valid for all disciplines all
+     * categories all attributes"; D1 (a): worked out from the list). A TWO-WAY field -- its list for this
+     * family has exactly two values -- offers BOTH, in the definition's order, and is NOT narrowed: not by
+     * another pick, not by a ruled default acting as one, not by the row's unit class. A picked pair the
+     * catalogue does not stock refuses by name in the pricing ("No SKU for slot diffuser: without damper -
+     * price this row by hand"). Every other field keeps narrowing (owner S1). Because the stale-pick rule
+     * (`pricingSheetHelper.unstockedPicks`) asks this same function, a picked two-way value is never cleared.
+     */
+    const twoWay = twoWayValues(spec, attr, family);
+    const base = twoWay ?? (fromSkus.length ? fromSkus : [...values]);
     /**
      * SLICE 12d-2 (owner S4, "agree"): "None" is the MODEL's word for "not mentioned". Where a ruled
      * default turns it into a catalogue value (cladding not mentioned -> No; damper not mentioned ->

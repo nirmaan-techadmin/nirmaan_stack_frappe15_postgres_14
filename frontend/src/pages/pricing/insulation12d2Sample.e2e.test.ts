@@ -64,9 +64,11 @@ export const ACCEPTED_SAMPLE_DIVERGENCES: ReadonlyArray<{ id: string; what: stri
    * CAUSE: an input the calculator has no control for (the 12c-P "input-surface difference" class, counted and
    * reported, never quietly supplied). Owner S7: recorded in full, NOT fixed in 12d-2. Owner F2 (12d-2F): ACCEPTED.
    */
+  // INVERTED at 12e-2b (owner D3, Decision 1 "option a", Decision 2 "a colon form"): the PANEL sentence on the two
+  // #290 entries. BEFORE: "no SKU for this combination (Acoustic Nitrile Insulation: cladding GI Framework with perforated Al sheet)". Wording only -- both surfaces still refuse, no figure or field moved.
   {
     id: "BOQ-26-00169#290", what: "item blocks",
-    panel: '[{"family":"Acoustic Nitrile Insulation","state":"blank","reason":"no SKU for this combination (Acoustic Nitrile Insulation: cladding GI Framework with perforated Al sheet)","figures":"supply_rate=- install_rate=- combined_rate=-","qty":"1"}]',
+    panel: '[{"family":"Acoustic Nitrile Insulation","state":"blank","reason":"No SKU for Acoustic Nitrile Insulation: cladding GI Framework with perforated Al sheet - price this row by hand","figures":"supply_rate=- install_rate=- combined_rate=-","qty":"1"}]',
     // INVERTED at 12d-8 (owner R1): the calculator's cleared pick now refuses "choose again: cladding ..."
     // (BEFORE: "could not tell cladding" -- the cleared value was read as absent). Both surfaces still refuse.
     calculator: '[{"family":"Acoustic Nitrile Insulation","state":"blank","reason":"choose again: cladding -- the value picked is not stocked with the other answers on this item","figures":"supply_rate=- install_rate=- combined_rate=-","qty":"1"}]',
@@ -75,7 +77,7 @@ export const ACCEPTED_SAMPLE_DIVERGENCES: ReadonlyArray<{ id: string; what: stri
   },
   {
     id: "BOQ-26-00169#290", what: "item row reason",
-    panel: "no SKU for this combination (Acoustic Nitrile Insulation: cladding GI Framework with perforated Al sheet)",
+    panel: "No SKU for Acoustic Nitrile Insulation: cladding GI Framework with perforated Al sheet - price this row by hand",
     calculator: "choose again: cladding -- the value picked is not stocked with the other answers on this item",
     cause: "C_option_not_offered: the model-read cladding is not a stocked option of the family, so the calculator cannot carry it",
     accepted: "ACCEPTED BY OWNER -- F2, 12d-2F, 2026-10-07: 'ok'",

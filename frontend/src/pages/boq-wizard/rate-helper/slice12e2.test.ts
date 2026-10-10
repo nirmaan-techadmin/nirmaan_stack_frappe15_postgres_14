@@ -182,17 +182,35 @@ describe("12e-2 P2 -- the pipe-size ladder, every typed form (the cert's table)"
     // and copper's largest is its own (47.6), not MS's
     expect(calc(picked("Copper", { size_mm: "50" }, ["size_mm"])).b!.reason).toBe("pipe size 50 is above the largest size on the sheet (47.6)");
   });
-  it.each([["40/50"], ["two inch"], ["40-50"], ["as per spec"], ["13+13"]])("a typed entry that is not one size refuses: %s", (typed) => {
+  // INVERTED at 12e-2b (AC6) for "40/50" ONLY: BEFORE it sat in the list below and refused with ONE_SIZE_MESSAGE. A slash
+  // that cannot be an inch fraction now states two sizes, on the typed path and the model path alike.
+  it("12e-2b AC6: a typed '40/50' refuses 'pipe size states two sizes (40 / 50) - pick one' (BEFORE: ONE_SIZE_MESSAGE)", () => {
+    const { b, v } = calc(picked("MS", { size_mm: "40/50" }, ["size_mm"]));
+    expect(v.rowPriced).toBe(false);
+    expect(b!.reason).toBe("pipe size states two sizes (40 / 50) - pick one");
+    expect(size(b)!.note).toBe("You typed 40/50: pipe size states two sizes (40 / 50) - pick one");
+    expect(b!.reason).not.toBe(ONE_SIZE_MESSAGE);
+  });
+  it.each([["two inch"], ["40-50"], ["as per spec"], ["13+13"]])("a typed entry that is not one size refuses: %s", (typed) => {
     const { b, v } = calc(picked("MS", { size_mm: typed }, ["size_mm"]));
     expect(v.rowPriced).toBe(false);
     expect(b!.reason).toBe(ONE_SIZE_MESSAGE);
     expect(size(b)!.note).toContain(ONE_SIZE_MESSAGE);
   });
-  it("NEGATIVE: the one-size rule is TYPED-only -- a MODEL answer '40/50' is read as before (on an inches reader a bare fraction is inches: 0.8 inch = 20.32 -> 25, the 12d-1b reading)", () => {
-    const { b, v } = panel({ pipe_type: "MS", size_mm: "40/50" }, "Rmt");
-    expect(v.rowPriced).toBe(true);
-    expect(b.working.join("\n")).toContain("pipe size 20.32 is not on the sheet -> 25 (next size up");
-    expect(size(b)!.note).toBe("BoQ says 40/50 -> 20.32 mm -> priced as 25 mm (next size up)");
+  /**
+   * INVERTED at 12e-2b (AC6; 12e-2 cert finding 7). BEFORE: "the one-size rule is TYPED-only -- a MODEL answer '40/50' is
+   * read as before (... 0.8 inch = 20.32 -> 25)": rowPriced TRUE, working containing "pipe size 20.32 is not on the sheet
+   * -> 25 (next size up", note "BoQ says 40/50 -> 20.32 mm -> priced as 25 mm (next size up)". That row priced a 25 mm
+   * pipe from a BoQ that said 40 or 50. It now refuses naming the two sizes; the ONE_SIZE_MESSAGE half stays typed-only.
+   */
+  it("12e-2b AC6: a MODEL answer '40/50' REFUSES naming the two sizes (never 0.8 of an inch); the typed-only message is still never said of a model cell", () => {
+    const { b, v, values } = panel({ pipe_type: "MS", size_mm: "40/50" }, "Rmt");
+    expect(v.rowPriced).toBe(false);
+    expect(values).toEqual({});
+    expect(b.reason).toBe("pipe size states two sizes (40 / 50) - pick one");
+    expect(size(b)!.note).toBe("BoQ says 40/50: pipe size states two sizes (40 / 50) - pick one");
+    expect(b.working.join("\n")).not.toContain("20.32");
+    expect(b.reason).not.toBe(ONE_SIZE_MESSAGE);
     expect(isOneSizeEntry("40/50")).toBe(false);
     expect(isOneSizeEntry("5/8")).toBe(true);
     expect(isOneSizeEntry("1-1/4\"")).toBe(true);

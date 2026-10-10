@@ -6100,33 +6100,41 @@ describe("SLICE 12c-S -- units, Other... state and per-field lines", () => {
     const v = (r as ItemListSuggestion).itemList!;
     return { r: r as ItemListSuggestion, v, block: v.items[0], field: (id: string) => v.items[0].fields.find((f) => f.id === id)! };
   };
-  it("E2E-1 (LIVE asset, 12d-8 R1): a thickness the new pipe size does not stock is CLEARED, stays BLANK, and the row REFUSES -- the 9 mm default never fills it", () => {
-    // pipe 100 stocks only 65; a 25 picked at an earlier pipe size must not quietly price as 65
+  /**
+   * INVERTED at 12e-2b (owner, 2026-10-10, AC13: a pick on a LADDER field follows "the general ladder rule we have").
+   * BEFORE (12c-S E2E-1 as 12d-8 R1 left it): thickness "" (cleared), note "25 mm is not stocked with the other
+   * answers on this item -- choose again", block blank, values {}, reason "choose again: thickness -- the value picked
+   * is not stocked with the other answers on this item", working not matching /not mentioned -> 9|-> 65/.
+   * What 12c-S ruled out was a SILENT substitution; the pick now ladders with the field showing the value used and
+   * the line saying so. The 12d-7 half is kept: the 9 mm default never fills it.
+   */
+  it("E2E-1 (LIVE asset; INVERTED at 12e-2b, AC13): a thickness the new pipe size does not stock is LADDERED, shown as the value used, with its line -- and the 9 mm default never fills it", () => {
     const { r, block, field } = viewLive({
       category: "hvac_insulation", family: "Tubular Puf Insulation",
       attrs: { cladding: "No", pipe_size_mm: "100", thickness_mm: "25" },
     });
     const th = field("thickness_mm");
-    expect(th.value).toBe("");                       // cleared
-    expect(th.options).toEqual(["65"]);              // narrowed to what this pipe stocks
-    expect(th.note).toBe("25 mm is not stocked with the other answers on this item -- choose again");
-    expect(block.state).toBe("blank");               // and the row refuses rather than substituting
-    expect(r.values).toEqual({});
-    // the NEGATIVE half 12d-7 measured: before R1 this row priced 412 / 14 at 65 with "not mentioned -> 9"
-    expect(block.working.join("\n")).not.toMatch(/not mentioned -> 9|-> 65/);
-    expect(block.reason).toBe("choose again: thickness -- the value picked is not stocked with the other answers on this item");
-    // the COARSE axis is untouched -- only the dependent one goes
+    expect(th.value).toBe("65");                     // the value USED
+    expect(th.options).toEqual(["65"]);              // narrowed to what this pipe stocks (unchanged)
+    expect(th.note).toBe("25 mm is not stocked with pipe size 100 -> priced as 65 mm (next size up)");
+    expect(block.state).toBe("priced");
+    expect(r.values).toEqual({ supply_rate: 412, install_rate: 14, combined_rate: 426 });
+    expect(block.working.join("\n")).not.toMatch(/not mentioned -> 9|choose again/);
+    // the COARSE axis is untouched
     expect(field("pipe_size_mm").value).toBe("100");
   });
 
-  it("E2E-1 on the frozen v26 asset (the pin as 12c-S wrote it) still holds", () => {
+  // INVERTED at 12e-2b (AC13). BEFORE ("the pin as 12c-S wrote it still holds"): thickness "", note "25 mm is not
+  // stocked with the other answers on this item -- choose again", block blank. The frozen-asset half is kept so a
+  // future mint cannot silently move it.
+  it("E2E-1 on the frozen v26 asset (INVERTED at 12e-2b, AC13): the same pick ladders to 65 with the line", () => {
     const { block, field } = view({
       category: "hvac_insulation", family: "Tubular Puf Insulation",
       attrs: { cladding: "No", pipe_size_mm: "100", thickness_mm: "25" },
     });
-    expect(field("thickness_mm").value).toBe("");
-    expect(field("thickness_mm").note).toBe("25 mm is not stocked with the other answers on this item -- choose again");
-    expect(block.state).toBe("blank");
+    expect(field("thickness_mm").value).toBe("65");
+    expect(field("thickness_mm").note).toBe("25 mm is not stocked with pipe size 100 -> priced as 65 mm (next size up)");
+    expect(block.state).toBe("priced");
   });
 
   it("E2E-1 NEGATIVE: a size TYPED through Other... is never cleared -- the ladder still has it", () => {

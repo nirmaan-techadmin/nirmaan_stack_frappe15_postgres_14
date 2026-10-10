@@ -76,36 +76,74 @@ const NIT = { item: NR, cladding: "26G Aluminium", thickness_mm: "19", pipe_size
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("SLICE 12d-8 / R1 -- a value the system clears stays blank and the row refuses", () => {
-  it("calculator, PUF, pipe 100 + a PICKED thickness 25 (pipe 100 stocks 65): cleared, blank, refused -- and NOT priced at the 9 mm default (12d-7 F-1)", () => {
+  /**
+   * INVERTED at 12e-2b (owner, 2026-10-10, AC13 -- "this should also follow the ladder mechanism with correct note
+   * ... this is the general ladder rule we have"). A pick on a field that HAS A LADDER which another answer no
+   * longer stocks is laddered, not cleared: the field shows the value USED and says so.
+   * BEFORE (12d-8 R1): rowPriced false, values {}, thickness "" with "25 mm is not stocked with the other answers
+   * on this item -- choose again", reason "choose again: thickness -- the value picked is not stocked ...".
+   * The NEGATIVE half is kept: the 9 mm default never fills it (the 12d-7 F-1 defect stays closed).
+   */
+  it("calculator, PUF, pipe 100 + a PICKED thickness 25 (pipe 100 stocks 65): LADDERED to 65 with the line, 412 / 14 -- and NOT priced at the 9 mm default (INVERTED at 12e-2b, AC13)", () => {
     const { r, v, block } = calculator("hvac_insulation", PUF, { cladding: "No", pipe_size_mm: "100", thickness_mm: "25" }, "mts");
-    expect(v.rowPriced).toBe(false);
-    expect(r.values).toEqual({});
-    expect(block.state).toBe("blank");
-    expect(field(block, "thickness_mm").value).toBe("");
-    expect(field(block, "thickness_mm").note).toBe("25 mm is not stocked with the other answers on this item -- choose again");
-    expect(v.reason).toBe("choose again: thickness -- the value picked is not stocked with the other answers on this item");
-    // the NEGATIVE half of the 12d-7 defect: no default fired, no price
+    expect(v.rowPriced).toBe(true);
+    expect(r.values).toEqual({ supply_rate: 412, install_rate: 14, combined_rate: 426 });
+    expect(block.state).toBe("priced");
+    expect(field(block, "thickness_mm").value).toBe("65");
+    expect(field(block, "thickness_mm").note).toBe("25 mm is not stocked with pipe size 100 -> priced as 65 mm (next size up)");
+    // the same value TYPED through "Other..." prices the same (the AC13 stop condition)
+    expect(calculator("hvac_insulation", PUF, { cladding: "No", pipe_size_mm: "100", thickness_mm: "25" }, "mts", ["thickness_mm"]).r.values).toEqual(r.values);
+    // the NEGATIVE half of the 12d-7 defect: no default fired
     expect(block.working.join("\n")).not.toMatch(/not mentioned -> 9/);
-    expect(block.working.join("\n")).not.toMatch(/-> 65/);
+    expect(block.working.join("\n")).not.toMatch(/choose again/);
   });
 
-  it("calculator, Nitrile, pipe 6.35 + a PICKED 25 (stocks 13 / 19): refused -- where the pure pricer would COMPOSE 13 + 13, the panel must not price a cleared pick either way", () => {
+  it("calculator, Nitrile, pipe 6.35 + a PICKED 25 (stocks 13 / 19): COMPOSED 13 + 13 with the line, 466 / 238 -- exactly as the same value typed (INVERTED at 12e-2b, AC13; BEFORE: refused 'choose again')", () => {
     const { r, v, block } = calculator("hvac_insulation", NR, { cladding: "26G Aluminium", pipe_size_mm: "6.35", thickness_mm: "25" }, "mts", ["pipe_size_mm"]);
-    expect(v.rowPriced).toBe(false);
-    expect(r.values).toEqual({});
-    expect(field(block, "thickness_mm").value).toBe("");
-    expect(field(block, "thickness_mm").note).toMatch(/^25 mm is not stocked with the other answers/);
-    expect(block.working.join("\n")).not.toMatch(/not mentioned -> 9|-> 13/);
+    expect(v.rowPriced).toBe(true);
+    expect(r.values).toEqual({ supply_rate: 466, install_rate: 238, combined_rate: 704 });
+    expect(field(block, "thickness_mm").value).toBe("13");
+    const line = "25 mm is not stocked with pipe size 6.35 -> priced as 13 + 13 mm (26 mm, +1) -- above the largest stocked size (19 mm)";
+    expect(field(block, "thickness_mm").note).toBe(line);
+    expect(block.working[0]).toBe(line);
+    const typed = calculator("hvac_insulation", NR, { cladding: "26G Aluminium", pipe_size_mm: "6.35", thickness_mm: "25" }, "mts", ["pipe_size_mm", "thickness_mm"]);
+    expect(typed.r.values).toEqual(r.values);
+    expect(typed.block.working[0]).toBe("You typed 25 mm -> priced as 13 + 13 mm (26 mm, +1) -- above the largest stocked size (19 mm)");
+    expect(block.working.join("\n")).not.toMatch(/not mentioned -> 9/);
   });
 
-  it("calculator, ADP fire damper, motorised + a PICKED UL yes (the motorised SKU is non-UL): ul cleared, blank, refused -- NOT priced as the non-UL SKU", () => {
-    const { r, v, block } = calculator("hvac_adp", "fire damper", { variant: "motorised", ul: "yes", size_mm: "600x600" }, "nos");
+  it("NEGATIVE (12e-2b AC13): a CHOICE field has no ladder -- a picked cladding the family does not stock is still CLEARED, blank, refused (12c-S / 12d-8 R1 unchanged)", () => {
+    const { r, v, block } = calculator("hvac_insulation", "Acoustic Nitrile Insulation", { cladding: "Aluminium Foil", thickness_mm: "19" }, "sqm");
     expect(v.rowPriced).toBe(false);
     expect(r.values).toEqual({});
-    expect(field(block, "ul").value).toBe("");
-    expect(field(block, "ul").note).toBe("yes is not stocked with the other answers on this item -- choose again");
-    expect(v.reason).toBe("choose again: whether it is UL listed -- the value picked is not stocked with the other answers on this item");
-    expect(block.working.join("\n")).not.toMatch(/ul not mentioned -> no/);
+    expect(field(block, "cladding").value).toBe("");
+    expect(field(block, "cladding").note).toBe("Aluminium Foil is not stocked with the other answers on this item -- choose again");
+    expect(v.reason).toBe("choose again: cladding -- the value picked is not stocked with the other answers on this item");
+    expect(block.working.join("\n")).not.toMatch(/cladding not mentioned/);
+  });
+
+  /**
+   * INVERTED at 12e-2b (owner D1 (a) + D2, 2026-10-10: "UL wins" on both paths). UL listed is a TWO-WAY field, so
+   * a picked "yes" is never cleared, and the slice 8 M-b override prices the UL 555 SKU exactly as the model path.
+   * BEFORE (12d-8 R1): rowPriced false, values {}, ul "" with "yes is not stocked with the other answers on this
+   * item -- choose again", reason "choose again: whether it is UL listed -- ...".
+   * The NEGATIVE half is kept: it is NOT priced as the non-UL SKU and no UL default fires.
+   */
+  it("calculator, ADP fire damper, motorised + a PICKED UL yes: the UL 555 SKU, 7830 / 692, with the 'UL stated' line -- NOT the non-UL motorised SKU (INVERTED at 12e-2b, D2)", () => {
+    const { r, v, block } = calculator("hvac_adp", "fire damper", { variant: "motorised", ul: "yes", size_mm: "600x600" }, "nos");
+    expect(v.rowPriced).toBe(true);
+    expect(r.values).toEqual({ supply_rate: 7830, install_rate: 692, combined_rate: 8522 });
+    expect(field(block, "ul").value).toBe("yes");
+    expect(field(block, "ul").options).toEqual(["yes", "no"]);
+    expect(field(block, "ul").note).toBeUndefined();
+    expect(block.working).toContain("UL stated, so the UL 555 SKU is used (R-M-b)");
+    // the variant field shows what PRICED, under the catalogue's word, with the rule
+    expect(field(block, "variant").value).toBe("UL");
+    expect(field(block, "variant").optionLabels).toEqual({ UL: "UL 555" });
+    expect(field(block, "variant").note).toBe("UL stated, so the UL 555 SKU is used (R-M-b)");
+    // NEGATIVE: not the non-UL motorised price (4490 / 692), no default, no "choose again"
+    expect(r.values.supply_rate).not.toBe(4490);
+    expect(block.working.join("\n")).not.toMatch(/ul not mentioned -> no|choose again/);
   });
 
   it("the UL variant picked DIRECTLY still prices the UL 555 SKU: 7830 / 692 (unchanged path)", () => {
@@ -113,11 +151,12 @@ describe("SLICE 12d-8 / R1 -- a value the system clears stays blank and the row 
     expect(r.values).toEqual({ supply_rate: 7830, install_rate: 692, combined_rate: 8522 });
   });
 
-  it("a typed PANEL edit: the model's pipe 6.35 + a picked 25 -> the same refusal on the panel path", () => {
+  // INVERTED at 12e-2b (AC13). BEFORE: rowPriced false, values {}, note /^25 mm is not stocked with the other answers/.
+  it("a PANEL edit: the model's pipe 6.35 + a picked 25 -> the same composition on the panel path (INVERTED at 12e-2b, AC13)", () => {
     const { r, v, block } = panel("hvac_insulation", { ...NIT, pipe_size_mm: "6.35" }, "RMT", { base: 0, family: null, attrs: { thickness_mm: "25" } });
-    expect(v.rowPriced).toBe(false);
-    expect(r.values).toEqual({});
-    expect(field(block, "thickness_mm").note).toMatch(/^25 mm is not stocked with the other answers/);
+    expect(v.rowPriced).toBe(true);
+    expect(r.values).toEqual({ supply_rate: 466, install_rate: 238, combined_rate: 704 });
+    expect(field(block, "thickness_mm").note).toBe("25 mm is not stocked with pipe size 6.35 -> priced as 13 + 13 mm (26 mm, +1) -- above the largest stocked size (19 mm)");
     expect(block.working.join("\n")).not.toMatch(/not mentioned -> 9/);
   });
 
@@ -230,11 +269,17 @@ describe("SLICE 12d-8 / R3 -- typing into an Other... box the MODEL opened is ty
     expect(block.working.filter((w) => /^Layer \d of 2/.test(w))).toHaveLength(2);
   });
 
-  it("NEGATIVE: a pick made from a CLOSED list (the model's value was an option) is still a pick and still clears", () => {
-    // the model said 100 (an option, box closed); the pricer PICKS 25 from the thickness list at that pipe -> cleared
-    const { v, block } = panel("hvac_insulation", { item: PUF, cladding: "No", pipe_size_mm: "100", thickness_mm: "65" }, "RMT", { base: 0, family: null, attrs: { thickness_mm: "25" } });
-    expect(v.rowPriced).toBe(false);
-    expect(field(block, "thickness_mm").note).toMatch(/^25 mm is not stocked with the other answers/);
+  // INVERTED at 12e-2b (AC13): the thickness field HAS a ladder, so the stale pick ladders instead of clearing.
+  // BEFORE: rowPriced false, note /^25 mm is not stocked with the other answers/. It is still treated as a PICK
+  // (never as typing through "Other..."): the box stays closed and the line says "not stocked with", not "You typed".
+  it("NEGATIVE: a pick made from a CLOSED list (the model's value was an option) is still a PICK -- it ladders with the pick's own line, the box stays closed (INVERTED at 12e-2b, AC13)", () => {
+    const { r, v, block } = panel("hvac_insulation", { item: PUF, cladding: "No", pipe_size_mm: "100", thickness_mm: "65" }, "RMT", { base: 0, family: null, attrs: { thickness_mm: "25" } });
+    expect(v.rowPriced).toBe(true);
+    expect(r.values).toEqual({ supply_rate: 412, install_rate: 14, combined_rate: 426 });
+    expect(field(block, "thickness_mm").value).toBe("65");
+    expect(field(block, "thickness_mm").otherMode).toBe(false);
+    expect(field(block, "thickness_mm").note).toBe("25 mm is not stocked with pipe size 100 -> priced as 65 mm (next size up)");
+    expect(field(block, "thickness_mm").note).not.toMatch(/You typed/);
   });
 });
 

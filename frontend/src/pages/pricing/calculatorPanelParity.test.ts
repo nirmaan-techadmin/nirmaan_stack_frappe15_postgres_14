@@ -340,9 +340,25 @@ describe("the owner's ruling on each cause (12c-F)", () => {
     // BEFORE 12d-8: `toEqual([])`. AFTER: a cleared pick stays blank and refuses (R1), so the sweep's
     // per-sq.m slot diffuser -- whose damper the panel DEFAULTS and the calculator therefore PICKS and
     // clears -- now refuses with a different sentence on each surface. Both refuse; no price moves.
-    expect(AWAITING_SWEEP_DIVERGENCES.filter((d) => d.cause === "B_stale_pick")).toEqual([
-      { cat: "hvac_adp", unit: "sqm", item: { family: "slot diffuser" }, cause: "B_stale_pick" },
-    ]);
+    // INVERTED AGAIN at 12e-2b (owner D1 (a) + D4 (a)): BEFORE `toEqual([{ cat: "hvac_adp", unit: "sqm", item: { family:
+    // "slot diffuser" }, cause: "B_stale_pick" }])`. Damper is two-way, the calculator's "without" is kept, and the two
+    // surfaces now refuse with the same sentence -- so NO sweep entry carries cause B, and parity is asserted below.
+    expect(AWAITING_SWEEP_DIVERGENCES.filter((d) => d.cause === "B_stale_pick")).toEqual([]);
+  });
+
+  it("12e-2b D4 (a): the per-sq.m and per-number slot diffuser, damper never stated -- calculator = panel, both refuse naming the pair, no price", () => {
+    for (const unit of ["sqm", "nos"]) {
+      const item: Record<string, string> = unit === "nos" ? { family: "slot diffuser", size_mm: "600x600" } : { family: "slot diffuser" };
+      const r = runParity(configs, items, { cat: "hvac_adp", unit, desc: "", attrs: {}, items: [item] }, "full");
+      expect({ unit, divergences: r.divergences }).toEqual({ unit, divergences: [] });
+      expect(hasPrice(r.panel)).toBe(false);
+      expect(hasPrice(r.calculator)).toBe(false);
+      const want = unit === "nos"
+        ? "No SKU for slot diffuser: without damper, width 600, height 600 - price this row by hand"
+        : "No SKU for slot diffuser: without damper - price this row by hand";
+      expect((r.panel as ItemListSuggestion).itemList!.items[0].reason).toBe(want);
+      expect((r.calculator as ItemListSuggestion).itemList!.items[0].reason).toBe(want);
+    }
   });
 
   it("the eleven rows fix B was ruled for are gone from the list BY NAME", () => {
@@ -556,13 +572,28 @@ describe("HVAC Piping -- every family x unit class x ladder path, every SKU, eve
     for (const p of ["item-list priced", "item-list refused", "item refused", "ladder size-up"]) expect([...reached]).toContain(p);
   }, 60000);
 
-  it("exclusion, by name (owner P2, the T6 / U4 precedent): a MODEL '40/50' is read by the inch reader as a fraction (0.8\" = 20.32 -> 25) and prices on the panel, while the same text TYPED on the calculator is not one size and refuses -- the two surfaces MUST differ here", () => {
-    const c = pc("MS", "40/50");
-    const r = runParity(cfg36, items36, c, "full");
-    expect(r.divergences.length).toBeGreaterThan(0);
-    expect(hasPrice(r.panel)).toBe(true);
-    expect(hasPrice(r.calculator)).toBe(false);
-    expect((r.calculator as ItemListSuggestion).itemList!.items[0].reason).toBe("Type one pipe size, in mm or inches");
+  /**
+   * INVERTED at 12e-2b (AC6; 12e-2 cert finding 7). BEFORE this was a named EXCLUSION: "a MODEL '40/50' is read by the
+   * inch reader as a fraction (0.8\" = 20.32 -> 25) and prices on the panel, while the same text TYPED on the calculator
+   * is not one size and refuses -- the two surfaces MUST differ here" (divergences > 0, panel priced, calculator
+   * "Type one pipe size, in mm or inches"). A slash that cannot be an inch fraction now states two sizes on BOTH
+   * paths, so the exclusion is gone and parity is asserted instead; the inch forms still agree and still price.
+   */
+  it("12e-2b AC6: '40/50' and '50/65' refuse on BOTH surfaces with one sentence -- no exclusion; a real inch fraction still agrees and prices", () => {
+    for (const [typed, sizes] of [["40/50", "40 / 50"], ["50/65", "50 / 65"]] as const) {
+      const r = runParity(cfg36, items36, pc("MS", typed), "full");
+      expect({ typed, divergences: r.divergences }).toEqual({ typed, divergences: [] });
+      expect(hasPrice(r.panel)).toBe(false);
+      expect(hasPrice(r.calculator)).toBe(false);
+      const want = `pipe size states two sizes (${sizes}) - pick one`;
+      expect((r.panel as ItemListSuggestion).itemList!.items[0].reason).toBe(want);
+      expect((r.calculator as ItemListSuggestion).itemList!.items[0].reason).toBe(want);
+    }
+    for (const typed of ["7/8", "1-1/4", "1 1/4", "63/64"]) {
+      const r = runParity(cfg36, items36, pc("Copper", typed), "full");
+      expect({ typed, divergences: r.divergences }).toEqual({ typed, divergences: [] });
+      expect(hasPrice(r.panel)).toBe(true);
+    }
   });
 
   it("the ONE unit exclusion, by name: a row unit the picker does not offer ('nos') diverges by cause C and never produces a figure on either side (owner R12 / 12c-F)", () => {

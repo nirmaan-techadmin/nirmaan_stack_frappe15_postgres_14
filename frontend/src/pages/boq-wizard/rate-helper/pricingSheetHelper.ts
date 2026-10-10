@@ -32,7 +32,7 @@ import {
   NONE_SENTINEL,
   runPipeline,
 } from "@/pages/pricing/rate-master/ratePipelineInterpreter";
-import { plainPricerText } from "@/pages/pricing/rate-master/plainEnglish";
+import { plainFact, plainPricerText } from "@/pages/pricing/rate-master/plainEnglish";
 // CP2: `coerceForMatch` moved to the shared rate-master module (the single point where an attribute
 // value becomes a match key); this file imports it and no longer defines it.
 import {
@@ -68,11 +68,13 @@ import {
   itemListPricingSpec,
   matchStatedToOption,
   matchStatedToOptionDetailed,
+  plainFactOf,
   readLayers,
   readNumber,
   listSpecDefs,
   priceItemList,
   sizeFieldHelp,
+  twoWayValues,
   typedFieldNote,
   unitClassOf,
   type ExtractedListItem,
@@ -1980,9 +1982,21 @@ function unstockedPicks(
   unitClass: string | null,
   /** SLICE 12d-8 (owner R3): the model's items, to tell a box the MODEL opened from a pick. */
   modelItems: ExtractedListItem[] = [],
+  /**
+   * SLICE 12e-2b (owner, 2026-10-10, AC13: "this should also follow the ladder mechanism with correct note ...
+   * this is the general ladder rule we have"). A pick on a field that HAS A LADDER (`spec.ladders`) which the
+   * block's other answers no longer stock is NOT cleared: it is left on the item, so the pricer resolves it
+   * with that field's own ladder exactly as it resolves a typed or model-read value (the same cell, the same
+   * function -- nothing is copied), and it is recorded HERE, per block, as `model attribute id -> { picked,
+   * other }` so the field can say "<picked> is not stocked with <the other answer> -> priced as <used>".
+   * A field with no ladder (a choice) keeps the 12c-S / 12d-8 R1 rule below: cleared, never refilled.
+   */
+  ladderedOut?: Array<Map<string, { picked: string; other: string }>>,
 ): Array<Map<string, string>> {
   return assembled.map((a, i) => {
     const out = new Map<string, string>();
+    const laddered = new Map<string, { picked: string; other: string }>();
+    if (ladderedOut) ladderedOut[i] = laddered;
     const edit = edits.items[i];
     if (!edit) return out;
     const famRaw = a.attributes[familyAttr(spec)]?.value;
@@ -2035,7 +2049,17 @@ function unstockedPicks(
       if (droppable) {
         const live = itemFieldDefs(spec, defs, family, unitClass, { items, answers }).find((x) => x.id === f.id);
         const opts = live?.options;
-        if (opts && !opts.includes(picked)) { out.set(f.id, picked); continue; }  // dropped: it narrows nothing
+        if (opts && !opts.includes(picked)) {
+          if (!spec.ladders.includes(f.skuAttr)) { out.set(f.id, picked); continue; }  // dropped: it narrows nothing
+          // AC13: a LADDER field's pick stays and ladders. The answer(s) that unstocked it are named: each
+          // earlier answer that, on its own, takes the pick off the list -- else all of them together.
+          const optionsUnder = (ans: Record<string, string | number>) =>
+            itemFieldDefs(spec, defs, family, unitClass, { items, answers: ans }).find((x) => x.id === f.id)?.options ?? [];
+          const entries = Object.entries(answers).filter(([k]) => k !== f.skuAttr);
+          const alone = entries.filter(([k, v]) => !optionsUnder({ [k]: v }).includes(picked));
+          const named = (alone.length ? alone : entries).map(([k, v]) => plainFact(plainFactOf(spec, k, v, family)));
+          laddered.set(f.id, { picked, other: named.length ? named.join(" and ") : family.trim() });
+        }
       }
       if (stated !== undefined) answers[f.skuAttr] = stated;
     }
@@ -2063,6 +2087,9 @@ function itemBlockView(
   /** SLICE 12d-8 (owner R3): the MODEL's item behind this block (undefined for an added item), so a
    *  box the model opened stays open while the pricer types into it. */
   modelItem: ExtractedListItem | undefined = undefined,
+  /** SLICE 12e-2b (AC13): model attribute id -> a LADDER field's pick the other answers do not stock, and the
+   *  answer(s) that unstocked it. The pricer laddered it; the field shows the value used and says so. */
+  ladderedByBlock: ReadonlyMap<string, { picked: string; other: string }> = new Map(),
 ): ItemBlockView {
   const famId = familyAttr(spec);
   const familyIsControl = spec.panel_controls?.[famId] === "dropdown_or_other";
@@ -2107,6 +2134,10 @@ function itemBlockView(
   // catalogue's own word for it, with the rule beneath -- a pricer must never read the variant the row
   // happened to name beside a figure that came from a different SKU.
   const overrideBy = new Map((res.overrides ?? []).map((o) => [o.attr, o]));
+  // SLICE 12e-2b (AC13): the block's working, read here so a laddered pick's COMPOSITION line (which the pricer
+  // writes into the working, not onto a hop) can be quoted under its field and re-opened with the pick's words
+  const blockWorking = layersWorking(layers, res);
+  const ladRewrites: Array<{ from: string; to: string }> = [];
   const fields: ItemFieldView[] = fieldDefs.map((f) => {
     const raw = assembled.attributes[f.id]?.value;
     const stated = raw === null || raw === undefined ? "" : String(raw);
@@ -2134,6 +2165,13 @@ function itemBlockView(
     const unitOf = spec.numbers[f.skuAttr]?.unit;
     const u = unitOf ? ` ${unitOf}` : "";
     const said = userEdited ? "You typed" : "BoQ says";
+    /**
+     * SLICE 12e-2b (AC13): a PICK the block's other answers do not stock was laddered, not cleared. Its line
+     * opens "<picked> is not stocked with <the other answer>" where a typed value's opens "You typed <value>";
+     * everything after the arrow is the SAME ladder wording, because it is the same ladder.
+     */
+    const lad = ladderedByBlock.get(f.id);
+    const ladLead = lad ? `${lad.picked}${u} is not stocked with ${lad.other}` : undefined;
     /**
      * SLICE 12c-S (owner S5 on F6) -- DOES THE ROW'S REFUSAL SPEAK ABOUT *THIS* FIELD?
      *
@@ -2177,10 +2215,10 @@ function itemBlockView(
         : hop.how === "alt" ? ""
         : " (the sheet's own spelling of this size)";
       if (!(hop.how === "exact" && hop.requested === hop.fitted && bare)) {
-        note = `${said} ${entered}${read} -> priced as ${fmtNum(hop.fitted)}${u}${landed}`;
+        note = `${ladLead ?? `${said} ${entered}`}${read} -> priced as ${fmtNum(hop.fitted)}${u}${landed}`;
       }
     } else if (hop && hop.requested !== hop.fitted) {
-      note = `${said} ${fmtNum(hop.requested)}${u} -> priced as ${fmtNum(hop.fitted)}${u} `
+      note = `${ladLead ?? `${said} ${fmtNum(hop.requested)}${u}`} -> priced as ${fmtNum(hop.fitted)}${u} `
         + (hop.exact ? "(the sheet's own spelling of this size)" : "(next size up)");
     }
     if (isSizeDropdown) {
@@ -2208,7 +2246,7 @@ function itemBlockView(
              */
             note = `${said} ${value}${vU}: used to work out this item's rate (the sheet stocks no sizes to choose from here)`;
           } else if (reasonIsMine) {
-            note = `${said} ${value}${vU}: ${res.reason}`;
+            note = `${ladLead ?? `${said} ${value}${vU}`}: ${res.reason}`;
             value = "";
           }
           // F6: the row refused for ANOTHER field -- that field says so; this one stays quiet.
@@ -2256,11 +2294,25 @@ function itemBlockView(
     } else if (matched && !note) note = `${said} ${matched.from}${fromU} -> ${matched.to}${u} (the sheet's own spelling of this value)`;
     // SLICE 12c-S (E2E-1): a pick the pricer's later answers no longer stock was CLEARED before pricing;
     // the field says which value went and why, so nothing is substituted behind their back.
+    if (lad && ladLead) {
+      // a pick that COMPOSED (above the largest stocked size) carries its line in the working: "You typed 25 mm
+      // -> priced as 13 + 13 mm ..." -- the same line, opened with what actually happened to the pick
+      const typedLead = `You typed ${lad.picked}${u}`;
+      ladRewrites.push({ from: typedLead, to: ladLead });
+      const line = blockWorking.find((w) => w.startsWith(`${typedLead} -> `));
+      if (!note && line) note = `${ladLead}${line.slice(typedLead.length)}`;
+    }
     const dropped = clearedByBlock.get(f.id);
     if (dropped !== undefined) note = `${dropped}${u} is not stocked with the other answers on this item -- choose again`;
     const ov = overrideBy.get(f.skuAttr);
     let optionLabels: Record<string, string> | undefined;
-    if (ov && !userEdited) {
+    /**
+     * SLICE 12e-2b (owner D2, "UL wins" on both paths): a HAND-PICKED value an override replaced is shown the
+     * same way once the field can no longer show the pick -- its list has narrowed to what the override
+     * priced (a picked "motorised" beside a picked UL "yes": the list is the UL 555 SKU alone). A pick the
+     * list still offers stays the pricer's own (a picked foil, which the value map prices as 26G with its line).
+     */
+    if (ov && (!userEdited || !(f.options ?? []).includes(stated))) {
       value = ov.value;
       note = ov.rule;
       if (ov.display !== ov.value) optionLabels = { [ov.value]: ov.display };
@@ -2359,7 +2411,9 @@ function itemBlockView(
     state: res.state,
     ...(res.reason ? { reason: res.reason } : {}),
     ...(res.sku ? { skuLine: `${res.sku.item_name ?? ""} / ${res.sku.item_detail ?? ""} (${res.sku.unit ?? ""})` } : {}),
-    working: layersWorking(layers, res),
+    working: ladRewrites.length
+      ? blockWorking.map((w) => { const r = ladRewrites.find((x) => w.startsWith(`${x.from} -> `)); return r ? `${r.to}${w.slice(r.from.length)}` : w; })
+      : blockWorking,
     figures,
   };
 }
@@ -2453,7 +2507,8 @@ function computeItemList(
       if (Object.prototype.hasOwnProperty.call(typed, f.id)) continue; // the pricer's own entry is theirs
       const raw = attributes[f.id]?.value;
       if (typeof raw !== "string" || raw.trim() === "") continue;
-      const opts = fieldOptionsFromSkus(spec, items, fam, rowClass, f.skuAttr, {});
+      // SLICE 12e-2b (AC2): a two-way field's options are its two values, exactly as `itemFieldDefs` offers them
+      const opts = twoWayValues(spec, f.skuAttr, fam) ?? fieldOptionsFromSkus(spec, items, fam, rowClass, f.skuAttr, {});
       if (opts.includes(raw)) continue;
       /**
        * SLICE 12d-6 (owner, 2026-10-08) -- OPTION MATCHING MUST NEVER DISCARD MEANING THE PRICER READS.
@@ -2487,7 +2542,9 @@ function computeItemList(
    * is deliberately unstocked and must still ladder; a value the MODEL read off the BoQ is evidence
    * about the row, not a choice, and must still resolve. Both are left exactly as they were.
    */
-  const clearedPicks = unstockedPicks(spec, defs, items, edits, assembledMatched, rowClass, modelItems);
+  // SLICE 12e-2b (AC13): a LADDER field's unstocked pick is not in `clearedPicks` -- it stays and ladders
+  const ladderedPicks: Array<Map<string, { picked: string; other: string }>> = [];
+  const clearedPicks = unstockedPicks(spec, defs, items, edits, assembledMatched, rowClass, modelItems, ladderedPicks);
   /**
    * SLICE 12d-8 (owner R1 + R2, 2026-10-09) -- WHAT THE PRICER GETS vs WHAT THE SCREEN SHOWS.
    *
@@ -2581,7 +2638,9 @@ function computeItemList(
       for (const f of itemFieldDefs(spec, defs, fam, unitClass, { items })) {
         const raw = a.attributes[f.id]?.value;
         if (typeof raw !== "string" || raw === NONE_SENTINEL) continue;
-        const opts = fieldOptionsFromSkus(spec, items, fam, unitClass, f.skuAttr, {});
+        // SLICE 12e-2b (AC2, recon anomaly 7): this site reads the SKU list directly, so it asks the two-way
+        // test first -- the field offers both values, and the check must never disagree with the field
+        const opts = twoWayValues(spec, f.skuAttr, fam) ?? fieldOptionsFromSkus(spec, items, fam, unitClass, f.skuAttr, {});
         if (!fieldCannotShowValue(raw, opts, { hopped: hops.has(f.skuAttr), supplied: supplied.has(f.skuAttr) })) continue;
         unshowable.push({ block: i, field: f.id, label: f.label, value: raw });
       }
@@ -2606,7 +2665,8 @@ function computeItemList(
     // separately so the field can name it
     return itemBlockView(spec, defs, e, forDisplay[i], res, unitClass, items, mine.length ? mine : [res],
                          clearedPicks[i] ?? new Map(), matchedByBlock[i] ?? new Map(),
-                         e.family === null && e.base !== null ? modelItems[e.base] : undefined);
+                         e.family === null && e.base !== null ? modelItems[e.base] : undefined,
+                         ladderedPicks[i] ?? new Map());
   });
   const values: Record<string, number> = {};
   if (priced.priced && !unshowableReason) {

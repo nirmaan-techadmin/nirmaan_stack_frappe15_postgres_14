@@ -187,7 +187,12 @@ export const AWAITING_SWEEP_DIVERGENCES: readonly AwaitingSweepDivergence[] = [
    * default and the two sentences agreed -- the agreement was the 12d-7 F-1 defect, not correctness.
    * APPROVED BY OWNER: R1 ("ok agree on all for r1 to R6"), 2026-10-09.
    */
-  { cat: "hvac_adp", unit: "sqm", item: {"family":"slot diffuser"}, cause: "B_stale_pick" },
+  /**
+   * SLICE 12e-2b (owner D1 (a) + D4 (a), 2026-10-10): THE ENTRY ABOVE IS GONE -- `{ cat: "hvac_adp", unit: "sqm",
+   * item: {"family":"slot diffuser"}, cause: "B_stale_pick" }`. Damper is a TWO-WAY field, so the calculator's
+   * picked "without" is no longer cleared: both surfaces refuse with the SAME sentence ("No SKU for slot diffuser:
+   * without damper - price this row by hand"), and `calculatorPanelParity.test.ts` asserts that parity by name.
+   */
   { cat: "hvac_adp", unit: "rmt", item: {"family":"slot diffuser","damper":"with","slot_count":"1003"}, cause: "D_reason_only" },
   { cat: "hvac_adp", unit: "rmt", item: {"family":"slot diffuser","damper":"with","slot_count":"2.5"}, cause: "D_reason_only" },
   { cat: "hvac_adp", unit: "nos", item: {"family":"square diffuser","damper":"with","neck_mm":"1450"}, cause: "D_reason_only" },
