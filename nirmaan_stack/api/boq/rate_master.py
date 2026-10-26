@@ -2018,15 +2018,16 @@ def apply_rate_master_csv(discipline=None, content_base64=None, csv_text=None,
 
 @frappe.whitelist()
 def get_rate_master_freeze():
-    """The live deployment-freeze state. Login-required READ, matching the two RM-1 read
-    endpoints -- it drives the Rate Master banner, and every user who can reach that page
-    (admins AND the read-only Estimates population) should be able to see that the catalog
-    is frozen rather than guess why an edit is refused.
+    """The live deployment-freeze state. ADMIN-ONLY READ (RM-ACCESS-1, owner 2026-10-20): it
+    drives the Rate Master banner, and the Rate Master page is admin-only, so Estimates lost the
+    read-only view and with it this state (PermissionError for a non-admin). Gated by the shared
+    `_require_rate_admin` -- the admin gate, NOT the freeze guard: the guard still never sits in
+    the gate (RMF-1, test_rmf_14). The two pricing reads stay login-only.
 
     Returns {frozen: bool, frozen_by: str|None, frozen_at: str|None}. Provenance is
     reported only while actually frozen. URL: .../rate_master.get_rate_master_freeze
     """
-    _require_login()
+    _require_rate_admin()
     return freeze.get_freeze_state()
 
 

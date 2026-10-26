@@ -66,6 +66,7 @@ SELECTED-ROW RUNS (only_rows + the carry-forward write). Plain-English coverage:
 
 import base64
 import collections
+import contextlib
 import ast
 import csv
 import io
@@ -7170,6 +7171,90 @@ class TestRateMasterFreeze(FrappeTestCase):
         self.assertNotIn("set_single_value", code)
         self.assertIn("ignore_version=False", code)
         self.assertIn("doc.save(", code)
+
+    # ---- RM-ACCESS-1 (owner 2026-10-20 11:29 / 12:09): the freeze READ is admin-only ----
+    @contextlib.contextmanager
+    def _as_user_with_profile(self, email, profile):
+        """Run as `email`, whose `Nirmaan Users.role_profile` reads as `profile`, with NO fixture row: the
+        REAL `pricing._is_nirmaan_admin` runs and only its one role lookup is answered here, so these tests
+        leave no User / Nirmaan Users / Has Role residue on the live site. Every other read passes through."""
+        real = frappe.local.db.get_value
+
+        def _get_value(doctype, filters=None, fieldname="name", *args, **kwargs):
+            if doctype == "Nirmaan Users" and filters == email and fieldname == "role_profile":
+                return profile
+            return real(doctype, filters, fieldname, *args, **kwargs)
+
+        original = frappe.session.user
+        with mock.patch.object(frappe.local.db, "get_value", new=_get_value):
+            frappe.set_user(email)
+            try:
+                yield
+            finally:
+                frappe.set_user(original)
+
+    def test_rmf_16_the_freeze_read_refuses_every_non_admin(self):
+        """NEGATIVE, RM-ACCESS-1: Estimates LOSE the read-only Rate Master view, and with it the freeze state.
+        A logged-in Estimates, PMO or plain user -- and a user with no profile at all -- gets PermissionError,
+        not the state. (Guest alone could not tell admin-only from login-only: both refuse it.)"""
+        self._freeze_sandbox()
+        self._set_frozen(user="rma1-banner@example.com")
+        for profile in ("Nirmaan Estimates Executive Profile", "Nirmaan PMO Executive Profile",
+                        "Nirmaan Project Manager Profile", None):
+            with self.subTest(profile=profile):
+                with self._as_user_with_profile("rma1-%s@example.com" % frappe.scrub(profile or "none"), profile):
+                    with self.assertRaises(frappe.PermissionError):
+                        rate_master.get_rate_master_freeze()
+        original = frappe.session.user
+        try:
+            frappe.set_user("Guest")
+            with self.assertRaises(frappe.PermissionError):
+                rate_master.get_rate_master_freeze()
+        finally:
+            frappe.set_user(original)
+
+    def test_rmf_17_the_freeze_read_answers_an_admin(self):
+        """POSITIVE, RM-ACCESS-1: an Admin Profile user and Administrator still read the live state, provenance
+        included -- the banner the admin sees is unchanged."""
+        self._freeze_sandbox()
+        self._set_frozen(user="rma1-banner@example.com")
+        with self._as_user_with_profile("rma1-admin@example.com", "Nirmaan Admin Profile"):
+            got = rate_master.get_rate_master_freeze()
+        self.assertEqual((got["frozen"], got["frozen_by"]), (True, "rma1-banner@example.com"))
+        original = frappe.session.user
+        try:
+            frappe.set_user("Administrator")
+            got = rate_master.get_rate_master_freeze()
+            self.assertTrue(got["frozen"])
+            self.assertIsNotNone(got["frozen_at"])
+        finally:
+            frappe.set_user(original)
+
+    def test_rmf_18_the_pricing_reads_stay_open_to_an_estimates_user(self):
+        """POSITIVE, RM-ACCESS-1 ruling (2): the panel and the calculator price through the two catalogue reads,
+        and those stay LOGIN-only -- an Estimates user who is refused the freeze read still gets items and
+        config. If someone narrows them to the admin gate, every non-admin pricer stops pricing."""
+        disc, _cfg, _item = self._loaded()
+        with self._as_user_with_profile("rma1-estimates@example.com", "Nirmaan Estimates Executive Profile"):
+            with self.assertRaises(frappe.PermissionError):
+                rate_master.get_rate_master_freeze()
+            self.assertTrue(rate_master.get_rate_master_items(discipline=disc)["items"])
+            cfg = rate_master.get_rate_category_config(discipline=disc, category_id="wiring_cabling")
+            self.assertTrue(cfg["config"])
+
+    def test_rmf_19_the_freeze_read_uses_the_shared_admin_gate_and_the_gate_stays_freeze_free(self):
+        """STRUCTURAL, RM-ACCESS-1: the read calls the ONE gate `_require_rate_admin` (pricing._is_nirmaan_admin),
+        never a re-minted copy; the two pricing reads keep `_require_login`. The reverse refactor -- folding the
+        freeze GUARD into the gate -- stays forbidden (test_rmf_14), and this does not do it."""
+        read = _rmf_source_of(rate_master.get_rate_master_freeze).split('"""')[-1]
+        self.assertIn("_require_rate_admin()", read)
+        self.assertNotIn("_require_login()", read)
+        self.assertNotIn("guard_not_frozen", read)
+        for fn in (rate_master.get_rate_master_items, rate_master.get_rate_category_config):
+            with self.subTest(endpoint=fn.__name__):
+                body = _rmf_source_of(fn)
+                self.assertIn("_require_login()", body)
+                self.assertNotIn("_require_rate_admin", body)
 
 
 # ── SLICE 5 post-cert: TWO CONFIG-SHAPE GUARDS over the estimator rules ──────────────────────
