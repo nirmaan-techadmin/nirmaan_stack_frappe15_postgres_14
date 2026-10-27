@@ -83,7 +83,7 @@ start_services() {
   fi
   for _ in $(seq 1 60); do
     out=$(rrun "$m" bash ports.sh)
-    if echo "$out" | grep -q '8000 open' && echo "$out" | grep -q '8080 open'; then echo "$m: bench :8000 and vite :8080 are up"; return 0; fi
+    if grep -q '8000 open' <<< "$out" && grep -q '8080 open' <<< "$out"; then echo "$m: bench :8000 and vite :8080 are up"; return 0; fi
     sleep 5
   done
   echo "$m: WARNING the servers are not up after 5 minutes; see /tmp/envsync_logs/ in its container"
@@ -113,8 +113,8 @@ d_cp_to_pg() {
 # After new code lands on a machine: migrate when schema-shaped files changed, destale unless only docs changed.
 after_transfer() {
   local m="$1" changed="$2" mig=""
-  echo "$changed" | grep -qE '(/doctype/.*\.json|patches\.txt|hooks\.py|/fixtures/.*\.json)$' && mig="--migrate"
-  if ! echo "$changed" | grep -qvE '(\.md$|^\.claude/|^docs/|^scripts/)'; then echo "$m: nothing served changed (docs / scripts only), no restart needed"; return 0; fi
+  grep -qE '(/doctype/.*\.json|patches\.txt|hooks\.py|/fixtures/.*\.json)$' <<< "$changed" && mig="--migrate"
+  if ! grep -qvE '(\.md$|^\.claude/|^docs/|^scripts/)' <<< "$changed"; then echo "$m: nothing served changed (docs / scripts only), no restart needed"; return 0; fi
   if [ "${NO_RESTART:-0}" = 1 ]; then echo "$m: --no-restart given; destale it yourself before trusting what it serves"; return 0; fi
   echo "$m: destaling${mig:+ with migrate} ..."
   rrun "$m" bash destale.sh $mig | grep -vE '^(8000|8080) closed$' || die "$m: destale failed"
@@ -256,12 +256,12 @@ cmd_db_push() {
   out=$(rrun desktop bash prove_backup.sh "$dprefix"); printf '%s\n' "$out" | sed 's/^/  /'
   [ "$(kv proof "$out")" = ok ] || die "the desktop backup did not prove whole; nothing changed"
   out=$(d_cp_to_pg "$D_BENCH/sites/$(dirname "$dprefix")" "$(basename "$dprefix")-database.sql.gz" /tmp/envsync_check.sql.gz)
-  printf '%s\n' "$out" | grep -q '^error=' && die "copying the desktop dump into its postgres container failed; nothing changed:\n$out"
+  grep -q '^error=' <<< "$out" && die "copying the desktop dump into its postgres container failed; nothing changed:\n$out"
   out=$(d_cp_to_pg "$D_BENCH/$STAGE" scratch_check.sh /tmp/envsync_scratch_check.sh)
-  printf '%s\n' "$out" | grep -q '^error=' && die "copying scratch_check.sh failed; nothing changed:\n$out"
+  grep -q '^error=' <<< "$out" && die "copying scratch_check.sh failed; nothing changed:\n$out"
   echo "desktop: test-restoring the safety copy into a scratch database ..."
   out=$(dps "docker exec $PG_C bash /tmp/envsync_scratch_check.sh $db /tmp/envsync_check.sql.gz"); printf '%s\n' "$out" | sed 's/^/  /'
-  printf '%s\n' "$out" | grep -qx 'check=PASS' || die "the desktop backup's test restore did not pass; nothing changed"
+  grep -qx 'check=PASS' <<< "$out" || die "the desktop backup's test restore did not pass; nothing changed"
 
   echo "laptop: backing up ..."
   out=$(rrun laptop bash backup.sh); lprefix=$(kv prefix "$out")
@@ -283,13 +283,13 @@ cmd_db_push() {
   echo "desktop: stopping bench and restoring the laptop's backup ..."
   rrun desktop bash stop_bench.sh > /dev/null
   out=$(d_cp_to_pg "$D_BENCH/sites/$(dirname "$lprefix")" "$(basename "$lprefix")-database.sql.gz" /tmp/envsync_restore.sql.gz)
-  printf '%s\n' "$out" | grep -q '^error=' && die "copying the laptop dump into the desktop's postgres failed; the desktop database is unchanged (bench is stopped):\n$out"
+  grep -q '^error=' <<< "$out" && die "copying the laptop dump into the desktop's postgres failed; the desktop database is unchanged (bench is stopped):\n$out"
   out=$(d_cp_to_pg "$D_BENCH/$STAGE" restore_db.sh /tmp/envsync_restore_db.sh)
-  printf '%s\n' "$out" | grep -q '^error=' && die "copying restore_db.sh failed; the desktop database is unchanged (bench is stopped):\n$out"
+  grep -q '^error=' <<< "$out" && die "copying restore_db.sh failed; the desktop database is unchanged (bench is stopped):\n$out"
   out=$(dps "docker exec $PG_C bash /tmp/envsync_restore_db.sh $db /tmp/envsync_restore.sql.gz"); printf '%s\n' "$out" | grep -v '^NOTICE' | sed 's/^/  /'
-  printf '%s\n' "$out" | grep -q "^restored $db" || die "the desktop restore failed; bench is stopped. Recover with the runbook rollback (the previous database is ${db}_envsync_prev)."
+  grep -q "^restored $db" <<< "$out" || die "the desktop restore failed; bench is stopped. Recover with the runbook rollback (the previous database is ${db}_envsync_prev)."
   out=$(rrun desktop bash restore_files.sh "$lprefix"); printf '%s\n' "$out" | sed 's/^/  /'
-  printf '%s\n' "$out" | grep -qx 'migrate ok' || die "files or migrate failed on the desktop; bench is stopped. The previous database is ${db}_envsync_prev, the old file folders *.envsync_prev."
+  grep -qx 'migrate ok' <<< "$out" || die "files or migrate failed on the desktop; bench is stopped. The previous database is ${db}_envsync_prev, the old file folders *.envsync_prev."
   start_services desktop
   wait_ping desktop || die "the desktop restored, but bench does not answer; see /tmp/envsync_logs/ in its container"
 
@@ -378,7 +378,7 @@ run_task() {
   local extra="" out; [ -n "${3:-}" ] && extra=" -SessionId $3"     # PowerShell 5.1 drops an empty '' argument
   out=$(dps "powershell -NoProfile -ExecutionPolicy Bypass -File '$D_BENCH/$STAGE/desktop/start_task.ps1' -Name $1 -Mode $2$extra" | sed '1s/^\xEF\xBB\xBF//')
   printf '%s\n' "$out" | sed 's/^/  /'
-  printf '%s\n' "$out" | grep -q '^done=' || die "the desktop launch failed"
+  grep -q '^done=' <<< "$out" || die "the desktop launch failed"
 }
 
 cmd_session_start() {
