@@ -2031,8 +2031,8 @@ the config and its line must be GONE -- beside a NEGATIVE pin that no config key
 Input is named by the LABEL its Pricing Inputs row carries (`GI framework sheet factor`), never its item id; the
 label lives on the ITEM, so the tab receives the discipline's items; pipeline ids are written as plain words. A
 config message's `(R4)` / `(owner ...)` tag is stripped by `plainSentence` at render, so a config may keep its
-provenance without it reaching a pricer. The same mechanism lists ADP's rules (owner-approved); Electrical, alias
-and vendor-quote tabs stay EMPTY and are pinned so.
+provenance without it reaching a pricer. The same mechanism lists ADP's rules (owner-approved); alias and vendor-quote
+tabs stay EMPTY and are pinned so. An Electrical (attribute-path) category's list is `attributeRuleOrder`, see ELR-1 below.
 
 **EVERY PRICER-FACING LINE PASSES THROUGH THE ONE PLAIN-ENGLISH FUNCTION (owner P1 / P2, 2026-10-08,
 slice 12d-5).** `frontend/src/pages/pricing/rate-master/plainEnglish.ts` holds `plainSentence`, the
@@ -2113,6 +2113,52 @@ users lost the read-only view they had under `PricingRoute`. Who sees what:
   login-only (`test_rmf_18`); never gate them on the Rate Master list.
 - **Not changed (owner 2026-10-26 23:55):** `start_suggest` is login-only (F2), the System Manager Desk / REST
   door (F3, R8), the catalogue reads are open (F4), and the stray whitelist on `_resolve_spec_write` (F1).
+**ELR-1: THE ATTRIBUTE PATH RENDERS A DEFINITION'S `note`, AND THE FIELD AUDIT MEASURES IT (owner R-NOTES-RULE; R-SCOPE 5,
+2026-10-27).** A category priced from row-level attributes (every Electrical category, HVAC Raceway / Cables by alias)
+shows an attribute definition's `note` on the panel and the calculator as the field's `typedNote`, in the SAME blue box
+and the SAME class (`RateHelperPanel.TYPED_NOTE_CLASS`) the item-list path uses for its typed notes. `panelFieldAudit`
+has an ATTRIBUTE branch: renders = the attributes `compute` returns for a stored row; typed = a field drawn with no
+options; mandatory = with every other field answered and this one asked-and-blank the gate withholds the price and marks
+it "*". It names no attribute, category or discipline. It ENFORCES for wiring_cabling; the 28 other typed + rendered +
+mandatory Electrical fields are a NAMED expected-missing list (`panelFieldAudit.test.ts`), which may only shrink. A note
+never reaches the model: attribute-mode `build_attribute_defs` projects `{id, label, type, values}` only (proved
+byte-identical on v66 -> v67 for every Electrical group).
+
+**ELR-1: THE NO-UNIT / RATE-ONLY NOTE IS ON BOTH PATHS (owner R-UNIT, 12c-U carried; Q1 ruling 2026-10-27).** A PRICED
+attribute-path BoQ row whose unit is blank or rate-only (`isRateOnlyUnit` / `splitRateOnlyUnit`, the item-list
+predicates) carries `workings.unitNote`, drawn in the item-list path's amber box (`UnitNoteBox`): the 12c-U lead, then
+"-> priced per <the matched catalogue row's unit>, the catalogue's unit for this item", or, for an ASSEMBLY, "-> priced
+as one <category display name> item". Assembly = a primary pipeline that sums two or more components of the category's
+OWN item kinds, or a category with no own item kind (point wiring); else the `match_master_row` row's unit; else one
+own-kind component whose rows share one unit (an industrial socket). Decided from the config and the priced result,
+never by a category name. Display only: no figure moves, a refusing row and the calculator carry none, and the attribute
+path still never refuses on a unit.
+
+**ELR-1: A NON-SPEC SKU GRID AND EVERY PRICING INPUTS GRID SHOW THE DOWNLOAD (owner R-ELR0 "7 ok"; Q2 / Q3 rulings
+2026-10-27).** `rateMasterGridColumns.followsFileLayout`: every Pricing Inputs grid (both disciplines, one rule -- no
+discipline is named) and every SKU grid that is neither spec-driven (ADP keeps ADP-4b's own layout) nor priced as a list
+of items (Insulation, Piping keep theirs) shows the download's columns in the download's order: item_uid, discipline,
+category, [kind], brand, unit, the OBSERVED attribute keys (a declared definition no item fills is not a column; a key
+the items carry with no definition is), the rates, the two formula columns -- each header a plain label with the file's
+column id beneath; the admin actions (and the Pricing Inputs "items" control) stay. A Pricing Inputs grid lists the
+inputs by name, the remark in its own column, `used_by` as the file DERIVES it, `shared_by` blank where empty. The
+Category cell shows the display name (N-7). Proved cell for cell against the exporter's own CSV and Excel
+(`RateMasterDataViewer.file.dom.test.tsx`), with Insulation, Piping, ADP and the empty-state grids hash-identical to
+before. point_wiring and every item-kind-less category keep the empty-state line, unchanged (Q2).
+
+**ELR-1: THE DOWNLOAD WRITES A WHOLE NUMBER AS AN INTEGER, EVERY DISCIPLINE (owner R-NUM B, 2026-10-27 23:00).**
+`xlsx_io.integral_number` is the one rule: the CSV text and the Excel cell of a whole-number float are the integer
+("1200", never "1200.0"); a fractional value is written as stored. The importer reads "1200" and "1200.0" as one value,
+so an unchanged file still previews 0 changes (proved on every category of both disciplines, CSV and Excel).
+
+**ELR-1: AN ATTRIBUTE-PATH CATEGORY'S DERIVATION RULES LIST IS WRITTEN FROM ITS PIPELINES; A CATEGORY WITH A LIST DRAWS NO
+EXTRACTION RULES CARD (owner R-DERIV 2026-09-27; R-ELR0 "1 ok"; Q4 ruling 2026-10-27).** `itemListRuleOrder.
+attributeRuleOrder` lists the BoQ pipelines' rules in run order (BCS not listed), each line's numbers from the step's own
+parameters, Pricing Inputs by their Pricing Inputs name, and its reason from `DERIVATION_RULINGS[category_id]` or
+"reason not recorded". Only a category with an entry there gets a list (wiring_cabling as of ELR-1); the other eleven
+keep the pointer line and their extraction card. ELR-4 adds them by entries and lines. Where a list exists the
+extraction "Rules" card (raw ids, `applies_to`, guidance naming fields) is not drawn; the guidance stays in the config.
+
 ---
 
 ## Rate-master invariants filed under Domain Gotchas

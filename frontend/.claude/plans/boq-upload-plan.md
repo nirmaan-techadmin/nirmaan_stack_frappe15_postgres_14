@@ -49316,3 +49316,82 @@ RM-ACCESS-R0 (2026-10-20).
   System Manager Desk / REST door (R8); F4 the catalogue reads are open (they are the pricing reads).
 - Suite residue from this slice's three Python runs (Error Log +95, Comment +677, Deleted Document +705, Contact +4, ...)
   is left for the next clean-up (owner 2026-10-27).
+
+## Slice ELR-1 - Electrical retrofit build 1: step 0 (the index test) + the shared attribute-path mechanisms, wiring & cabling first (Electrical v67) - as built 2026-10-27 / 28
+
+Desktop session, delegated by the laptop. Recon: ELR-R0 (2026-10-27). Owner rulings carried: R-SCOPE (2026-10-27 16:54:
+"5-ok ... 10-ok", "11- column structure should match the csv/excel download files as we did for HVAC", "14-ok"),
+R-ELR0 22:48 ("1 ok" the Electrical Derivation rules list; "6 ok" wording pattern = ELR-2; "7 ok" viewer = download),
+R-NOTE A / R-NUM B 23:00 ("both ok"), R-NOTES-RULE, R-UNIT (12c-U carried), R-DERIV (2026-09-27), ADP-4b D1 / D8,
+R-14, R-13 ("A is ok"). Phase A stopped on four premises; the owner ruled (relayed 23:24, "a, a (no extra sentence),
+a, a"): Q1 the unit note's unit word (matched row's catalogue unit; an assembly "priced as one <category> item"), Q2
+point_wiring keeps its empty state exactly, Q3 BOTH Pricing Inputs grids follow their files (HVAC PI approved; the
+"no discipline named" pin stays), Q4 a category with a rules list draws no extraction Rules card.
+
+### 1. Step 0 (commit 1, `1647810c1`, chore)
+- `services/test_index_manifest.py`: the controller scan resolves an `ast.Name` argument through the module's own
+  top-level `NAME = <literal>` constants (`asset_history.py` `PARENT_INDEX`) and refuses anything else BY NAME (new
+  negative test). `services/index_manifest.py`: the 16 upstream declarations -- 9 explicit controller names reused
+  (Asset History parent; Cheque Line parent / payment_name / record_name; Cheque Status History parent; Cheques vendor /
+  status / unique(bank_key, cheque_no); Payee unique(normalized_account, ifsc)) and 7 search_index fields under the
+  derived `index_name()`. Pins 30 -> 40, 92 -> 101. 19 tests OK (start: 18, errors 5). Count drift vs ELR-R0: 9 + 7,
+  not 8 + 8.
+- **No migrate in this slice. The next `bench migrate` creates 7 indexes on this DB** (deploy pack): derived-name twins
+  of a bare-name index -- `Non_Project_Expenses_credit_card_statement_idx`, `Non_Project_Expenses_porter_order_idx`,
+  `Porter_Invoice_import_batch_idx`, `Porter_Order_porter_invoice_idx`; new (no index today) --
+  `Outflow_Import_Row_porter_invoice_idx`, `Porter_Order_import_row_idx`, `Project_Expenses_porter_order_idx`. The 9
+  explicit names already exist. (ELR-R0 said 5 + 3 = 8; measured 4 + 3 = 7.)
+
+### 2. The build (commit 2, `9f5364011`, feat)
+- **Notes on the attribute path:** `WorkingsAttribute.typedNote` from the definition's `note`; `RateHelperPanel` draws
+  it in the item-list path's blue box with the ONE class `TYPED_NOTE_CLASS` (panel and calculator).
+- **The audit's attribute branch:** `panelFieldAudit.auditAttributeFields` (renders / typed / mandatory through
+  `compute` on a stored row); enforces wiring_cabling; the 28 others are the named expected-missing list in
+  `panelFieldAudit.test.ts` (point_wiring 8, db_switchgear 7, popup_boxes 7, switches_sockets 6) -- may only shrink.
+- **The unit note:** `pricingSheetHelper.attributeUnitNote` -> `workings.unitNote`, drawn by `UnitNoteBox` (shared with
+  the item-list view). 35 rows (= ELR-R0 by key): 19 "priced per <unit>" (conduit 6 Mtr, JB 5 Nos, cabletray 3 Rmt,
+  wiring 3 Mtr, indsock 2 Nos), 16 "priced as one <category> item" (point_wiring 6, db 6, swsock 4). 0 figure moves.
+- **Viewer = download:** `rateMasterGridColumns.followsFileLayout` + the `fileMode` order; the 12 Electrical SKU grids
+  and both Pricing Inputs grids. Proof `RateMasterDataViewer.file.dom.test.tsx` against the exporter's own CSV and
+  Excel (`__fixtures__/viewerVsFileElr1.json`); Insulation / Piping / ADP / the empty states hash-identical to the HEAD
+  viewer (React `useId` normalised).
+- **Integral numbers:** `xlsx_io.integral_number` at the CSV and Excel writers only (NOT in `csv_exporter._cell`: the
+  importer words its upload preview through `_cell`, and that screen is not this ruling's -- the first draft put it
+  there and the targeted run caught it).
+- **Rules list:** `itemListRuleOrder.attributeRuleOrder` + `DERIVATION_RULINGS.wiring_cabling`; `RateMasterDerivation`
+  draws it and, per Q4, no extraction card where a list exists.
+- **Electrical v67** = v66 + `wiring_cabling.runs.note` (sha256 `beb3685a...10a2`, 831,346 bytes); mint gate PASS,
+  `--latest` disjoint; model question byte-identical v66 / v67 on all 15 groups (`_group_context`, stub); loaded on dev:
+  pre-load snapshot BRMS-26-00076, batch `rmbulk-fa2a13dacec3`; live == file (items 784d1dbe... unchanged, configs
+  6f9e486a...); HVAC v54 unchanged. CURRENT_EALL_ASSET -> v67; the latest-asset pins take `_without_elr1_runs_note`;
+  the per-mint filename pins bumped.
+- Pins inverted (ruled behaviour, WAS / NOW comments): test_rate_master test_24o / test_98 (".0" text),
+  test_spec_reader t05; adp4b.dom AC1 (wiring list 13, card rule); RateMasterDataViewer.dom (a) / (b) / unit-after-
+  brand (Electrical subject); rateMasterDataViewer.test ACCEPTANCE 4+12+6 and 13.
+
+### 3. Suites, the cert, the replay
+- Python scoped (87 modules: every test module under `api/boq/` + `services/boq_*/`, plus
+  `services.test_index_manifest`): before (code 6561df525, ELR-1 stashed) 4,478 tests, 86 OK + test_index_manifest
+  errors=5; after (9f5364011) 4,479 tests, 87 / 87 OK. vitest scoped (boq-wizard + pricing): 130 files / 5,652 ->
+  135 / 5,700, 0 failed; `vitest related` on the 8 changed files 65 / 3,841. tsc: 0 new errors (3,050) before and after.
+  Logs: Desktop `2026-10-27_ELR-1_python_scoped.log` / `_frontend_scoped.log` / `_tsc.log` (the next slice's "before").
+- Vacuity (one line broken, restored sha-equal): typedNote line, audit branch, unit-note assembly rule, viewer file
+  mode, the wiring rulings lookup, the Q4 card rule, `integral_number` -- each turned its tests red.
+- Browser cert (desktop Chrome, :8080, after the full de-stale; bench ping after 235 s): C1 r302 note SEEN, 13,151 /
+  2,260; C2 00388 r342 "priced per Mtr", 42 / 10; C3 00183 r19 Runs note, 120 / 24 / 144 and 70 / 20 / 90; C4 the
+  calculator, same inputs, same figures, same note; C5 wiring viewer = the page's own CSV (17 ids, 588 rows, sha equal);
+  C6 switches (61 rows) and Electrical PI (35, by name, remark column) sha-equal to their CSVs, point_wiring empty state;
+  C7 0 ".0" cells, the upload preview of the unchanged file "0 / 0 / 588 unchanged / 0 errors", cancelled; C8 wiring
+  13 lines, no card, no internal name, switches pointer line + card; C9 Insulation unchanged, HVAC PI follows its file,
+  00325 r178 VCD 7,830 / 1,920 / 9,750 = the replay. RM-ACCESS-1's HVAC row (00186 r54) has no suggestion run on this DB.
+- Replay (tracked rig, `elr1end`): 18,106 rows; ac7 `342ec51c...` and ac7v2 `2b4fd389...` byte-identical to the start
+  -> 0 figure moves, 0 recorded wording moves; the 35 unit-note rows measured separately (the harnesses do not record
+  `unitNote`). Live == file at the end: Electrical v67 / HVAC v54. Capture log 258 -> 258; no model call.
+
+### 4. Open / for later slices
+- ELR-2: the 28 notes (their wording), the plain-English working lines (the panel still shows `pi_*` lines on
+  Electrical, e.g. the conduit panel). ELR-3: the plate default. ELR-4: the other 11 rules lists.
+- The wiring config's `pairing_rule` prose ("termination lines show termination alone") is stale since 2026-08-22;
+  rules-list line 1 says what runs. Not edited (config prose = an asset change).
+- CLAUDE.md states Python 3.10; the container runs 3.14.2 (ELR-R0) -- for the docs round.
+- Suite residue from this slice's Python runs is left for the next clean-up.
