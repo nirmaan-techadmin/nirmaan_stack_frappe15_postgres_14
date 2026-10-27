@@ -82,7 +82,9 @@ describe("AC1 -- the Derivation tab is the rules listing on every category (owne
           // exactly one of: the rules list, or one line
           expect({ id: c.category_id, both: list > 0 && notice !== null, neither: list === 0 && notice === null }).toEqual({ id: c.category_id, both: false, neither: false });
           // the extraction Rules card stays where it has rules; its empty state never sits beside the line
-          expect({ id: c.category_id, card: !!rulesCard }).toEqual({ id: c.category_id, card: rules > 0 });
+          // INVERTED by ELR-1 (owner Q4 "a", 2026-10-27): WAS `card: rules > 0`. NOW a category that HAS a rules list
+          // draws no card (wiring_cabling); every category without a list keeps the card exactly where it has rules.
+          expect({ id: c.category_id, card: !!rulesCard }).toEqual({ id: c.category_id, card: rules > 0 && list === 0 });
           if (rulesCard) expect(rulesCard.querySelectorAll("li").length).toBe(rules);
           expect(host.textContent).not.toContain("No rules configured for this category.");
           seen[`${p.discipline}/${c.category_id}`] = list > 0 ? `list ${list}` : `${notice}${rulesCard ? ` + rules ${rules}` : ""}`;
@@ -93,7 +95,8 @@ describe("AC1 -- the Derivation tab is the rules listing on every category (owne
     }
     const ePointer = "This category's rules are not listed yet. To see how a row is priced, open Electrical Pricing -> Calculator.";
     expect(seen).toEqual({
-      "Electrical/wiring_cabling": `${ePointer} + rules 2`,
+      // INVERTED by ELR-1 (owner R-ELR0 "1 ok", R-DERIV): WAS `${ePointer} + rules 2`; NOW wiring's rules list, 13 lines
+      "Electrical/wiring_cabling": "list 13",
       "Electrical/earthing": ePointer,
       "Electrical/conduit_piping": ePointer,
       "Electrical/junction_box_raceway": `${ePointer} + rules 1`,

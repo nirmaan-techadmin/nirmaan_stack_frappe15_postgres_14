@@ -7,7 +7,7 @@
 // carries rules, and otherwise ONE line saying where a row is priced (owner PA1-R).
 
 import { useMemo } from "react";
-import { extractionRulesCardShown, itemListRuleOrder } from "./itemListRuleOrder";
+import { attributeRuleOrder, extractionRulesCardShown, itemListRuleOrder } from "./itemListRuleOrder";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RateCategoryConfig, RateMasterItem, StepTrace } from "./rateMasterTypes";
@@ -78,7 +78,12 @@ interface Props {
 export function RateMasterDerivation({ items, config, calculatorPage }: Props) {
   // SLICE 12c / ACCEPTANCE 5: the resolution order, read from `list_spec.pricing`. PURE and unit-tested,
   // so this component stays thin over it (ADR-0010 F4); [] for a category that is not item-list.
-  const ruleOrder = useMemo(() => itemListRuleOrder(config, items), [config, items]);
+  // ELR-1 (owner R-DERIV, "1 ok"): a category priced from row-level attributes lists its rules from its pipelines
+  // (`attributeRuleOrder`, wiring & cabling first); every other attribute-path category returns [] there.
+  const ruleOrder = useMemo(() => {
+    const list = itemListRuleOrder(config, items);
+    return list.length ? list : attributeRuleOrder(config, items);
+  }, [config, items]);
   // EA-4 ext-a: tolerate a config with no rules key at all (every category except the two that
   // carry one) -- an absent key renders the empty state, never a crash.
   const rules = useMemo(
@@ -88,7 +93,9 @@ export function RateMasterDerivation({ items, config, calculatorPage }: Props) {
   const notice = derivationNoticeLine(config, calculatorPage, ruleOrder.length);
   // ADP-4b (owner PA1-R): the extraction Rules card stays where the config carries rules; its empty state is dropped
   // wherever the notice line already says what this tab holds.
-  const rulesCardShown = extractionRulesCardShown(config) && (rules.length > 0 || notice === null);
+  // ELR-1 (owner Q4 "a", 2026-10-27): a category that HAS a rules list draws no extraction Rules card -- the list says
+  // how a row is priced, and the card's raw ids and field names are the AI's guidance, which stays in the config.
+  const rulesCardShown = ruleOrder.length === 0 && extractionRulesCardShown(config) && (rules.length > 0 || notice === null);
 
   return (
     <div className="space-y-4">

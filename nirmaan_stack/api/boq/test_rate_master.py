@@ -331,7 +331,8 @@ PIPELINE_KEYS = {"cable_boq", "termination_boq", "cable_bcs", "termination_bcs"}
 # Price-neutral by construction (`1 - 0` is a no-op) and PROVEN: 2,434 records / 7,612 figures, 0 moved
 # figures, 0 moved statuses; the only field that moved anywhere was `step_count`, +1 on exactly the
 # three wired pipelines.
-CURRENT_EALL_ASSET = "rate_master_electrical_all_v66.json"
+# ELR-1 (2026-10-27): v66 -> v67, the wiring_cabling `runs` note (owner R-NOTE A); nothing else in the asset moved.
+CURRENT_EALL_ASSET = "rate_master_electrical_all_v67.json"
 
 # SLICE 12b(A): the two counts the slice MOVED, named so every assertion says WHY it is what it is.
 #
@@ -616,6 +617,18 @@ def _without_wcl_note(cfg):
             if i >= 0:
                 j = n.find(" | ", i)
                 c["notes"] = n[:i] + (n[j:] if j >= 0 else "")
+    return c
+
+
+def _without_elr1_runs_note(cfg):
+    """ELR-1 (owner R-NOTE A, 2026-10-27; v67): a config with wiring_cabling's ONE added key -- the `note` on its `runs`
+    definition -- normalised away, on either side. The latest-asset pins below compare the CURRENT asset key by key
+    against an older one; this is the only thing v67 changed, so it is the only thing they forgive."""
+    c = json.loads(json.dumps(cfg))
+    if c.get("category_id") == "wiring_cabling":
+        for d in c.get("attribute_definitions") or []:
+            if d.get("id") == "runs":
+                d.pop("note", None)
     return c
 
 
@@ -2652,12 +2665,17 @@ class TestRateMaster(FrappeTestCase):
         si = headers.index("size")
         self.assertIn(nasty, [r[si] for r in rows[1:]])
 
-        # values as stored: a float keeps its .0 rather than being prettified to an int
+        # INVERTED by ELR-1 (owner R-NUM B, 2026-10-27: "1200", not "1200.0", every discipline). WAS: "a float keeps
+        # its .0 rather than being prettified to an int" (`core` cells ending ".0"). NOW: a whole-number float is
+        # written as its integer; NEGATIVE half kept -- a fractional float is still emitted exactly as stored.
         text2, h2, _ = csv_exporter.build_category_csv(disc, "wiring_cabling")
         rows2 = list(_csv.reader(io.StringIO(text2.lstrip(BOM))))
         ci = h2.index("core")
-        self.assertTrue(any(v.endswith(".0") for v in [r[ci] for r in rows2[1:]]),
-                        "a stored float must be emitted as stored, not reformatted")
+        cores = [r[ci] for r in rows2[1:] if r[ci] != ""]
+        self.assertTrue(cores, "the wiring file carries core values")
+        self.assertFalse(any(v.endswith(".0") for v in cores), "a whole-number float is written as its integer")
+        ti = h2.index("thickness_sqmm")
+        self.assertIn("2.5", [r[ti] for r in rows2[1:]], "a fractional float is emitted as stored, not rounded")
 
     def test_24p_the_csv_endpoint_refuses_a_non_admin(self):
         """SLICE 5 NEGATIVE -- an editable dump of the priced catalog is no less sensitive than the
@@ -5624,14 +5642,18 @@ class TestRateMaster(FrappeTestCase):
         self.assertEqual(p2["counts"]["unchanged"], 0)
         self.assertEqual(len(p2["changes"]), 1)
 
-        # THE DELIBERATE EXCEPTION: a float flattened to an integer is the SAME stored number.
+        # THE DELIBERATE EXCEPTION: a float and its integer text are the SAME stored number.
+        # INVERTED by ELR-1 (owner R-NUM B): WAS "a '.0' cell flattened to an integer"; the file now WRITES the integer
+        # (no cell ends ".0"), so the same claim is proved the other way round -- the file's "3" re-typed as "3.0" is
+        # still unchanged.
         wt, wh, _n3 = csv_exporter.build_category_csv(disc, "wiring_cabling")
         _wh, wrows = self._csv_parts(wt)
         ci = wh.index("core")
-        flat = next(r for r in wrows if r[ci].endswith(".0"))
-        flattened = list(flat)
-        flattened[ci] = flat[ci][:-2]
-        p3 = csv_importer.build_plan(disc, self._csv_text(wh, [flattened]))
+        self.assertFalse(any(r[ci].endswith(".0") for r in wrows))
+        whole = next(r for r in wrows if r[ci].isdigit())
+        expanded = list(whole)
+        expanded[ci] = whole[ci] + ".0"
+        p3 = csv_importer.build_plan(disc, self._csv_text(wh, [expanded]))
         self.assertEqual((p3["counts"]["unchanged"], p3["changes"]), (1, []))
 
     def test_99_a_stale_digest_refuses_the_apply(self):
@@ -7855,7 +7877,7 @@ class TestSpnPoleVocabulary(FrappeTestCase):
         # exemption list instead would leave this loop iterating nothing.
         for cid in before:
             if cid not in ("industrial_sockets", "switches_sockets", "cabletray_raceway", "popup_boxes", "conduit_piping"):  # + conduit_piping at v63
-                n2, b2 = _strip_12b_migration(now[cid], before[cid])
+                n2, b2 = _strip_12b_migration(_without_elr1_runs_note(now[cid]), before[cid])  # ELR-1: + the v67 Runs note
                 self.assertEqual(n2, b2, "%s moved for something other than the pricing-input migration" % cid)
         # WIDENED AGAIN AT F-25 SLICE 2 (v58, owner 2026-09-07): the switches_sockets BOX ladder gained
         # `on_zero_from` + `on_zero_modules` on both pipelines (pinned key by key in TestF25Slice2BareBox);
@@ -10234,7 +10256,7 @@ class TestF25Slice1BackBoxField(FrappeTestCase):
         self.assertEqual(set(now), set(was))
         for cid in was:
             if cid != "switches_sockets":
-                n2, w2 = _strip_12b_migration(_without_wcl_note(now[cid]), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above
+                n2, w2 = _strip_12b_migration(_without_elr1_runs_note(_without_wcl_note(now[cid])), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above; ELR-1: + the v67 Runs note
                 self.assertEqual(n2, w2, "%s moved for something other than the pricing-input migration" % cid)
         self.assertEqual(self.now["items"], self.was["items"], "no item may move")
         self.assertEqual(self.now["goldens"], self.was["goldens"], "no golden may move")
@@ -10401,7 +10423,7 @@ class TestF25Slice2BareBox(FrappeTestCase):
         self.assertEqual(set(now), set(was))
         for cid in was:
             if cid != "switches_sockets":
-                n2, w2 = _strip_12b_migration(_without_wcl_note(now[cid]), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above
+                n2, w2 = _strip_12b_migration(_without_elr1_runs_note(_without_wcl_note(now[cid])), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above; ELR-1: + the v67 Runs note
                 self.assertEqual(n2, w2, "%s moved for something other than the pricing-input migration" % cid)
         for pid, pl in now["point_wiring"]["pipelines"].items():
             mf = [s for s in pl["steps"] if s["step"] == "module_fit"][0]
@@ -10590,7 +10612,7 @@ class TestF25Slice3PickFrom(FrappeTestCase):
         # rode along on this slice still fails here.
         for cid in was:
             if cid not in ("switches_sockets", "cabletray_raceway", "popup_boxes", "conduit_piping"):  # + conduit_piping at v63
-                n2, w2 = _strip_12b_migration(_without_wcl_note(now[cid]), _without_wcl_note(was[cid]))
+                n2, w2 = _strip_12b_migration(_without_elr1_runs_note(_without_wcl_note(now[cid])), _without_wcl_note(was[cid]))  # ELR-1: + the v67 Runs note
                 self.assertEqual(n2, w2, "%s moved for something other than the pricing-input migration" % cid)
         self.assertEqual(_without_pricing_input_items(self.now["items"]),
                          _without_with_cover_list(self.was["items"]))
@@ -10801,7 +10823,7 @@ class TestV61TwoWays(FrappeTestCase):
         # TestV63ConduitTradeSizeLadder. A further category still fails.
         for cid in was:  # SLICE 12b(A): iterate the PRIOR asset -- the new category has no counterpart to compare against, and it is named above
             if cid not in ("cabletray_raceway", "popup_boxes", "conduit_piping"):
-                n2, w2 = _strip_12b_migration(_without_wcl_note(now[cid]), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above
+                n2, w2 = _strip_12b_migration(_without_elr1_runs_note(_without_wcl_note(now[cid])), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above; ELR-1: + the v67 Runs note
                 self.assertEqual(n2, w2, "%s moved for something other than the pricing-input migration" % cid)
         self.assertEqual(_without_pricing_input_items(self.now["items"]),
                          _without_with_cover_list(self.was["items"]))  # SLICE 12b(A): minus the 33 new Pricing Input items; every OTHER item must still be byte-equal
@@ -11032,7 +11054,8 @@ class TestIncludesModulesGate(FrappeTestCase):
         # supersedes v64. The include_when gate is unchanged by both -- which is what this pin says.
         # WITH_COVER_LIST SLICE: v66 removes `cable_tray.with_cover_list`. The include_when gate is
         # unchanged by that too -- which is what this pin says.
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v66.json")
+        # ELR-1 (v67, the Runs note): bumped. WAS "rate_master_electrical_all_v66.json"; the gate is unchanged by v67 too.
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v67.json")
         fits = {}
         goldens = asset.get("goldens") or {}
         for c in asset["category_configs"]:
@@ -11074,7 +11097,7 @@ class TestIncludesModulesGate(FrappeTestCase):
                 # SLICE v66: the one sentence that described the removed with_cover_list column is
                 # normalised off BOTH sides. This pin is a claim about the v61->v62 mint and must not
                 # start failing for a note corrected four mints later that it never spoke to.
-                n2, c2 = _without_wcl_note(n2), _without_wcl_note(c2)
+                n2, c2 = _without_elr1_runs_note(_without_wcl_note(n2)), _without_wcl_note(c2)  # ELR-1: + the v67 Runs note
                 self.assertEqual(n2, c2, c["category_id"])
                 continue
             n, c = _strip_12b_migration(n, c)   # SLICE 12b(A), as above
@@ -11183,11 +11206,11 @@ class TestV63ConduitTradeSizeLadder(FrappeTestCase):
             # SLICE 12b(A): both carry the migration now, so compare with it normalised off -- the claim
             # this test is NAMED for (they reach the conduit catalogue through their own component_ref,
             # not these pipelines) is untouched and still key by key.
-            n2, w2 = _strip_12b_migration(_without_wcl_note(now[cid]), _without_wcl_note(was[cid]))
+            n2, w2 = _strip_12b_migration(_without_elr1_runs_note(_without_wcl_note(now[cid])), _without_wcl_note(was[cid]))  # ELR-1: + the v67 Runs note
             self.assertEqual(n2, w2, "%s moved" % cid)
         for cid in was:  # SLICE 12b(A): iterate the PRIOR asset -- the new category has no counterpart to compare against, and it is named above
             if cid != "conduit_piping":
-                n2, w2 = _strip_12b_migration(_without_wcl_note(now[cid]), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above
+                n2, w2 = _strip_12b_migration(_without_elr1_runs_note(_without_wcl_note(now[cid])), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above; ELR-1: + the v67 Runs note
                 self.assertEqual(n2, w2, "%s moved for something other than the pricing-input migration" % cid)
         self.assertEqual(_without_pricing_input_items(self.now["items"]),
                          _without_with_cover_list(self.was["items"]))  # SLICE 12b(A): minus the 33 new Pricing Input items; every OTHER item must still be byte-equal
@@ -12118,7 +12141,8 @@ class TestHvacAssetSlice1b(FrappeTestCase):
         # later it does, so that probe failed. The DERIVED claims below
         # (`gate.latest_in("Electrical", names) == CURRENT_EALL_ASSET`) cannot go stale that way and
         # are the ones carrying the real weight; this line is a deliberate per-mint bump.
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v66.json")
+        # ELR-1 (v67, the Runs note): bumped. WAS "rate_master_electrical_all_v66.json".
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v67.json")
         data_dir = os.path.dirname(_asset_path(CURRENT_EALL_ASSET))
         names = sorted(os.listdir(data_dir))
         # each series resolved on its own (owner ruling, slice 1c, INVERTING the 1b first-version pin): the HVAC
@@ -15760,7 +15784,8 @@ class TestRateColumnLabels12bB(FrappeTestCase):
             old = json.load(fh)
         for c in new["category_configs"]:
             self.assertNotIn("with_cover_list", json.dumps(c.get("pipelines") or {}))
-        probe = json.loads(json.dumps(new["category_configs"]))
+        # ELR-1: + the v67 Runs note normalised away (the only other thing that moved since v65)
+        probe = [_without_elr1_runs_note(c) for c in json.loads(json.dumps(new["category_configs"]))]
         STALE = " The with_cover_list column remains on items as reference data only."
         for c in probe:
             if c["category_id"] == "cabletray_raceway":

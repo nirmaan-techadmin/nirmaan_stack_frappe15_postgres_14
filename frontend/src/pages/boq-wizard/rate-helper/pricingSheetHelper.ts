@@ -38,6 +38,7 @@ import { labelAsWord, mirroredLead, plainFact, plainPricerText, TYPED_LEAD } fro
 import {
   blanksQtyAttr,
   blanksBindItemAttr,
+  categoryItemKinds,
   coerceForMatch,
   derivedAttrIds,
   derivedQtyAttrs,
@@ -69,6 +70,7 @@ import {
   familyUnitClasses,
   fieldOptionsFromSkus,
   inchWithMmEcho,
+  isRateOnlyUnit,
   itemFieldDefs,
   itemListPricingSpec,
   matchStatedToOption,
@@ -83,6 +85,7 @@ import {
   applyFamilyMerge,
   priceItemList,
   sizeFieldHelp,
+  splitRateOnlyUnit,
   twoWayValues,
   typedFieldNote,
   unitClassOf,
@@ -1210,6 +1213,55 @@ function neverAskedDefault(
   return undefined;
 }
 
+/**
+ * ELR-1 (owner R-UNIT: 12c-U carried to the attribute path; Q1 ruling 2026-10-27, "a"). PURE. The note a PRICED
+ * attribute-path row shows when the BoQ row stated NO unit, or a rate-only one (`isRateOnlyUnit` / a rate-only marker
+ * before a unit, `splitRateOnlyUnit` -- the item-list path's own predicates): the 12c-U lead, then the unit the
+ * figure is a rate in.
+ *
+ * WHICH UNIT, read from the config and the priced result, never a category name:
+ *   - a primary pipeline that BUILDS the rate from two or more components of the category's own item kinds is an
+ *     ASSEMBLY (a DB build-up, a switch-socket plate, a pop-up box) -> "priced as one <category> item";
+ *   - else the catalogue row it MATCHED (`match_master_row`) -> "priced per <its unit>";
+ *   - else ONE own-kind component whose catalogue rows share one unit (an industrial socket and its paired MCB) ->
+ *     that unit;
+ *   - else (no own item kind at all: point wiring prices from other categories' rows) -> an assembly.
+ * The verb is "priced" because only a priced row is noted: a refusing row stays exactly as it was (AC3).
+ * `rowUnit` undefined is the calculator (no row) -> nothing.
+ */
+export function attributeUnitNote(
+  config: RateCategoryConfig,
+  items: readonly RateMasterItem[],
+  rowUnit: string | null | undefined,
+  primaryId: string,
+  primary: PipelineResult | undefined,
+): string | undefined {
+  if (rowUnit === undefined) return undefined;
+  const unit = String(rowUnit ?? "").trim();
+  let lead: string;
+  if (unit === "") lead = "No unit on the BoQ row";
+  else if (isRateOnlyUnit(unit) || splitRateOnlyUnit(unit) !== null) lead = `BoQ says ${unit} (rate only)`;
+  else return undefined;
+  const own = new Set(categoryItemKinds(config));
+  const steps = (config.pipelines?.[primaryId]?.steps ?? []) as Array<{ step?: string; ref?: { kind?: unknown } }>;
+  const ownRefs = steps.filter((s) => s.step === "component_ref" && typeof s.ref?.kind === "string" && own.has(s.ref.kind));
+  let word: string | undefined;
+  if (ownRefs.length < 2) {
+    const matched = primary?.matchedItem?.unit;
+    if (typeof matched === "string" && matched.trim() !== "") word = matched.trim();
+    else if (ownRefs.length === 1) {
+      const units = new Set(items.filter((it) => it.kind === ownRefs[0].ref!.kind).map((it) => String(it.unit ?? "").trim()));
+      if (units.size === 1) {
+        const [only] = units;
+        if (only !== "") word = only;
+      }
+    }
+  }
+  return word !== undefined
+    ? `${lead} -> priced per ${word}, the catalogue's unit for this item`
+    : `${lead} -> priced as one ${categoryLabel(config)} item`;
+}
+
 export function makePricingSheetHelper(deps: Deps): RateHelper {
   const { config, configsByCategory, items, extractionByRow } = deps;
 
@@ -1495,6 +1547,8 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
         ...(!disabled && !absentNow.has(d.id) && (!derived.has(d.id) || selfFit.has(d.id) || unfillableDerived.has(d.id)) ? { required: true } : {}),
         defaulted: isDefaulted || undefined,
         ...(ratingUp ? { notes: [ratingUp] } : {}),
+        // ELR-1 (owner R-NOTES-RULE, AC2): the definition's own note, as the item-list path shows its typed note
+        ...(typeof d.note === "string" && d.note.trim() !== "" ? { typedNote: d.note } : {}),
         // F4b: carry the config's group label through untouched. A non-string (or empty) is dropped
         // rather than rendered -- attribute-definition keys carry no backend type guard, so a bad
         // value must degrade to "no group" here instead of drawing a blank header.
@@ -1636,6 +1690,10 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
       for (const s of sections) s.derivation.push(neverAskedLine);
     }
 
+    // ELR-1 (R-UNIT, AC3): a priced row that stated no unit, or a rate-only one, says what the rate is per
+    const unitNote = Object.keys(values).length
+      ? attributeUnitNote(category, items, (ctx as RowContextWithUnit).unit, surfaced[0][0], pipelineResults[0])
+      : undefined;
     return {
       kind: "suggestion",
       values,
@@ -1650,6 +1708,7 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
         derivation: flatDerivation,
         finalValues: { ...values },
         sections,
+        ...(unitNote ? { unitNote } : {}),
       },
     };
   }
@@ -1797,6 +1856,10 @@ function computeWiring(
   // appears in the section too. The secondary group's figures are filled here, after its finals are.
   secondaryGroup.figures = groupFigures(secondaryGroup.finals);
   const headlines = sections.map((g) => ({ label: g.label, values: groupFigures(g.finals) }));
+  // ELR-1 (R-UNIT, AC3): the PRIMARY block's matched row names the unit (a cable per Mtr, a termination per Set)
+  const unitNote = Object.keys(values).length
+    ? attributeUnitNote(config, items, (ctx as RowContextWithUnit).unit, primaryId, result)
+    : undefined;
 
   return {
     kind: "suggestion",
@@ -1815,6 +1878,7 @@ function computeWiring(
       // ALWAYS present now (both blocks, every wiring row). The flat fallback in the panel is
       // consequently unreachable from the wiring path -- it still serves every generic category.
       sections,
+      ...(unitNote ? { unitNote } : {}),
     },
   };
 }

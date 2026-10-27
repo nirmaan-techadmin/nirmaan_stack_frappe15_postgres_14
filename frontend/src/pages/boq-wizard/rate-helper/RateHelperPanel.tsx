@@ -69,6 +69,25 @@ export const NOTE_BOX_CLASS =
   "ml-1 flex gap-1 rounded border border-blue-300 bg-blue-50 px-1.5 py-1 text-blue-900 "
   + "dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-100";
 export const NOTE_ICON_CLASS = "mt-[1px] h-3 w-3 shrink-0 text-blue-600 dark:text-blue-300";
+/** ELR-1 (AC2): a field's TYPED note -- what to type -- in the one style both paths use (the item-list field's
+ * `typedNote` and an attribute definition's `note`), inside the NOTE_BOX_CLASS box. */
+export const TYPED_NOTE_CLASS = "text-[10px] leading-tight opacity-90";
+
+/**
+ * SLICE 12c-U (owner U2 / U3), ONE BOX FOR BOTH PATHS (ELR-1, owner R-UNIT): the row stated no unit -- or "rate
+ * only" -- and was priced in a unit the note names IN WORDS, because the figure alone would look as though the BoQ
+ * had named that unit. The item-list view and the attribute path render this same element.
+ */
+export function UnitNoteBox({ note, testId }: { note: string; testId: string }) {
+  return (
+    <div
+      className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] leading-snug text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
+      data-testid={testId}
+    >
+      {note}
+    </div>
+  );
+}
 
 const PANEL_WIDTH_STORAGE_KEY = "nirmaan-rate-helper-panel-w";
 const DEFAULT_PANEL_WIDTH = 300;
@@ -678,6 +697,11 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                       />
                     </div>
                   )}
+                  {/* ELR-1 (owner R-UNIT): the attribute path's no-unit / rate-only note, the item-list box. A BoQ row
+                      only -- the calculator has no row unit, so it never carries one. */}
+                  {!itemList && result.workings.unitNote && (
+                    <UnitNoteBox note={result.workings.unitNote} testId="attribute-unit-note" />
+                  )}
                   {!itemList && result.workings.attributes.length > 0 && (
                     <div
                       className={isCalculator ? "order-2 grid gap-x-6 gap-y-2" : "space-y-1.5"}
@@ -919,15 +943,18 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                         {/* SLICE 12c-S (owner S7): the SAME blue info box the item-list fields use. These
                             are notes in exactly the same sense -- something the pricing did to this field,
                             said in words -- so the two disciplines must not read in two different colours. */}
-                        {a.notes && a.notes.length > 0 && (
+                        {/* ELR-1 (AC2): the definition's own note joins the same box, after what the pricing did --
+                            the item-list field's order (note first, the typed note after) and its class. */}
+                        {((a.notes && a.notes.length > 0) || a.typedNote) && (
                           <div className={NOTE_BOX_CLASS}>
                             <Info className={NOTE_ICON_CLASS} aria-hidden />
                             <div className="min-w-0 space-y-0.5">
-                              {a.notes.map((n, ni) => (
+                              {(a.notes ?? []).map((n, ni) => (
                                 <p key={`${n.kind}-${ni}`} className="text-[10px] leading-tight">
                                   {attrNoteText(n)}
                                 </p>
                               ))}
+                              {a.typedNote && <p className={TYPED_NOTE_CLASS} data-testid="attribute-typed-note">{a.typedNote}</p>}
                             </div>
                           </div>
                         )}
@@ -1242,14 +1269,7 @@ function ItemListBlocks({
       {/* SLICE 12c-U (owner U2 / U3): the row stated no unit -- or "rate only" -- and was priced in
           the catalogue's unit for its item. The note says so IN WORDS, because the figure alone
           would look as though the BoQ had named that unit. Present only on such a row. */}
-      {view.unitNote && (
-        <div
-          className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] leading-snug text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
-          data-testid="item-list-unit-note"
-        >
-          {view.unitNote}
-        </div>
-      )}
+      {view.unitNote && <UnitNoteBox note={view.unitNote} testId="item-list-unit-note" />}
       {/* ADP-3a (owner H1, 2026-10-20 13:32 "ok"): ONE note per panel / calculator -- never repeated in a section */}
       {!section && view.items.some((b) => b.fields.some((f) => f.required || f.group)) && (
         <p className="text-[10px] text-muted-foreground" data-testid="needed-to-price-note">* needed to price</p>
@@ -1519,7 +1539,7 @@ function ItemListBlocks({
                       {f.mirrorLine && <p className="text-[10px] leading-tight" data-testid="item-field-mirror-line">{f.mirrorLine}</p>}
                       {/* OWNER FA8: what to type, in plain English -- declared in config, never written
                           here, so no attribute wording lives in the frontend. */}
-                      {f.typedNote && <p className="text-[10px] leading-tight opacity-90">{f.typedNote}</p>}
+                      {f.typedNote && <p className={TYPED_NOTE_CLASS}>{f.typedNote}</p>}
                       {/* OWNER FA8(c)/(d): HOW the value will be matched, in full, on demand. A <details>
                           rather than a tooltip because these are several sentences a pricer may want to
                           read twice -- and every number in them is generated from the live catalogue, so

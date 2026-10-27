@@ -89,6 +89,21 @@ const R = {
   rWords: "the both-streams rule also reads 'cum' and 'SA / RA' (owner, 2026-10-22 10:49, item 3); the heading directly above the row counts with its notes (owner, 2026-10-22)",
   sMerge: "\"the model correctly returned spigot and butterfly damper...so these cases should be matched with spigot with butterfly damper\"; \"Spigot Smaper is spigot with butterfly damper\"; \"only the dia of the spigot matters\" (owner, 2026-10-22 10:45 / 10:48 / 10:49)",
 } as const;
+/** ELR-1: wiring_cabling's reasons, each from the ruling that covers the line (the v47 conduit rulings are quoted
+ *  verbatim in the plan doc's "CONDUIT IN THE CABLE RATE" entry; the runs rulings in EA-4 ext-b and BOX-RUNS). */
+const W = {
+  bothBlocks: "\"we side step all this judgement and just show both the wirirng and cable rates and the terminations rates for all rows\" (owner, 2026-08-22)",
+  match: "attribute values are canonical upper case and matching is exact (owner, 2026-07-28)",
+  included: "\"system cannot judge if itsa included or not -- default to not include it\" (owner, 2026-08-23)",
+  type: "\"dont use dfault for material type\" (owner, 2026-08-23)",
+  size: "\"if material is mentioned and size cannot be determined and price needs tro be oincluded use default size of 25 mm\" (owner, 2026-08-23)",
+  runs: "the run count multiplies the cable's price; runs and cores are never multiplied together (owner, 2026-08-05)",
+  installStep: "the install is stepped one unit per three runs, correcting the excessive install rate (owner ruling, 2026-08-10)",
+  conduit: "\"conduit pricing works the same way as it is working for conduit category\"; one conduit per row regardless of parallel runs (owner, 2026-08-23)",
+  conduitInstall: "\"conduit pricing works the same way as it is working for conduit category\" (owner, 2026-08-23)",
+  totals: "supply = the cable supply rounded to tens + the conduit supply unrounded, the total rounded up to units; install = the two rounded legs, not rounded again (owner, 2026-08-23)",
+  terminationInstall: "\"for termination install dont multiply by R as it is already beign dervide from supply which has the multiplication done\" (owner, 2026-08-05)",
+} as const;
 const each = (parts: Array<[string, string]>): string => parts.map(([what, why]) => `${what} -- ${why}`).join("; ");
 export const DERIVATION_RULINGS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   hvac_adp_item: {
@@ -116,6 +131,25 @@ export const DERIVATION_RULINGS: Readonly<Record<string, Readonly<Record<string,
     either_or: R.h,
     third_part: R.jThree,
     height_only: R.jGrille,
+  },
+  // ELR-1 (owner R-DERIV 2026-09-27; ADP-4b D1 2026-10-21 14:41): wiring_cabling's rules list, keyed by the CATEGORY --
+  // an attribute-path category has no item kind of its own to key by (wiring's are cable and termination). A
+  // category with an entry here gets its rules list on the Derivation tab (`attributeRuleOrder`); ELR-4 adds the
+  // other eleven by entries and lines, nothing else.
+  wiring_cabling: {
+    both_blocks: W.bothBlocks,
+    match: W.match,
+    conduit_included: W.included,
+    conduit_type: W.type,
+    conduit_size: W.size,
+    cable_supply: NOT_RECORDED,
+    runs: W.runs,
+    cable_install: W.installStep,
+    conduit_price: W.conduit,
+    conduit_install: W.conduitInstall,
+    totals: W.totals,
+    termination_supply: each([["runs", W.runs], ["the gland sizes and the rounding", NOT_RECORDED]]),
+    termination_install: W.terminationInstall,
   },
 };
 
@@ -973,5 +1007,166 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
       l.detail = l.detail ? `${l.detail} -- why: ${why}` : `why: ${why}`;
     });
   }
+  return out;
+}
+
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// ELR-1 (owner R-DERIV 2026-09-27: the rules "in plain English ... in run order", "say so" where a reason is not
+// recorded; ADP-4b D1 / D8; owner R-ELR0 "1 ok", 2026-10-27) -- THE RULES LIST OF A CATEGORY PRICED FROM ROW-LEVEL
+// ATTRIBUTES, wiring & cabling first. Every line is WRITTEN FROM THE CONFIG: a line exists iff the config step that
+// carries its rule is present, its numbers are the step's own parameters, its Pricing Inputs are named by their
+// Pricing Inputs row (never an id), and its reason comes from `DERIVATION_RULINGS[category_id]` or reads "reason not
+// recorded". A category with no entry there keeps the tab's pointer line (`derivationNoticeLine`).
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+type AttrStep = {
+  step?: string; name?: string; target?: string; result?: string; params?: Record<string, unknown>;
+  ref?: Record<string, unknown>; conditions?: Array<{ when?: Record<string, unknown>; params?: Record<string, unknown> }>;
+  qty?: { if_attr?: Record<string, unknown> }; rate_stages?: Array<Record<string, unknown>>;
+  bands?: Array<{ when?: string }>; band_on?: string; none_skips?: boolean;
+};
+
+/** A `roundup` step's digits, in words. */
+const roundWords = (digits: unknown): string =>
+  Number(digits) === -1 ? "rounded up to the next 10" : Number(digits) === 0 ? "rounded up to the rupee" : `rounded up (${String(digits)} digits)`;
+
+/** "below 35" / "from 35" for a `component_band` condition ("<35", ">=35"). */
+const bandWords = (when: string): string => when.replace(/^<=/, "up to ").replace(/^>=/, "from ").replace(/^</, "below ").replace(/^>/, "above ");
+
+/**
+ * ELR-1 -- PURE. "How a row is priced" for a category priced from row-level attributes, or [] where the category has
+ * no rules list yet (no `DERIVATION_RULINGS` entry), is priced as a list of items (`itemListRuleOrder` serves it), or
+ * carries no BoQ pipeline. Run order: the BoQ pipelines in the config's own order, each step where it runs; the BCS
+ * pipelines are not listed (owner deferral 2026-07-28: "NOT surfaced in the helper until the BCS module").
+ */
+export function attributeRuleOrder(config: unknown, items: ReadonlyArray<RuleOrderItem> = []): RuleOrderLine[] {
+  const c = config as {
+    category_id?: string; list_spec?: unknown; pipelines?: Record<string, { steps?: AttrStep[] }>;
+    pipeline_labels?: Record<string, string>;
+    attribute_definitions?: Array<{ id: string; label?: string; selector?: boolean }>;
+  } | null;
+  if (!c || (c.list_spec && typeof c.list_spec === "object")) return [];
+  const rulings = DERIVATION_RULINGS[String(c.category_id ?? "")];
+  if (!rulings) return [];
+  const pipelines = Object.entries(c.pipelines ?? {}).filter(([id]) => !/bcs/i.test(id));
+  if (!pipelines.length) return [];
+  const label = (id: string): string => c.attribute_definitions?.find((d) => d.id === id)?.label ?? id.replace(/_/g, " ");
+  /** a block's name, its "per <unit>" dropped: "Cable -- per Mtr" -> "Cable" */
+  const block = (id: string): string => String(c.pipeline_labels?.[id] ?? id.replace(/_/g, " ")).split(/\s+[—-]+\s+/)[0];
+
+  // ctx name -> the Pricing Input it reads, from the `rate_ref` steps (`result` <- ref.item, the `target` column)
+  const reads = new Map<string, string>();
+  const scales = new Map<string, AttrStep>();
+  for (const [, pl] of pipelines) for (const st of pl.steps ?? []) {
+    if (st.step === "rate_ref" && typeof st.result === "string") reads.set(st.result, String(st.ref?.item ?? ""));
+    else if (st.step === "scale" && typeof st.result === "string") scales.set(st.result, st);
+  }
+  const input = (ctxName: unknown): string => {
+    const id = reads.get(String(ctxName ?? ""));
+    return id ? `'${pricingInputLabel(id, items as never)}'` : "a Pricing Input";
+  };
+  const pairInput = (a: unknown, b: unknown): string => {
+    const x = reads.get(String(a ?? "")), y = reads.get(String(b ?? ""));
+    return x && y && x === y ? input(a) : `${input(a)} and ${input(b)}`;
+  };
+  const after = (steps: AttrStep[], i: number): string =>
+    steps[i + 1]?.step === "roundup" ? `, ${roundWords(steps[i + 1].params?.digits)}` : "";
+
+  const out: RuleOrderLine[] = [];
+  const keys: string[] = [];
+  const add = (key: string, title: string, detail: string) => {
+    if (keys.includes(key)) return;
+    keys.push(key);
+    out.push({ n: out.length + 1, title, ...(detail ? { detail } : {}) });
+  };
+
+  // two BoQ blocks, both shown on every row; the row's own words choose the figure it offers
+  if (pipelines.length > 1) {
+    const [a, b] = pipelines.map(([id]) => block(id));
+    add("both_blocks", `Every row shows both blocks, ${a} and ${b}`,
+        `a row whose description names a ${b.toLowerCase()} offers the ${b} figure, any other row the ${a} figure`);
+  }
+  // the catalogue match, on the attributes its rows are keyed by
+  const matched: string[] = [];
+  for (const [, pl] of pipelines) for (const st of pl.steps ?? []) {
+    const k = st.params?.kind;
+    if (st.step === "match_master_row" && typeof k === "string" && !matched.includes(k)) matched.push(k);
+  }
+  if (matched.length) {
+    const keysOf = new Set<string>();
+    for (const it of items) if (matched.includes(String(it.kind ?? ""))) for (const k of Object.keys(it.attributes ?? {})) keysOf.add(k);
+    const on = (c.attribute_definitions ?? []).filter((d) => d.selector !== false && keysOf.has(d.id)).map((d) => d.label ?? d.id);
+    const words = matched.map((k) => k.replace(/_/g, " "));
+    add("match", `The ${words.join(" and the ")} ${matched.length > 1 ? "are each" : "is"} matched in the catalogue`,
+        on.length ? `on ${on.length > 1 ? `${on.slice(0, -1).join(", ")} and ${on[on.length - 1]}` : on[0]}, exactly as the catalogue writes them` : "");
+  }
+
+  pipelines.forEach(([pid, pl], pIdx) => {
+    const steps = pl.steps ?? [];
+    const name = block(pid);
+    steps.forEach((st, i) => {
+      const p = st.params ?? {};
+      if (st.step === "map_attribute" && typeof p.result_attr === "string") {
+        const field = label(p.result_attr);
+        const table = p.table && typeof p.table === "object" ? Object.entries(p.table as Record<string, unknown>) : [];
+        if (table.length && typeof p.from_attr === "string") {
+          const vals = [...new Set(table.map(([, v]) => String(v)))];
+          add("conduit_size", `${field}: the size the BoQ states`,
+              `where a ${label(p.from_attr).toLowerCase()} is named and no size, ${vals.length === 1 ? `${vals[0]} mm` : table.map(([k, v]) => `${k} ${String(v)} mm`).join(", ")}`);
+        } else if (p.default === "None") {
+          add("conduit_type", `${field}: the BoQ's answer, never assumed`, "a row naming none prices no conduit");
+        } else if (p.default !== undefined) {
+          add("conduit_included", `${field}: the BoQ's answer`, `where it cannot be judged, ${String(p.default)}`);
+        }
+      } else if (st.step === "apply_effective_multiplier" && st.conditions?.length) {
+        const parts = st.conditions.map((cond) => {
+          const [attr, val] = Object.entries(cond.when ?? {})[0] ?? ["", ""];
+          return `${pairInput(cond.params?.discount_from_ctx, cond.params?.markup_from_ctx)} when ${label(attr)} is ${String(val)}`;
+        });
+        add("cable_supply", `${name} supply per metre = list price x (1 - discount) x (1 + supply markup)${after(steps, i)}`,
+            `the discount and the markup from ${parts.join("; ")}`);
+      } else if (st.step === "scale" && p.runs_from_attr && !p.runs_step_divisor && pIdx === 0 && /supply/.test(String(st.target))) {
+        add("runs", "Parallel runs multiply the rounded supply", `${label(String(p.runs_from_attr))} x the rounded supply rate`);
+      } else if (st.step === "scale" && p.install_markup_from_ctx) {
+        const stepped = steps.find((s) => s.step === "scale" && s.params?.runs_step_divisor && s.target === st.result);
+        const d = Number(stepped?.params?.runs_step_divisor);
+        add("cable_install", `${name} install per metre = install base x (1 + ${input(p.install_markup_from_ctx)})${after(steps, i)}`,
+            stepped ? `then x one install unit per ${d} runs (1 to ${d} runs = 1, ${d + 1} to ${2 * d} = 2, and so on)` : "");
+      } else if (st.step === "component_ref" && st.qty?.if_attr) {
+        const sc = scales.get(String((st.rate_stages ?? [])[0]?.mult_from_ctx ?? ""));
+        const how = sc
+          ? `list price x (1 - discount) x (1 + supply markup), from ${pairInput(sc.target, sc.params?.m_from_ctx)}, not rounded`
+          : "its catalogue rate";
+        const [gate, gv] = Object.entries(st.qty.if_attr)[0] ?? ["", ""];
+        const what = String(st.name ?? "component");
+        const bound = Object.keys(st.ref ?? {}).filter((k) => k !== "kind").map((k) => label(k).toLowerCase());
+        add("conduit_price", `The ${what} is priced as its own category prices it: ${how}`,
+            `one ${what} per row whatever the runs; only when ${label(gate)} is ${String(gv)}${st.none_skips && bound.length ? ` and a ${bound[0]} is named` : ""}`);
+      } else if (st.step === "scale" && p.install_ratio_from_ctx) {
+        add("conduit_install", `The ${String(st.target ?? "").replace(/_supply$/, "")} install = its supply x ${input(p.install_ratio_from_ctx)}${after(steps, i)}`, "");
+      } else if (st.step === "scale" && p.conduit_from_ctx && /supply/.test(String(st.target))) {
+        const r = steps[i + 1]?.step === "roundup" ? roundWords(steps[i + 1].params?.digits) : "not rounded";
+        add("totals", `Supply = the ${name.toLowerCase()} supply + the ${String(p.conduit_from_ctx).replace(/_supply$/, "")} supply, ${r}`,
+            "install = the two install legs added, not rounded again");
+      } else if (st.step === "component" && pIdx > 0) {
+        const band = steps.find((s) => s.step === "component_band");
+        const rounded = steps.find((s, j) => j > i && s.step === "roundup");
+        const runs = steps.find((s) => s.step === "scale" && s.params?.runs_from_attr);
+        const bandName = String(band?.name ?? "");
+        add("termination_supply",
+            `${name} supply per set = the ${String(st.name ?? "")} + the ${bandName}, each list price x (1 - discount) x (1 + supply markup), ${roundWords(rounded?.params?.digits)}${runs ? ", x runs" : ""}`,
+            `the ${String(st.name ?? "")} from ${pairInput(p.discount_from_ctx, p.markup_from_ctx)}; the ${bandName} by ${label(String(band?.band_on ?? ""))}: ${(band?.bands ?? []).map((b, j) => `${bandWords(String(b.when ?? ""))} the ${j === 0 ? "smaller" : "larger"} one`).join(", ")}, from ${pairInput(band?.params?.discount_from_ctx, band?.params?.markup_from_ctx)}`);
+      } else if (st.step === "install_as_ratio") {
+        add("termination_install", `${name} install = its supply (already x runs) x ${input(p.ratio_from_ctx)}${after(steps, i)}`, "runs are not applied again");
+      }
+    });
+  });
+  // the reason last, on every line: a ruling, or "reason not recorded" (ADP-4a D1)
+  out.forEach((l, i) => {
+    const why = rulings[keys[i]] || NOT_RECORDED;
+    l.reason = why;
+    l.detail = l.detail ? `${l.detail} -- why: ${why}` : `why: ${why}`;
+  });
   return out;
 }
