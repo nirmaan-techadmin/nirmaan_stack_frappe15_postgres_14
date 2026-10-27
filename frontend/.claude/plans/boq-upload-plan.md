@@ -49251,3 +49251,68 @@ procedure (laptop Desktop: `2026-10-26_SYNC-R_Report.md`, `2026-10-26_Desktop_Dr
   background CLI's stop / resume behaviour, so it is not small; for now, avoid sending to a busy session.
 - The desktop's `/tmp` still holds SYNC-R's and DB-PUSH's scratch (`/tmp/syncr`, `/tmp/dbpush`), because the `rm -rf`
   clean-up was refused.
+
+## Slice RM-ACCESS-1 - the Rate Master tab, route and freeze read for admins only; the pricing reads stay open - as built 2026-10-27
+
+Desktop session, delegated by the laptop. Owner rulings: 2026-10-20 11:29 ("the rate master tab is only visible to the admin
+roles"), 12:09 (admin = Nirmaan Admin Profile + Administrator; Estimates lose the read-only view; a standalone small slice:
+sidebar, route guard, role list, freeze read admin-only; the pricing reads stay open; no migration; an Estimates test user
+created through the app and deleted afterwards), 2026-10-26 23:55 (F1-F4 and `start_suggest` out of scope). Recon:
+RM-ACCESS-R0 (2026-10-20).
+
+### 1. Built (commit 1, `88e193ece`)
+- `frontend/src/constants/roles.ts`: `RATE_MASTER_ACCESS = [ADMIN_PROFILE]`.
+- `rateMasterEdit.isRateMasterAdmin` is the one Rate Master admin check: `role !== "Loading"` and
+  `roleRouteState(role, userId, RATE_MASTER_ACCESS) === "allow"`. Same answers as before for every input the old one took.
+  **Superseded by the 2026-10-27 rebase onto develop:** develop's `8e1f9285a` folded `isRateMasterAdmin` into the shared
+  `constants/roles.isNirmaanAdmin`, so the sidebar item and the page now ask `isNirmaanAdmin`; `rmAccess1.test.ts` pins
+  that it admits exactly the `RATE_MASTER_ACCESS` route population.
+- `routesConfig.tsx`: `/rate-master` moved from `PricingRoute` (Admin + Estimates) to
+  `<RoleRoute allowed={RATE_MASTER_ACCESS} what="the Rate Master" />` (the app's generic "Access Denied" gate, with its
+  loading state). The workbook routes (the calculator) keep `PricingRoute`.
+- `NewSidebar.tsx`: the Rate Master item is gated by `isRateMasterAdmin(role, user_id)`. No other in-app link exists.
+- `RateMasterPage.tsx`: the freeze read is fetched only for an admin (null SWR key otherwise).
+- `api/boq/rate_master.get_rate_master_freeze`: `_require_login` -> `_require_rate_admin` (PermissionError for a non-admin).
+  `get_rate_master_items` / `get_rate_category_config` stay login-only.
+- Tests: `test_rmf_16`-`19` (a non-admin is refused the freeze read; an admin reads it; an Estimates user still gets items
+  and config; structural pins) and `rmAccess1.test.ts` (12: the list, the predicate and the route per role; route and
+  sidebar source; a by-name sweep of `src/` for other links; the freeze caller; a non-admin still prices from the panel's
+  entry point). The role is answered by patching only the `Nirmaan Users.role_profile` lookup, so no fixture user is
+  created. Vacuity proved on both sides (frontend 7 of 12 red, backend 6 failures; restored green).
+- No migration, no asset, no doctype change.
+
+### 2. Suites (before = 63923522a, after = 88e193ece, measured in-session)
+- Python scoped (86 modules under `api/boq/` + `services/boq_*/`): 4,456 OK -> 4,460 OK (test_rate_master 735 -> 739).
+- vitest full (NewSidebar / routesConfig are shared): 7,512 (1 failed) -> 7,524 (2 failed). The failures are the known
+  writeOffControl 5 s timeout and `plainEnglish.test.ts` > "hvac_adp: every display string" 5 s timeout, which also times out
+  with the frontend at 63923522a (6,708 ms) and passes alone (2,885 ms). **Owner 2026-10-27: a known timeout under load;
+  no test change.** Scoped (boq-wizard + pricing): 128 files / 5,628 -> 129 / 5,640.
+- tsc full: 3,170 errors before and after, the identical set.
+
+### 3. Browser cert (Chrome on the desktop, :8080, after the full de-stale; 2026-10-27 12:10-12:30)
+- Admin (`admins@nirmaan.app`, the dev login): the sidebar entry, the page, Data Viewer and Derivation, the freeze state
+  (200, not frozen). PASS.
+- Estimates test user `rma1-estimates-test@example.com`, created through the app's New User screen (role Estimates
+  Executive); its password was generated and used inside the page only. No Rate Master entry in the sidebar, Admin Options
+  or the pricing pages; `/rate-master` shows "Access Denied / You don't have permission to access the Rate Master."; the
+  freeze read is refused (403 PermissionError); `get_rate_master_items` still answers (200, 381 HVAC items). PASS.
+- Same figures, test user and admin, to the rupee:
+  - ADP: BOQ-26-00186 "HVAC WORKS " r54 (flexible duct, insulated with, 250 dia): panel 740 / 0 / 740 per RMT, calculator
+    740 / 0 / 740 per rmt.
+  - Electrical: BOQ-26-00183 "Electrical Works" r19 (COPPER / UNARMOURED / 3C / 1.5 sqmm, no conduit): panel cable
+    120 / 24 / 144 per Mtr, termination 70 / 20 / 90 per Set; calculator 120 / 24 / 144 and 70 / 20.
+- The test user was disabled, then deleted with the app's Delete User. That removed the Nirmaan Users row, but Frappe
+  refused to delete the User ("You can disable this User instead of deleting it."), which the cascade only logged. The User
+  and its own residue (34 rows: Has Role, Contact + Email + Phone, Activity / Pricing Access Log, 2 Email Queue rows never
+  sent, Comments, Deleted Documents, Versions, Error Log, global search) were then deleted by exact name list; 0 references
+  remain anywhere.
+- After: HVAC v54 / Electrical v66 live == file; the replay is byte-identical to CLEAN-1b (17,918 rows, `671d90af` /
+  `b553d199`, 0 keys differing); capture 258.
+
+### 4. Open / follow-ups
+- **The app's Delete User leaves the Frappe User behind** whenever Frappe refuses the delete (`integrations/controllers/
+  nirmaan_users.on_trash` swallows the error). Existing behaviour, not changed here.
+- Out of scope, listed only: F1 the stray whitelist on `_resolve_spec_write`; F2 `start_suggest` is login-only; F3 the
+  System Manager Desk / REST door (R8); F4 the catalogue reads are open (they are the pricing reads).
+- Suite residue from this slice's three Python runs (Error Log +95, Comment +677, Deleted Document +705, Contact +4, ...)
+  is left for the next clean-up (owner 2026-10-27).

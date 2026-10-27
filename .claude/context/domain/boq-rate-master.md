@@ -2096,6 +2096,23 @@ other spelling refuses by name), shared by the calculator's typed "Other..." pip
 
 
 **A LIVE-SITE RATE TEST LEAVES THE MASTER'S PROVENANCE AS IT FOUND IT (CU-B, 2026-10-18).** A test that writes through the live grid path (`update_rate_master_item`) re-mints the derived rows in a NEW batch on every edit and every restore (`loader.recompute_derived_after_write`), so restoring the VALUES is not enough: `test_piping_v34` `test_live_01` records the active MS 300 / 250 rows before its edit and afterwards reactivates exactly those rows, deletes the rows it minted and the Version rows its saves wrote, and pins that the active row and the uid's row set are as before. Before this, every run left the live rows in a test batch (CU-0: 140 two-row batches, one live; the live pair was swapped back to v45's own batch `rmbulk-c7b9569bd0e8` in CU-B AC4). A new live-write test does the same.
+
+**THE RATE MASTER PAGE, ITS SIDEBAR ENTRY AND THE FREEZE READ ARE ADMIN-ONLY; THE PRICING READS ARE NOT
+(owner 2026-10-20 11:29 / 12:09, RM-ACCESS-1).** Admin = Administrator or `Nirmaan Admin Profile`. Estimates
+users lost the read-only view they had under `PricingRoute`. Who sees what:
+- **Frontend: one check.** The shared `constants/roles.isNirmaanAdmin` admits the same population as
+  `RATE_MASTER_ACCESS` read through `roleRouteState` (pinned in `rmAccess1.test.ts`). It gates the sidebar item, the edit and freeze controls and the freeze read's caller (a null
+  SWR key for anyone else). The route is `<RoleRoute allowed={RATE_MASTER_ACCESS} />`, so a non-admin who types
+  `/rate-master` gets the app's "Access Denied" page. No other in-app link to the page exists; `rmAccess1.test.ts`
+  sweeps `src/` by name, so a new link must be gated with the same check.
+- **Server.** `get_rate_master_freeze` calls `_require_rate_admin` (`pricing._is_nirmaan_admin`), so a non-admin
+  gets PermissionError (`test_rmf_16` to `test_rmf_19`). This is the admin GATE on a read, not the freeze GUARD in
+  the gate; RMF-1 still forbids the guard there (`test_rmf_14`).
+- **Pricing stays open.** The calculator stays on `PricingRoute` (Admin + Estimates) and the BoQ pricing panel on
+  `UPLOAD_BOQ_ACCESS`. Both price through `get_rate_master_items` and `get_rate_category_config`, which stay
+  login-only (`test_rmf_18`); never gate them on the Rate Master list.
+- **Not changed (owner 2026-10-26 23:55):** `start_suggest` is login-only (F2), the System Manager Desk / REST
+  door (F3, R8), the catalogue reads are open (F4), and the stray whitelist on `_resolve_spec_write` (F1).
 ---
 
 ## Rate-master invariants filed under Domain Gotchas
