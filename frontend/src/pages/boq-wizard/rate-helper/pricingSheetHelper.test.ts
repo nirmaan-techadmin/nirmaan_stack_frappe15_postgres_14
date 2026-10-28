@@ -747,7 +747,11 @@ describe("makePricingSheetHelper -- EA-4a point_wiring assembly", () => {
     expect(r.values.combined_rate).toBe(2604);
     // per-component build-up surfaced (the bill), not just the total
     const supplySection = r.workings.sections?.find((s) => s.label.toLowerCase().includes("supply"));
-    expect((supplySection?.matchedRows ?? []).some((m) => m.includes("wire1") && m.includes("750"))).toBe(true);
+    // ELR-2 (owner R-WORD; mechanical authority): WAS a line naming the internal key ("wire1: ... = 750"). NOW the wire's
+    // 750 line is still in the bill, and NO line names the key. This test's local config predates v68's display labels, so
+    // the line is the plain fallback; the shipped asset's wording is pinned in attributeWorkingLines.test.ts.
+    expect((supplySection?.matchedRows ?? []).some((m) => m.endsWith("= 750"))).toBe(true);
+    expect((supplySection?.matchedRows ?? []).some((m) => m.includes("wire1"))).toBe(false);
     // defaulted attrs surfaced
     expect(r.workings.derivation.some((d) => d.includes("defaulted"))).toBe(true);
   });

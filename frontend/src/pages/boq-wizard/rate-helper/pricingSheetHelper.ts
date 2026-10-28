@@ -57,6 +57,7 @@ import type {
   RateMasterItem,
 } from "@/pages/pricing/rate-master/rateMasterTypes";
 import { POLE_WORDS, attrDisplayValue, sortAttrNotes } from "./rateHelperTypes";
+import { attributeWorkingLine } from "./attributeWorkingLines";
 // SLICE 6 (owner S1-S5, 2026-09-24): the item-list mode prices a LIST of items per row through the pure module;
 // the helper only assembles the list (the model's items overlaid with the panel's session edits) and shapes the
 // result for the panel. Every default, ladder and conversion stays in the module + config.
@@ -1641,8 +1642,9 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
         }
         // EA-4a: the assembly categories expose their per-component build-up as the step traces; surface
         // each component line (name = value) in the group so the pricer sees the bill, not just the total.
+        // ELR-2 (owner R-WORD / R-MISC, D1-D8): in plain English -- the Pricing Input's own name, the bound field's label
         for (const st of res.steps) {
-          if (st.produced && st.refItem) matchedRows.push(`${st.produced.key}: ${st.refItem} = ${st.produced.value}`);
+          if (st.produced && st.refItem) matchedRows.push(attributeWorkingLine(st, pl as Pipeline, category, items, (a) => selected[a]));
         }
         flatMatched.push(`Matched ${label} for ${attrLine}.`);
       } else if (res.status === "no_match") {

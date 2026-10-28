@@ -2241,6 +2241,8 @@ export function runPipeline(
           matchedCondition:
             `rate ${fmtNum(rate)} x qty ${fmtNum(qty)}` +
             (stageNotes.length ? ` (${stageNotes.join("; ")})` : ""),
+          // ELR-2 (owner Q4 (a), display-only): the quantity as a number, so the working line never reads the prose above
+          qty,
           produced: { key: s.name, value },
           runningValues: { ...snapshot(), ...componentEntries(components) },
         });

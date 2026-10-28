@@ -1117,6 +1117,9 @@ export interface StepTrace {
   /** For component_ref: the NAME of the referenced master row resolved at runtime (e.g. "Bus bar"),
    * so the trace shows WHICH row supplied the base. */
   refItem?: string;
+  /** ELR-2 (owner Q4 (a), display-only): for an assembly-shape component_ref that computed, the quantity it multiplied
+   * the staged rate by -- the structured twin of the "x qty" in `matchedCondition`. Never read by any arithmetic. */
+  qty?: number;
   /** The named value produced/changed by this step (key -> value). */
   produced?: { key: string; value: number };
   /** For module_fit: the STRUCTURED outcome (see ModuleFitOutcome). Present only on a module_fit

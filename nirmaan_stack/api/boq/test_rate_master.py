@@ -332,7 +332,9 @@ PIPELINE_KEYS = {"cable_boq", "termination_boq", "cable_bcs", "termination_bcs"}
 # figures, 0 moved statuses; the only field that moved anywhere was `step_count`, +1 on exactly the
 # three wired pipelines.
 # ELR-1 (2026-10-27): v66 -> v67, the wiring_cabling `runs` note (owner R-NOTE A); nothing else in the asset moved.
-CURRENT_EALL_ASSET = "rate_master_electrical_all_v67.json"
+# ELR-2 (2026-10-28): v67 -> v68, the 28 field notes (owner Phase A answer) and the display_label of 11 components
+# with no single bound field (owner D3-D7, Q3 (a)); no item, rate or step arithmetic moved.
+CURRENT_EALL_ASSET = "rate_master_electrical_all_v68.json"
 
 # SLICE 12b(A): the two counts the slice MOVED, named so every assertion says WHY it is what it is.
 #
@@ -623,12 +625,43 @@ def _without_wcl_note(cfg):
 def _without_elr1_runs_note(cfg):
     """ELR-1 (owner R-NOTE A, 2026-10-27; v67): a config with wiring_cabling's ONE added key -- the `note` on its `runs`
     definition -- normalised away, on either side. The latest-asset pins below compare the CURRENT asset key by key
-    against an older one; this is the only thing v67 changed, so it is the only thing they forgive."""
+    against an older one; this is the only thing v67 changed, so it is the only thing they forgive.
+    ELR-2 (v68): plus v68's declared additions (`_without_elr2_notes_and_labels`) -- again the only things v68 changed."""
     c = json.loads(json.dumps(cfg))
     if c.get("category_id") == "wiring_cabling":
         for d in c.get("attribute_definitions") or []:
             if d.get("id") == "runs":
                 d.pop("note", None)
+    return _without_elr2_notes_and_labels(c)
+
+
+# ELR-2 (owner Phase A answer + the 13:41 amendment, 2026-10-28; v68): the 28 field notes and the `display_label` of the
+# components that bind no single field (D3-D7). NAMED, so a pin forgives exactly these and nothing else.
+ELR2_NOTE_FIELDS = {
+    "db_switchgear": {"db_shell_qty", "mcb1_qty", "mcb2_qty", "mcb3_qty", "mcb4_qty", "mcb5_qty", "enclosure_qty"},
+    "point_wiring": {"wire1_runs", "wire2_runs", "points", "circuit_wire1_runs", "circuit_wire2_runs", "switch_qty", "socket_qty", "plate_qty"},
+    "popup_boxes": {"module_count", "switch_qty", "socket1_qty", "socket2_qty", "socket3_qty", "socket4_qty", "plate_qty"},
+    "switches_sockets": {"switch_qty", "socket1_qty", "socket2_qty", "socket3_qty", "socket4_qty", "plate_qty"},
+}
+ELR2_DISPLAY_LABELS = {
+    "point_wiring": {"wire1", "wire2", "circuit_wire1", "circuit_wire2", "conduit", "back_box", "blank"},
+    "switches_sockets": {"blank", "back_box"},
+    "popup_boxes": {"blank"},
+    "industrial_sockets": {"socket"},
+}
+
+
+def _without_elr2_notes_and_labels(cfg):
+    """ELR-2 (v68): a config with the 28 declared field notes and the declared component `display_label`s normalised away."""
+    c = json.loads(json.dumps(cfg))
+    cid = c.get("category_id")
+    for d in c.get("attribute_definitions") or []:
+        if d.get("id") in ELR2_NOTE_FIELDS.get(cid, ()):
+            d.pop("note", None)
+    for pl in (c.get("pipelines") or {}).values():
+        for st in (pl.get("steps") or []) if isinstance(pl, dict) else []:
+            if st.get("step") == "component_ref" and st.get("name") in ELR2_DISPLAY_LABELS.get(cid, ()):
+                st.pop("display_label", None)
     return c
 
 
@@ -7890,7 +7923,8 @@ class TestSpnPoleVocabulary(FrappeTestCase):
             # SLICE 12b(A): drop the appended preamble and normalise the migration off both sides before
             # the key-by-key ladder comparison. The three-key strip below is unchanged, so a FOURTH ladder
             # key -- or a change to any other step -- still fails.
-            pa_c, pb_c = _strip_12b_migration(now["switches_sockets"], before["switches_sockets"])
+            # ELR-2 (v68, mechanical authority): forgive exactly v68's declared additions on the current side
+            pa_c, pb_c = _strip_12b_migration(_without_elr2_notes_and_labels(now["switches_sockets"]), before["switches_sockets"])
             pa, pb = pa_c["pipelines"][pname], pb_c["pipelines"][pname]
             self.assertEqual(pa["output"], pb["output"], pname)
             self.assertEqual(pa["steps"][1:], pb["steps"][1:], pname)
@@ -7899,7 +7933,7 @@ class TestSpnPoleVocabulary(FrappeTestCase):
             self.assertEqual({k: v for k, v in la[1].items() if k not in ("on_zero_from", "on_zero_modules", "pick_from")}, lb[1], pname)
             self.assertEqual({k: v for k, v in pa["steps"][0]["params"].items() if k != "ladders"},
                              {k: v for k, v in pb["steps"][0]["params"].items() if k != "ladders"}, pname)
-        n, b = now["industrial_sockets"], before["industrial_sockets"]
+        n, b = _without_elr2_notes_and_labels(now["industrial_sockets"]), before["industrial_sockets"]  # ELR-2: v68's socket display_label
         self.assertEqual(n["rules"], b["rules"])  # R12 untouched
         for key in n:
             if key in ("attribute_definitions", "pipelines"):
@@ -10499,7 +10533,9 @@ class TestF25Slice2BareBox(FrappeTestCase):
             "BoQ Rate Category Config",
             {"discipline": "Electrical", "category_id": "switches_sockets", "active": 1}, "config",
         ))
-        self.assertEqual(live["attribute_definitions"], self.ss_now["attribute_definitions"])
+        # ELR-2 (v68, mechanical authority): the live config now carries v68's six switches_sockets notes; the claim
+        # against the v58 definitions forgives exactly those (WAS: live == v58 unnormalised); live == CURRENT stays exact
+        self.assertEqual(_without_elr2_notes_and_labels(live)["attribute_definitions"], self.ss_now["attribute_definitions"])
         self.assertEqual(live["attribute_definitions"], current["attribute_definitions"])
         self.assertEqual(live["pipelines"], current["pipelines"])
         self.assertEqual(live["rules"], self.ss_now["rules"])
@@ -10537,7 +10573,9 @@ class TestF25Slice3PickFrom(FrappeTestCase):
             cls.now = json.load(fh)
         with open(_asset_path(cls._PRIOR_ASSET), "r", encoding="utf-8") as fh:
             cls.was = json.load(fh)
-        cls.ss_now = [c for c in cls.now["category_configs"] if c["category_id"] == "switches_sockets"][0]
+        # ELR-2 (v68, mechanical authority): this class pins slice 3's delta over v58, so the CURRENT side forgives exactly
+        # v68's declared additions (six switches_sockets notes, two display_labels). WAS: the raw current config.
+        cls.ss_now = _without_elr2_notes_and_labels([c for c in cls.now["category_configs"] if c["category_id"] == "switches_sockets"][0])
         cls.ss_was = [c for c in cls.was["category_configs"] if c["category_id"] == "switches_sockets"][0]
 
     def _box_ladder(self, cfg, pid):
@@ -11055,7 +11093,8 @@ class TestIncludesModulesGate(FrappeTestCase):
         # WITH_COVER_LIST SLICE: v66 removes `cable_tray.with_cover_list`. The include_when gate is
         # unchanged by that too -- which is what this pin says.
         # ELR-1 (v67, the Runs note): bumped. WAS "rate_master_electrical_all_v66.json"; the gate is unchanged by v67 too.
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v67.json")
+        # ELR-2 (v68, the notes + display labels): bumped. WAS "rate_master_electrical_all_v67.json"; the gate is unchanged.
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v68.json")
         fits = {}
         goldens = asset.get("goldens") or {}
         for c in asset["category_configs"]:
@@ -11100,7 +11139,7 @@ class TestIncludesModulesGate(FrappeTestCase):
                 n2, c2 = _without_elr1_runs_note(_without_wcl_note(n2)), _without_wcl_note(c2)  # ELR-1: + the v67 Runs note
                 self.assertEqual(n2, c2, c["category_id"])
                 continue
-            n, c = _strip_12b_migration(n, c)   # SLICE 12b(A), as above
+            n, c = _strip_12b_migration(_without_elr2_notes_and_labels(n), c)   # SLICE 12b(A), as above; ELR-2: + v68's declared additions
             for k in set(c) | set(n):
                 if k not in ("pipelines", "notes"):
                     self.assertEqual(n[k], c[k], k)
@@ -12142,7 +12181,8 @@ class TestHvacAssetSlice1b(FrappeTestCase):
         # (`gate.latest_in("Electrical", names) == CURRENT_EALL_ASSET`) cannot go stale that way and
         # are the ones carrying the real weight; this line is a deliberate per-mint bump.
         # ELR-1 (v67, the Runs note): bumped. WAS "rate_master_electrical_all_v66.json".
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v67.json")
+        # ELR-2 (v68, the notes + display labels): bumped. WAS "rate_master_electrical_all_v67.json".
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v68.json")
         data_dir = os.path.dirname(_asset_path(CURRENT_EALL_ASSET))
         names = sorted(os.listdir(data_dir))
         # each series resolved on its own (owner ruling, slice 1c, INVERTING the 1b first-version pin): the HVAC
