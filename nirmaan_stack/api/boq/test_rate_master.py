@@ -8485,15 +8485,20 @@ class TestPointWiringConduitAndLength(FrappeTestCase):
         will be n secondary". No row in the corpus exercises this today -- the two an earlier census
         offered were amperage false-parses -- so this synthetic case IS the protection."""
         from nirmaan_stack.services.boq_rate_master.extraction import secondary_length_m
-        self.assertEqual(secondary_length_m(self._item("Secondary wiring for 4 loop points")), 20)
-        self.assertEqual(secondary_length_m(self._item("Looping wiring for 7 light points")), 35)
+        # ELR-3a (owner R-R1 Q3; mechanical authority): the multiplier is the LIVE "per further point" Pricing Input,
+        # 5 today. WAS secondary_length_m(item) == 20 / 35; NOW the same 20 / 35 at the input's value of 5, and with
+        # no input there is no length at all (never a guessed 5).
+        self.assertEqual(secondary_length_m(self._item("Secondary wiring for 4 loop points"), 5), 20)
+        self.assertEqual(secondary_length_m(self._item("Looping wiring for 7 light points"), 5), 35)
+        self.assertIsNone(secondary_length_m(self._item("Secondary wiring for 4 loop points")))
 
     def test_pw_n5_02_NEGATIVE_secondary_with_NO_count_keeps_the_flat_five(self):
         """NEGATIVE: without a count there is nothing to multiply, so the rule declines and the
         config's flat 5 stands. Returning 5 here would be the same answer by a different route and
         would hide a broken extractor."""
         from nirmaan_stack.services.boq_rate_master.extraction import secondary_length_m
-        self.assertIsNone(secondary_length_m(self._item("Secondary light point wiring, looped")))
+        # ELR-3a: WAS called with no multiplier; NOW with the input's 5, or the None would be the missing input's
+        self.assertIsNone(secondary_length_m(self._item("Secondary light point wiring, looped"), 5))
 
     def test_pw_n5_03_NEGATIVE_both_types_with_a_count_is_the_formula_not_n_times_five(self):
         """⚠️ THE ORDERING PIN, AND IT GUARDS BOTH DIRECTIONS AT ONCE. A row naming BOTH types with
@@ -8507,14 +8512,17 @@ class TestPointWiringConduitAndLength(FrappeTestCase):
         self.assertIsNone(secondary_length_m(both))       # -> NOT n x 5
         sec = self._item("Secondary wiring for 4 loop points")
         self.assertEqual(point_type_of(sec), "Secondary")  # NOT swallowed by the count rule
-        self.assertEqual(secondary_length_m(sec), 20)
+        # ELR-3a (owner Q3; mechanical authority): WAS secondary_length_m(sec) == 20; NOW at the input's value of 5
+        self.assertEqual(secondary_length_m(sec, 5), 20)
+        self.assertIsNone(secondary_length_m(both, 5))    # -> still NOT n x 5 with the input supplied
 
     def test_pw_n5_04_NEGATIVE_a_primary_row_with_a_count_gets_no_n5_length(self):
         """NEGATIVE: n x 5 is the SECONDARY-only mechanism. A multi-point primary row goes to the
         formula and must not also be handed a length."""
         from nirmaan_stack.services.boq_rate_master.extraction import secondary_length_m
+        # ELR-3a: WAS called with no multiplier; NOW with the input's 5, or the None would be the missing input's
         self.assertIsNone(secondary_length_m(self._item(
-            "12 light point controlled by MCB. Point wiring will start from First Light point.")))
+            "12 light point controlled by MCB. Point wiring will start from First Light point."), 5))
 
     def test_pw_widen_06_NEGATIVE_secondary_list_is_unchanged(self):
         """NEGATIVE, OWNER-LOCKED: `_PT_SECONDARY` is not editable. Pinning the exact list so an

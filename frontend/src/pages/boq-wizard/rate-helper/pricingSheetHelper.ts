@@ -25,6 +25,7 @@
  * special-cased, not the strings. Every OTHER category goes through the generic path.
  */
 import {
+  assemblyOnlyCtxKeys,
   catalogFitOutcomes,
   derivedAttrOutcomes,
   mapAttributeOutcomes,
@@ -906,7 +907,9 @@ export function withLandedNotes(
     } else if (dv && dv.value !== null) {
       const st = steps.find((x) => x.step === "derive_attribute" && x.params?.result_attr === a.id);
       const formula = typeof st?.params?.formula === "string" ? st.params.formula : undefined;
-      const consts = (st?.params?.constants ?? {}) as Record<string, unknown>;
+      // ELR-3a (owner Q1 a): a constant read from a Pricing Input is substituted with the value pricing USED, carried
+      // on the outcome -- the config holds a ctx key there, which would put "base" / "per_extra" on screen
+      const consts = (dv.constants ?? st?.params?.constants ?? {}) as Record<string, unknown>;
       const terms = (Array.isArray(st?.params?.terms) ? st!.params!.terms : []) as Array<{ ident?: string; attr?: string }>;
       if (formula) {
         let text = formula;
@@ -925,7 +928,10 @@ export function withLandedNotes(
       } else {
         const st = steps.find((x) => x.step === "map_attribute" && x.params?.result_attr === a.id);
         const from = typeof st?.params?.from_attr === "string" ? st.params.from_attr : undefined;
-        const table = st?.params?.table && typeof st.params.table === "object" ? st.params.table as Record<string, unknown> : undefined;
+        // ELR-3a (owner Q1 a): a table read from Pricing Inputs (`table_from_ctx`) has the same KEYS -- only the keys
+        // are tested here; the value shown is the outcome's, the number pricing used
+        const tableSrc = st?.params?.table ?? st?.params?.table_from_ctx;
+        const table = tableSrc && typeof tableSrc === "object" ? tableSrc as Record<string, unknown> : undefined;
         const src = from && selected ? selected[from] : undefined;
         how = src !== undefined && src !== null && src !== "" && src !== NONE_SENTINEL && table && Object.prototype.hasOwnProperty.call(table, String(src))
           ? `${labelOf(from!)} ${String(src)} read as ${String(mp.value)}`
@@ -1643,7 +1649,11 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
         // EA-4a: the assembly categories expose their per-component build-up as the step traces; surface
         // each component line (name = value) in the group so the pricer sees the bill, not just the total.
         // ELR-2 (owner R-WORD / R-MISC, D1-D8): in plain English -- the Pricing Input's own name, the bound field's label
+        // ELR-3a (owner Q2 a): a Pricing Input read ONLY by an assembly step (a length, a conduit fill) moves no SKU's
+        // own rate and adds no line -- the bill reads exactly as it did while those numbers were literals
+        const assemblyOnly = assemblyOnlyCtxKeys(pl as Pipeline);
         for (const st of res.steps) {
+          if (st.step === "rate_ref" && st.produced && assemblyOnly.has(st.produced.key)) continue;
           if (st.produced && st.refItem) matchedRows.push(attributeWorkingLine(st, pl as Pipeline, category, items, (a) => selected[a]));
         }
         flatMatched.push(`Matched ${label} for ${attrLine}.`);

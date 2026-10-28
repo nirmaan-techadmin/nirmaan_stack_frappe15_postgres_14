@@ -1217,7 +1217,7 @@ def _require_rate_admin():
     return user
 
 
-def _guard_pricing_input_values(kind, rates):
+def _guard_pricing_input_values(kind, rates, discipline=None, attributes=None):
     """SLICE 12b(B) -- THE NEGATIVE-VALUE GUARD, and it closes a live hole.
 
     `csv_importer.validate_pricing_input_value` refuses a negative and DELIBERATELY allows zero (three
@@ -1240,8 +1240,14 @@ def _guard_pricing_input_values(kind, rates):
     from nirmaan_stack.services.boq_rate_master import csv_exporter, csv_importer
     if not csv_exporter.is_pricing_input_kind(kind):
         return
+    # ELR-3a (owner R-R1 Q4): an input an assembly step reads keeps its RANGE (a length more than 0, a conduit fill in
+    # (0, 1]) -- the importer's own definition and wording, so the page and the file refuse the same value alike
+    rng = None
+    if discipline:
+        rng = csv_importer.pricing_input_ranges_for(discipline).get((attributes or {}).get("item"))
     for k, v in (rates or {}).items():
-        err = csv_importer.validate_pricing_input_value(v, k)
+        err = csv_importer.validate_pricing_input_value(
+            v, csv_importer.pricing_input_label(attributes, k) if rng else k, rng)
         if err:
             frappe.throw(err, title="Invalid pricing input")
 
@@ -1453,7 +1459,7 @@ def update_rate_master_item(name=None, rates_patch=None, attributes_patch=None,
                 rates[k] = None  # numeric-OR-NULL
             else:
                 rates[k] = _finite_number(v, f"rates.{k}")
-        _guard_pricing_input_values(doc.kind, rates_patch)
+        _guard_pricing_input_values(doc.kind, rates_patch, doc.discipline, attributes)
     # SLICE 1c: an item of an opted-in category (`attributes_from_spec`) takes its attributes from its
     # item_name / item_detail through the SAME reader the CSV upload uses -- no back door (S-c 3). Only
     # the two text keys may be patched; a changed text is re-read, an unchanged one leaves the stored
@@ -1559,7 +1565,7 @@ def create_rate_master_item(
     clean_rates = {}
     for k, v in rates.items():
         clean_rates[k] = None if v is None else _finite_number(v, f"rates.{k}")
-    _guard_pricing_input_values(kind, rates)   # SLICE 12b(B): negative refused, ZERO accepted
+    _guard_pricing_input_values(kind, rates, discipline, attributes)   # SLICE 12b(B): negative refused, ZERO accepted
     # SLICE 1c: an opted-in category (`attributes_from_spec`) -- the caller supplies item_name /
     # item_detail and NOTHING else; the reader derives the rest (or flags the row). Same reader, same
     # flag behaviour as the CSV upload (S-c 3). Any other category: the legacy path, byte-identical.

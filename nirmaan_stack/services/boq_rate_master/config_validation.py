@@ -85,6 +85,19 @@ _KNOWN_STEP_TYPES = {
 # cannot run on that shape rather than implementing it. Keep this in step with the interpreter's arms.
 _CTX_ARM_STEPS = {"scale", "component", "component_band", "install_as_ratio", "apply_effective_multiplier"}
 
+# ELR-3a (owner R-9; ELR-R1 F2 option A): THE FOUR ASSEMBLY-STEP ARMS. A step that builds an assembly may read a
+# Pricing Input IN PLACE OF one literal -- exactly these keys on exactly these step types, and nothing else (any other
+# `_from_ctx` on them is still refused by name). Each REPLACES its literal, so a step carrying both is refused. Keep
+# in step with the interpreter's `ASSEMBLY_CTX_ARMS`.
+#   map_attribute    table_from_ctx {source value: ctx key} / default_from_ctx "ctx key"
+#   derive_attribute constants_from_ctx {constant: ctx key}
+#   circuit_fit      usable_from_ctx {conduit type: [ctx key per size]}
+_ASSEMBLY_CTX_ARMS = {
+    "map_attribute": {"table_from_ctx": "table", "default_from_ctx": "default"},
+    "derive_attribute": {"constants_from_ctx": "constants"},
+    "circuit_fit": {"usable_from_ctx": "usable"},
+}
+
 # The keys `rate_ref` must never carry. An input is a SCALAR, not a component: a `qty` would multiply it,
 # `rate_stages` would re-scale it, and `none_skips` would turn a missing input into a silent zero -- each
 # one changes the meaning of the step while still looking like valid config.
@@ -2226,6 +2239,105 @@ _STEP_DIVISOR_SUFFIX = "_step_divisor"
 _FROM_CTX_SUFFIX = "_from_ctx"
 
 
+# ELR-3a (owner R-R1 Q4): the range an assembly-step Pricing Input must stay in, by the arm that READS it -- derived from
+# the configs, never a hand list of ids. A length (a map / derive arm) is more than 0, with no upper limit; a conduit
+# fill (circuit_fit's usable) is more than 0 and at most 1. Inputs no arm reads keep only the general rule.
+RANGE_LENGTH = "length"
+RANGE_FILL = "fill"
+
+
+def pricing_input_ranges(configs):
+    """{pricing input id: RANGE_LENGTH | RANGE_FILL} over every pipeline of every config. PURE.
+
+    Walks every `steps` list anywhere in a config (as `csv_exporter.pricing_input_used_by` does), maps each
+    pricing-input `rate_ref` result to its input id within that pipeline, and types the inputs the four assembly arms
+    read. A fill read anywhere wins over a length (the stricter range)."""
+    from nirmaan_stack.services.boq_rate_master.csv_exporter import is_pricing_input_kind
+    out = {}
+
+    def keys_of(v):
+        if isinstance(v, str):
+            return [v]
+        if isinstance(v, list):
+            return [k for x in v for k in keys_of(x)]
+        if isinstance(v, dict):
+            return [k for x in v.values() for k in keys_of(x)]
+        return []
+
+    def walk(node):
+        if isinstance(node, dict):
+            steps = node.get("steps")
+            if isinstance(steps, list):
+                owner = {}
+                for s in steps:
+                    if (isinstance(s, dict) and s.get("step") == "rate_ref"
+                            and is_pricing_input_kind((s.get("ref") or {}).get("kind"))
+                            and isinstance((s.get("ref") or {}).get("item"), str)):
+                        owner[s.get("result")] = s["ref"]["item"]
+                for s in steps:
+                    if not isinstance(s, dict):
+                        continue
+                    for arm in _ASSEMBLY_CTX_ARMS.get(s.get("step"), {}):
+                        kind = RANGE_FILL if arm == "usable_from_ctx" else RANGE_LENGTH
+                        for k in keys_of((s.get("params") or {}).get(arm)):
+                            iid = owner.get(k)
+                            if iid and out.get(iid) != RANGE_FILL:
+                                out[iid] = kind
+            for key in sorted(node):
+                walk(node[key])
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    for cid in sorted(configs or {}):
+        walk((configs or {})[cid])
+    return out
+
+
+def _validate_assembly_ctx_arms(s, st, arms, rate_ref_results, where):
+    """ELR-3a -- the four assembly-step arms on one step. Refuses BY NAME: a literal and its `_from_ctx` together (a
+    replacement, never a merge -- letting one win is how a migrated value silently keeps its old number); a shape the
+    interpreter cannot run; and a ctx key no `rate_ref` of this pipeline loads (it would refuse every row at run time,
+    naming the key -- caught here instead, at save)."""
+    p = s.get("params") or {}
+    if not isinstance(p, dict):
+        return
+    for arm, literal in arms.items():
+        if arm not in p:
+            continue
+        if literal in p:
+            _vthrow(
+                f"{where}: '{arm}' REPLACES '{literal}', so do not set both on a '{st}' step. Remove the literal "
+                f"'{literal}' -- leaving it is how a migrated value silently keeps its old number."
+            )
+        v = p[arm]
+        if arm == "default_from_ctx":
+            keys = [v] if isinstance(v, str) and v.strip() else None
+        elif arm == "usable_from_ctx":
+            ok = isinstance(v, dict) and v and all(
+                isinstance(ks, list) and ks and all(isinstance(k, str) and k.strip() for k in ks) for ks in v.values())
+            keys = [k for ks in v.values() for k in ks] if ok else None
+        else:
+            ok = isinstance(v, dict) and v and all(isinstance(k, str) and k.strip() for k in v.values())
+            keys = list(v.values()) if ok else None
+        if keys is None:
+            shape = {"default_from_ctx": "a computed-value key (a string)",
+                     "usable_from_ctx": "an object of conduit_type -> [computed-value key per size]"}.get(
+                         arm, "an object of name -> computed-value key")
+            _vthrow(f"{where}: '{arm}' must be {shape}.")
+        for k in keys:
+            if k not in rate_ref_results:
+                _vthrow(
+                    f"{where}: '{arm}' reads '{k}', which no rate_ref of this pipeline loads -- every row would "
+                    "refuse. Add the rate_ref that reads the Pricing Input, or fix the key."
+                )
+        if arm == "constants_from_ctx":
+            idents = {t.get("ident") for t in (p.get("terms") or []) if isinstance(t, dict)}
+            for ck in v:
+                if ck in idents:
+                    _vthrow(f"{where}: derive_attribute constant '{ck}' collides with a term ident.")
+
+
 def _validate_params(params, where):
     """EA-4 ext-a: two narrowly-scoped relaxations, both making this validator agree with what the
     interpreter is EXPLICITLY built to execute (ratePipelineInterpreter.ts `s.params ?? {}`) and with
@@ -2432,6 +2544,12 @@ def _validate_config(cfg):
         # LATER step is refused too: the interpreter reads ctx in step order, so it would be
         # undefined at the read and the row would refuse with "quantity not provided".
         ctx_binds = set()
+        # ELR-3a: the keys the pipeline's `rate_ref` preamble loads. The hoist runs it before every other step, so an
+        # assembly arm may name one whatever position the mint appended it at.
+        rate_ref_results = {
+            s.get("result") for s in steps
+            if isinstance(s, dict) and s.get("step") == "rate_ref" and isinstance(s.get("result"), str)
+        }
         for si, s in enumerate(steps):
             where = f"pipeline '{pid}' step {si}"
             if not isinstance(s, dict):
@@ -2462,12 +2580,16 @@ def _validate_config(cfg):
             # shape, by name, rather than implementing it -- a `_from_ctx` on (say) a `roundup` would
             # save cleanly and be read by nothing, which is how a wrong price hides.
             if st not in _CTX_ARM_STEPS:
+                arms = _ASSEMBLY_CTX_ARMS.get(st, {})
                 for pk in (s.get("params") or {}):
-                    if isinstance(pk, str) and pk.endswith(_FROM_CTX_SUFFIX):
+                    if isinstance(pk, str) and pk.endswith(_FROM_CTX_SUFFIX) and pk not in arms:
                         _vthrow(
                             f"{where}: '{pk}' is not read on a '{st}' step. A computed-value binding "
-                            f"only works on: {', '.join(sorted(_CTX_ARM_STEPS))}."
+                            f"only works on: {', '.join(sorted(_CTX_ARM_STEPS))}"
+                            + (f"; on a '{st}' only {', '.join(sorted(arms))}." if arms else ".")
                         )
+                if arms:
+                    _validate_assembly_ctx_arms(s, st, arms, rate_ref_results, where)
             # SLICE 12b(A): a rate stage may take its multiplier from ctx. It is a KEY, so a string; and
             # it REPLACES `mult`, so a stage carrying both is refused -- letting both apply would
             # silently square the migration, and that is not a thing a reader would notice.
@@ -2796,11 +2918,21 @@ def _validate_config(cfg):
                     _vthrow(f"{where}: circuit_fit needs a params object.")
                 if not isinstance(p.get("sizes"), list) or not all(_is_finite_number(x) for x in p.get("sizes") or []):
                     _vthrow(f"{where}: circuit_fit params.sizes must be a list of finite numbers.")
-                if not isinstance(p.get("usable"), dict):
-                    _vthrow(f"{where}: circuit_fit params.usable must be an object of conduit_type -> fractions.")
-                for ct, fracs in p["usable"].items():
-                    if not isinstance(fracs, list) or not all(_is_finite_number(x) for x in fracs):
-                        _vthrow(f"{where}: circuit_fit usable['{ct}'] must be a list of finite numbers.")
+                # ELR-3a: `usable_from_ctx` stands IN PLACE OF `usable` (shape checked by _validate_assembly_ctx_arms,
+                # one key per size); otherwise the literal table is required exactly as before.
+                if "usable_from_ctx" in p:
+                    for ct, keys in p["usable_from_ctx"].items():
+                        if len(keys) != len(p.get("sizes") or []):
+                            _vthrow(
+                                f"{where}: circuit_fit usable_from_ctx['{ct}'] names {len(keys)} input(s) for "
+                                f"{len(p.get('sizes') or [])} size(s) -- one per size."
+                            )
+                else:
+                    if not isinstance(p.get("usable"), dict):
+                        _vthrow(f"{where}: circuit_fit params.usable must be an object of conduit_type -> fractions.")
+                    for ct, fracs in p["usable"].items():
+                        if not isinstance(fracs, list) or not all(_is_finite_number(x) for x in fracs):
+                            _vthrow(f"{where}: circuit_fit usable['{ct}'] must be a list of finite numbers.")
                 specs = p.get("wire_specs")
                 if not isinstance(specs, list) or not specs:
                     _vthrow(f"{where}: circuit_fit needs a non-empty wire_specs list.")
