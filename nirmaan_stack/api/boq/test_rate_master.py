@@ -10573,9 +10573,7 @@ class TestF25Slice3PickFrom(FrappeTestCase):
             cls.now = json.load(fh)
         with open(_asset_path(cls._PRIOR_ASSET), "r", encoding="utf-8") as fh:
             cls.was = json.load(fh)
-        # ELR-2 (v68, mechanical authority): this class pins slice 3's delta over v58, so the CURRENT side forgives exactly
-        # v68's declared additions (six switches_sockets notes, two display_labels). WAS: the raw current config.
-        cls.ss_now = _without_elr2_notes_and_labels([c for c in cls.now["category_configs"] if c["category_id"] == "switches_sockets"][0])
+        cls.ss_now = [c for c in cls.now["category_configs"] if c["category_id"] == "switches_sockets"][0]
         cls.ss_was = [c for c in cls.was["category_configs"] if c["category_id"] == "switches_sockets"][0]
 
     def _box_ladder(self, cfg, pid):
@@ -10606,7 +10604,9 @@ class TestF25Slice3PickFrom(FrappeTestCase):
     def test_f25s3_02_the_box_field_itself_is_unchanged_and_no_attribute_was_added(self):
         """NEGATIVE: the dropdown is slice 1's definition byte-for-byte (a choice over the live Back Box
         family, extract:false, no allow_none); 19 attributes, same order; rules and goldens untouched."""
-        self.assertEqual(self.ss_now["attribute_definitions"], self.ss_was["attribute_definitions"])
+        # ELR-2 (v68, mechanical authority): the v58 comparison forgives exactly v68's declared additions (six
+        # switches_sockets notes). WAS: the raw current definitions.
+        self.assertEqual(_without_elr2_notes_and_labels(self.ss_now)["attribute_definitions"], self.ss_was["attribute_definitions"])
         box = [d for d in self.ss_now["attribute_definitions"] if d["id"] == self.PICK_ATTR][0]
         self.assertEqual(box, {"id": "box_item", "label": "Back box size", "type": "choice",
                                "values_from": {"kind": "switch_socket_item", "attr": "item",
@@ -10622,7 +10622,8 @@ class TestF25Slice3PickFrom(FrappeTestCase):
         # carries it now. The `pick_from`-stripped claim is unchanged and still key by key; the preamble
         # is dropped and only the rewritten steps' arithmetic is excused, so a FOURTH ladder key, or a
         # change to any other step, still fails.
-        n2, w2 = _strip_12b_migration(self.ss_now, self.ss_was)
+        # ELR-2 (v68): + v68's declared additions forgiven on the current side (WAS: the raw current config)
+        n2, w2 = _strip_12b_migration(_without_elr2_notes_and_labels(self.ss_now), self.ss_was)
         now = copy.deepcopy(n2)
         for pid in ("swsock_boq", "swsock_bcs"):
             del now["pipelines"][pid]["steps"][0]["params"]["ladders"][1]["pick_from"]
