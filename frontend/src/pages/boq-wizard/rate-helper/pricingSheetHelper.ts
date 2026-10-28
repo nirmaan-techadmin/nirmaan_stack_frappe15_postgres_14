@@ -1221,6 +1221,72 @@ function neverAskedDefault(
 }
 
 /**
+ * ELR-3b (owner R-8; R-V1 2026-10-27 "2 v1"; R-V1b / R-V1c 2026-10-29). PURE. THE PLATE-QUANTITY DEFAULT -- the mirror of
+ * the server's `extraction.fill_paired_slot_defaults` case (b) (with `paired_fill_plan`), which fills NEW reads only
+ * (since 226509192). A stored row read before that kept a blank plate quantity and refused "Missing to price: Plate qty";
+ * this gives the panel and the calculator the SAME answer the server gives, through this one function.
+ *
+ * THE RULE, exactly the server's:
+ *   - the item is COMPUTED: a `requires_named` target of an `extraction_defaults` spec with a `default` that is a
+ *     `module_fit` ladder `bind` (the face plate) -- read from the config, never from a category or attribute name;
+ *   - its quantity is BLANK and the item is BLANK (not named, not "None");
+ *   - the row is OCCUPIED: some occupancy term of the first `module_fit` step (the terms `module_fit` itself sums) whose
+ *     `none_when` item is filled (a real value, not "None", not blank) carries a quantity above zero.
+ * -> the quantity takes the declared default. NOT an empty box (every switch / socket None or blank: owner R-V1, V2 was
+ * not ruled), NOT a named plate (U7's, calculator only, unchanged), NOT a "None" plate, NEVER over a stated quantity.
+ *
+ * `valueOf` is the row's value as the pricer sees it (an override, else the stored cell, else a never-asked default),
+ * coerced; null = blank. Returns attribute id -> default value.
+ */
+export function computedPlateQtyDefaults(
+  config: RateCategoryConfig,
+  valueOf: (id: string) => string | number | null,
+): Map<string, string | number> {
+  const out = new Map<string, string | number>();
+  const defaults = readExtractionDefaults(config);
+  const pairs: Array<[string, string, string | number]> = [];
+  for (const [aid, spec] of Object.entries(defaults)) {
+    if (spec === null || typeof spec !== "object") continue;
+    const s = spec as { default?: unknown; requires_named?: unknown };
+    if (typeof s.requires_named !== "string" || !("default" in s)) continue;
+    if (typeof s.default === "string" || typeof s.default === "number") pairs.push([aid, s.requires_named, s.default]);
+  }
+  if (!pairs.length) return out;
+  const named = new Set(pairs.map(([, item]) => item));
+  const computed = new Set<string>();
+  let terms: Array<{ attr: string; none_when?: unknown }> = [];
+  for (const pl of Object.values(config.pipelines ?? {})) {
+    for (const raw of pl.steps ?? []) {
+      const s = raw as { step?: string; params?: { ladders?: unknown; terms?: unknown } };
+      if (s.step !== "module_fit") continue;
+      for (const l of Array.isArray(s.params?.ladders) ? s.params!.ladders as Array<{ bind?: unknown }> : []) {
+        if (typeof l?.bind === "string" && named.has(l.bind)) computed.add(l.bind);
+      }
+      if (!terms.length && Array.isArray(s.params?.terms)) {
+        terms = (s.params!.terms as Array<{ attr?: unknown; none_when?: unknown }>)
+          .filter((t): t is { attr: string; none_when?: unknown } => typeof t?.attr === "string" && t.attr !== "");
+      }
+    }
+  }
+  if (!computed.size) return out;
+  const filled = (id: string) => {
+    const v = valueOf(id);
+    return v !== null && v !== "" && v !== NONE_SENTINEL;
+  };
+  const occupied = terms.some(
+    (t) => (typeof t.none_when !== "string" || t.none_when === "" || filled(t.none_when)) && Number(valueOf(t.attr) ?? 0) > 0,
+  );
+  if (!occupied) return out;
+  for (const [aid, item, dflt] of pairs) {
+    if (!computed.has(item)) continue;
+    const q = valueOf(aid);
+    const it = valueOf(item);
+    if ((q === null || q === "") && (it === null || it === "")) out.set(aid, dflt);
+  }
+  return out;
+}
+
+/**
  * ELR-1 (owner R-UNIT: 12c-U carried to the attribute path; Q1 ruling 2026-10-27, "a"). PURE. The note a PRICED
  * attribute-path row shows when the BoQ row stated NO unit, or a rate-only one (`isRateOnlyUnit` / a rate-only marker
  * before a unit, `splitRateOnlyUnit` -- the item-list path's own predicates): the 12c-U lead, then the unit the
@@ -1382,9 +1448,30 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
         }
       }
     }
-    /** The stored cell for a def, or the never-asked synthesized one. */
+    /**
+     * ELR-3b (owner R-V1 / R-V1b): the plate-quantity default, on the panel AND the calculator through the one function
+     * (`computedPlateQtyDefaults`, the server's case (b)). It replaces a stored BLANK cell (the never-asked map above
+     * cannot: it fills only a key the stored row lacks) and is marked `defaulted`, so the field shows the existing
+     * "default" badge and the existing "(defaulted -- ...)" line. A quantity the pricer typed (any override) is theirs:
+     * no fill -- the gate reads the override first anyway. R-V1c: no confidence is shown for it (a rule, not a reading).
+     */
+    const plateQtyDefault = new Map<string, ExtractedAttr>();
+    {
+      const valueOfAny = (id: string): string | number | null => {
+        const dd = defs.find((x) => x.id === id);
+        if (!dd) return null;
+        const ov = overrides?.[id];
+        const raw = ov !== undefined ? ov : (ext?.attributes[id] ?? neverAsked.get(id))?.value ?? null;
+        return coerceForMatch(dd, raw as string | number | null);
+      };
+      for (const [id, v] of computedPlateQtyDefaults(category, valueOfAny)) {
+        if (overrides?.[id] !== undefined) continue;
+        plateQtyDefault.set(id, { value: v, confidence: 0, defaulted: true });
+      }
+    }
+    /** The stored cell for a def, or the never-asked synthesized one (or the ELR-3b plate-quantity default). */
     const cellOf = (d: AttributeDefinition): ExtractedAttr | undefined =>
-      ext?.attributes[d.id] ?? neverAsked.get(d.id);
+      plateQtyDefault.get(d.id) ?? ext?.attributes[d.id] ?? neverAsked.get(d.id);
 
     // EA-4a-r: which defs are DISABLED because an allow_none controller is set to "None" (positive
     // absence) -- e.g. plate_item="None" disables plate_qty AND back_box. A controller can disable a def
@@ -1545,7 +1632,8 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
         options: isDropdownAttributeType(d.type) ? attributeOptions(d, items, selected) : undefined,
         value: coerced === null ? "" : String(coerced),
         // A never-asked default has no model confidence to show -- omit it rather than render 0.
-        confidence: disabled || (wasNeverAsked && overridden === undefined) ? undefined : cell?.confidence,
+        // ELR-3b (owner R-V1c): nor has the plate-quantity default
+        confidence: disabled || ((wasNeverAsked || plateQtyDefault.has(d.id)) && overridden === undefined) ? undefined : cell?.confidence,
         corroborated: disabled ? undefined : cell?.corroborated,
         disabled: disabled || undefined,
         allowNone: d.allow_none || undefined,
