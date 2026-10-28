@@ -2119,10 +2119,10 @@ shows an attribute definition's `note` on the panel and the calculator as the fi
 and the SAME class (`RateHelperPanel.TYPED_NOTE_CLASS`) the item-list path uses for its typed notes. `panelFieldAudit`
 has an ATTRIBUTE branch: renders = the attributes `compute` returns for a stored row; typed = a field drawn with no
 options; mandatory = with every other field answered and this one asked-and-blank the gate withholds the price and marks
-it "*". It names no attribute, category or discipline. It ENFORCES for wiring_cabling; the 28 other typed + rendered +
-mandatory Electrical fields are a NAMED expected-missing list (`panelFieldAudit.test.ts`), which may only shrink. A note
+it "*". It names no attribute, category or discipline. It ENFORCES for EVERY Electrical category since ELR-2 (the
+expected-missing list in `panelFieldAudit.test.ts` is EMPTY; a config that loses a note is refused by name). A note
 never reaches the model: attribute-mode `build_attribute_defs` projects `{id, label, type, values}` only (proved
-byte-identical on v66 -> v67 for every Electrical group).
+byte-identical on v66 -> v67 and v67 -> v68 for every Electrical group).
 
 **ELR-1: THE NO-UNIT / RATE-ONLY NOTE IS ON BOTH PATHS (owner R-UNIT, 12c-U carried; Q1 ruling 2026-10-27).** A PRICED
 attribute-path BoQ row whose unit is blank or rate-only (`isRateOnlyUnit` / `splitRateOnlyUnit`, the item-list
@@ -2158,6 +2158,33 @@ parameters, Pricing Inputs by their Pricing Inputs name, and its reason from `DE
 "reason not recorded". Only a category with an entry there gets a list (wiring_cabling as of ELR-1); the other eleven
 keep the pointer line and their extraction card. ELR-4 adds them by entries and lines. Where a list exists the
 extraction "Rules" card (raw ids, `applies_to`, guidance naming fields) is not drawn; the guidance stays in the config.
+
+**ELR-2: AN ATTRIBUTE-PATH WORKING LINE READS THE PRICING INPUT'S OWN NAME AND THE FIELD'S LABEL, NEVER AN INTERNAL KEY
+(owner R-WORD "6 ok" and R-MISC, 2026-10-27; the Phase A answer, 2026-10-28).** Every line in a section's `matchedRows`
+on the attribute path (panel and calculator, HVAC Raceway / Cables by alias) is built by ONE function,
+`attributeWorkingLines.attributeWorkingLine`. A `rate_ref` line is "<the Pricing Input row's own `name`, its trailing
+column words swapped for this line's column word> = <value>": a percentage column as % ("Switchgear discount = 70%"),
+an amount as "<name> (<unit>) = Rs <value> per metre". The name is read from the items, never from a list in code, so a
+rename on the Rate Master page shows on the next price. A `component_ref` line is "<label>: <item> x <qty> = <amount>",
+where the label is the step's `display_label` in the asset, else the label of the field its catalogue item is bound to
+(`ref.item: "@<field>"`). `display_label` exists ONLY for a component that binds no single field (wires, circuit wires,
+point-wiring conduit and back box, blanks, switches & sockets' back box, the industrial socket); a new such component
+needs one, or its line is "(unnamed input) = <value>". The quantity is the trace's structured `qty` (display-only),
+never the "rate R x qty Q" prose. A formula component with no quantity shows "<item> = <amount>" ("Bus bar = 0").
+Amounts in Indian grouping, at most 2 decimals. `plainPricerText` is NOT used here (it garbles these lines); the
+item-list path keeps it.
+
+**ELR-2: THE PERMANENT NO-INTERNAL-NAME SWEEP.** `attributeWorkingLines.test.ts` runs, on panel AND calculator, a
+fixture of real stored rows chosen to reach every Electrical-engine working-line kind
+(`pricing/__fixtures__/elr2WorkingLines.json`), plus every catalogue SKU of every Electrical category and both HVAC
+aliases. Every line must match a NAMED approved template ("other" = 0), and no shown line (matched rows or section
+derivation) may carry snake_case. A new Pricing Input subject or component label is added to the template table in the
+same change that ships it.
+
+**ELR-2: NOTES ARE ENFORCED FOR EVERY ELECTRICAL CATEGORY.** Every typed + rendered + mandatory field carries its
+owner-approved note (v68: the 28, the Runs note since v67). Point-wiring and circuit-wire run notes state the
+three-conductor rule (owner R9, 2026-08-07, and the conductor floor, 2026-09-03). That floor is applied only at
+EXTRACTION (`extraction.apply_conductor_floor`); the calculator applies none, which is an open rule gap for ELR-R2.
 
 ---
 

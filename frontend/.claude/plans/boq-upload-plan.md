@@ -49395,3 +49395,96 @@ point_wiring keeps its empty state exactly, Q3 BOTH Pricing Inputs grids follow 
   rules-list line 1 says what runs. Not edited (config prose = an asset change).
 - CLAUDE.md states Python 3.10; the container runs 3.14.2 (ELR-R0) -- for the docs round.
 - Suite residue from this slice's Python runs is left for the next clean-up.
+
+## Slice ELR-2 - Electrical retrofit build 2: plain-English working lines (every Electrical category + HVAC Raceway / Cables) and the 28 field notes (Electrical v68) - as built 2026-10-28
+
+Desktop session, delegated by the laptop. Recon: ELR-R0 (E2 notes, E4 internal names, the workbook "InternalNames"
+sheet) and ELR-1. Owner rulings carried: R-SCOPE (2026-10-27 16:54, "5 -ok 6 - ok 7- ok"), R-WORD (22:48, "6 ok": the
+InternalNames pattern), R-MISC (22:48, "it will be used in the BCS leg..let it be"), R-NOTES-RULE, R-NOTE-STYLE (23:00,
+"both ok"), R-13 ("A is ok"). One planned Phase A STOP; the owner answered (relayed 12:27) "(B): all as recommended -
+the 28 notes, D1-D8, C1-C3, today's item text, Q3 (a), Q4 (a; the two extra files approved, display-only, replay must
+stay byte-equal) - EXCEPT" notes 8 and 10 (his wording); and amended before commit 1 (13:41): notes 8 / 9 (his
+wording), notes 11 / 12 in the same pattern because the conductor floor covers circuit wires, and "Record in the
+report, for ELR-R2: the calculator applies no three-conductor floor (only extraction does)".
+
+### 1. Phase A (read-only)
+- P1: HEAD 6b1659127, tree = 4 noise; HVAC v54 31631135 / e9d3689a and Electrical v67 784d1dbe / 6f9e486a live == file;
+  replay 18,106 rows cmp-equal to ELR-R1's.
+- P2: 80 internal-name lines (category x key) on 16,992 Electrical-engine rows, panel = calculator line for line; built
+  at pricingSheetHelper.ts:1645 (ELR-R0's ~1591); only `rate_ref` and `component_ref` emit them. All 80 fall under an
+  ELR-R0 template row, 14 under its five "(owner to word)" rows (MCB n, Socket n x2, Wire n, Circuit wire n). The
+  approved pattern left these open (decided at the STOP): D1 MCB 1-5 and D2 Socket 1-4 take the bound field's label;
+  D3 Wire 1 / 2, Circuit wire 1 / 2 (two bound fields each), D4 point-wiring Conduit, D5 Blank plate, D6 Back box (both
+  categories), D7 the industrial Socket take a `display_label` on the step (Q3 (a)); D8 the bus bar (a formula
+  component: no field, no quantity) reads "Bus bar = 0". C1 the field label "Frame/Face plate"; C2 the input's own
+  hyphen "floor-cutting"; C3 Indian grouping, at most 2 decimals. Item text = today's.
+- P3: typed + rendered + mandatory = 30 = the 28 + wiring Runs + HVAC Cables Runs; the 28 == ELR-1's pinned list.
+
+### 2. Built (commit 1 `05c944f94`, feat; commit 2 `1085190fb`, test)
+- `attributeWorkingLines.ts` (new): the one labels mechanism. `pricingInputLine` takes the input's own `name` with its
+  trailing column words (`PRICING_INPUT_COLUMN_LABELS`) swapped for this line's word, % for a percentage column, an
+  amount as "<name> (<unit>) = Rs <v> per metre"; `componentLabel` = the step's `display_label`, else the label of the
+  field bound under `ref.item`; anything unnamed -> "(unnamed input) = <value>". pricingSheetHelper builds every
+  attribute-path `matchedRows` line through it (panel and calculator).
+- `ratePipelineInterpreter.ts` / `rateMasterTypes.ts`: a display-only `qty` on the component_ref trace (Q4 (a)).
+- Electrical v68 = v67 + the 28 notes + `display_label` on 28 component-step copies (11 components x their pipelines).
+  AssetDiff 56 entries, items identical. Import gate PASS (13 configs); mint gate "No atoms disappeared. PASS";
+  `--latest` disjoint PASS; stub proof: the model's question byte-identical v67 / v68 on all 15 groups (13 distinct).
+  Loaded twice (13:14 `rmbulk-10c3b87b1753`, then after the 13:41 amendment `rmbulk-4d6f698965e5`, pre-load snapshots
+  BRMS-26-00184 / 00185); live == file.
+- The 28 notes as shipped (category | field | note):
+  - DB qty: How many DBs of this type the row supplies, e.g. 2 for "2 Nos 8-way SPN DB". Leave 1 if the BoQ names a
+    single DB.
+  - MCB 1-5 qty: How many of this breaker the DB holds in total, e.g. 30 for 10 per phase on a TPN DB. Leave 1 if the
+    BoQ names the breaker without a count.
+  - Enclosure qty: How many separate enclosure boxes the row supplies, e.g. 2 for "2 Nos MCB enclosure box". Leave 1 if
+    the BoQ names one enclosure.
+  - Point wiring Wire 1 - runs (owner): How many runs of this wire the point carries, e.g. 3 for '3R x 1.5 sqmm'. Point
+    wiring is always three conductors in total: if the BoQ gives one bare size, enter 3; if it gives two sizes, the
+    larger wire takes 2 runs and the other takes 1.
+  - Wire 2 - runs (owner): How many runs of the second wire the point carries, usually 1, e.g. the earth in '2 x 1.5 +
+    1.5 earth'. Wire 1 and wire 2 together must make three conductors.
+  - Points covered (owner): How many points this row's rate covers, e.g. 3. With no length on the BoQ, the wire length
+    is worked out from the number of points. Leave 1 if the BoQ names a single point.
+  - Circuit wire 1 - runs (derived from the owner's 8 / 9 pattern): How many runs of the circuit wire from the DB the
+    row carries, e.g. 3 for '3R x 6 sqmm'. The circuit is always three conductors in total: if the BoQ gives one bare
+    size, enter 3; if it gives two sizes, the larger wire takes 2 runs and the other takes 1.
+  - Circuit wire 2 - runs (derived): How many runs of the second circuit wire the row carries, usually 1, e.g. the earth
+    in '2 x 6 + 6 earth'. Circuit wire 1 and circuit wire 2 together must make three conductors.
+  - Point wiring Switch / Socket / Plate qty, Pop-up Module count / Switch / Socket 1-4 / Plate qty, Switches & sockets
+    Switch / Socket 1-4 / Plate qty: as approved (workbook "Notes"; panelFieldAudit.test.ts APPROVED_NOTES).
+- Tests: `attributeWorkingLines.test.ts` (10: the approved PI examples, a SCRATCH rename through the product, the
+  "(unnamed input)" negative, the label sources, the qty / formula / unnamed component lines, THE PERMANENT SWEEP over a
+  14-row real fixture `pricing/__fixtures__/elr2WorkingLines.json` reaching all 80 line kinds and over every catalogue
+  SKU, panel and calculator, 0 "other" and 0 snake_case, and two source pins). `panelFieldAudit.test.ts` INVERTED (WAS
+  28 named missing; NOW 0, enforced for every Electrical category, the approved texts pinned, panel + calculator, a
+  negative per category). Pins (block 57): CURRENT_EALL_ASSET v67 -> v68 + its two literal asserts; the latest-asset
+  pins forgive exactly v68's declared additions through a NAMED normaliser (`_without_elr2_notes_and_labels`, folded
+  into `_without_elr1_runs_note`); the pw1 bill-line pin inverted (no internal name). Commit 2 corrects my own commit-1
+  pin edit (F25Slice3's ss_now must stay raw for test_f25s3_11).
+- Vacuity (one line at a time, restored sha-equal): the helper's call (4 red), display_label (3), the trace qty (2), the
+  PI name read (5).
+
+### 3. Proofs and counts
+- AC2 sweep over the end replay dump: 16,995 rows in scope, 16,992 harnessed, 0 "other", 0 internal-key lines, 0
+  snake_case in any shown line; per category in the workbook "Sweep". Built == approved: 158 of the 160 lines rendered
+  at the STOP appear exactly; the 2 are D6 ("Back box", not "Back box size").
+- Replay (tracked rig): `elr2end` (13:40) and `elr2final` (16:26, v68 as loaded) byte-equal to `elr2start` on ac7
+  `342ec51c...` and ac7v2 `2b4fd389...`: 0 figure moves on 18,106 rows. Item-list path (AC6): Insulation 142 rows /
+  1,697 working lines, Piping 106 / 2,673, ADP 843 / 1,723, 0 rows differ.
+- Suites (scoped, measured in-session; before = ELR-1's saved logs at 9f5364011): Python 87 modules / 4,479 OK -> 87 /
+  4,479 OK; vitest boq-wizard + pricing 135 / 5,700 -> 136 / 5,713, 0 failed; tsc 0 new (3,050) before and after.
+- Browser cert (desktop Chrome, :8080, after the full de-stale; ping after 235 s): C1 00183 r68 every line plain,
+  5,930 / 1,190; C2 the calculator, the same 13 lines and figures; C3 00183 r12 (170 / 40) and 00174 r251 (1,775 / 358)
+  with their notes, the calculator's 28 notes; C4 00139 r732 (7,800 / 920) + the DB notes; C5 00174 r309 (1,504 / 380)
+  and 00325 r319 (514 / 100); C6 00174 r488 "Miscellaneous supply BCS ratio = 80%"; C7 proved by test (a browser rename
+  would write the live catalogue); C8 00325 r178 ADP and 00355 r50 Insulation working lines = the replay's. Read by DOM
+  (the tool's screenshot capture timed out); text with "&" and "=" read escaped (the tool redacts it otherwise).
+
+### 4. Open / for later slices
+- ELR-R2 (owner 13:41): the calculator applies NO three-conductor floor; only extraction does
+  (`extraction.apply_conductor_floor`). A calculator user can price fewer than three conductors. The amended notes say
+  the rule; the code does not enforce it there.
+- The notes do not cover a MULTI-core wire: there the floor adds a 1-core second wire of the same size.
+- ELR-3: the plate default (V1 / V2). ELR-4: the other 11 rules lists.
+- The slice has three commits, not two (commit 2 fixes my own pin edit; commit 1 was already synced, so no amend).
