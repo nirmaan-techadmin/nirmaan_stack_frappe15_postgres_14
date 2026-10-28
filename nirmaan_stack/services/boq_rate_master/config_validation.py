@@ -197,6 +197,11 @@ _KNOWN_CONFIG_KEYS = {
     # through it would reword the formula row -- the owner asked for the structure to vary per
     # category, and this is the lever that does only that. Validated by `_validate_column_order`.
     "column_order",
+    # ELR-3a (owner R-9, Q5): `impact_examples` = [{id, name, source?, attrs, no_change_reason?}] -- the worked examples
+    # the Pricing Input impact panel prices for an input that moves no SKU's own rate (point wiring's lengths and conduit
+    # fills). Real stored row shapes; each attr must be one of the category's declared attributes. Validated by
+    # `_validate_impact_examples`; absent from every other config, which is therefore byte-identical.
+    "impact_examples",
     # SLICE 12d-2 (owner S1, 2026-10-07): `calculator_only` is RETIRED. It was the 12c FINISH / FA7
     # temporary calculator admission (one category, one slice), with a declared removal condition --
     # "the slice that makes the category fully eligible REMOVES this key in the same change, so there
@@ -2294,6 +2299,46 @@ def pricing_input_ranges(configs):
     return out
 
 
+_IMPACT_EXAMPLE_KEYS = {"id", "name", "source", "attrs", "no_change_reason"}
+
+
+def _validate_impact_examples(cfg):
+    """ELR-3a -- `impact_examples`, refused BY NAME: a list of objects, each with a unique string id, a name and an
+    `attrs` object whose every key is a declared attribute id (an undeclared one would be read by nothing and the
+    example would price something other than what it names); `source` / `no_change_reason`, when present, are text."""
+    ex = cfg.get("impact_examples")
+    if ex is None:
+        return
+    if not isinstance(ex, list) or not ex:
+        _vthrow("impact_examples must be a non-empty list of examples.")
+    defs = {d.get("id") for d in (cfg.get("attribute_definitions") or []) if isinstance(d, dict)}
+    seen = set()
+    for i, e in enumerate(ex):
+        where = "impact_examples[%d]" % i
+        if not isinstance(e, dict):
+            _vthrow("%s must be an object." % where)
+        unknown = set(e) - _IMPACT_EXAMPLE_KEYS
+        if unknown:
+            _vthrow("%s carries unknown key(s): %s." % (where, ", ".join(sorted(unknown))))
+        for key in ("id", "name"):
+            if not isinstance(e.get(key), str) or not e.get(key).strip():
+                _vthrow("%s needs a non-empty string '%s'." % (where, key))
+        if e["id"] in seen:
+            _vthrow("%s repeats the id '%s'." % (where, e["id"]))
+        seen.add(e["id"])
+        for key in ("source", "no_change_reason"):
+            if key in e and (not isinstance(e[key], str) or not e[key].strip()):
+                _vthrow("%s '%s', when present, must be non-empty text." % (where, key))
+        attrs = e.get("attrs")
+        if not isinstance(attrs, dict) or not attrs:
+            _vthrow("%s needs a non-empty 'attrs' object." % where)
+        for k, v in attrs.items():
+            if k not in defs:
+                _vthrow("%s ('%s'): attribute '%s' is not declared by this category." % (where, e["id"], k))
+            if not isinstance(v, (str, int, float)) or isinstance(v, bool):
+                _vthrow("%s ('%s'): attribute '%s' must be a text or a number." % (where, e["id"], k))
+
+
 def _validate_assembly_ctx_arms(s, st, arms, rate_ref_results, where):
     """ELR-3a -- the four assembly-step arms on one step. Refuses BY NAME: a literal and its `_from_ctx` together (a
     replacement, never a merge -- letting one win is how a migrated value silently keeps its old number); a shape the
@@ -2406,6 +2451,7 @@ def _validate_config(cfg):
     _validate_derived_rates(cfg)      # SLICE 12a: the derived-cost declaration; a no-op without the key
     _validate_rate_composition(cfg)   # SLICE 12a: the cost-parts composition; a no-op without the key
     _validate_column_order(cfg)       # SLICE 12c FINISH: the presentation order; a no-op without the key
+    _validate_impact_examples(cfg)    # ELR-3a: the impact panel's worked examples; a no-op without the key
     # SLICE 12d-2: `_validate_calculator_only` is GONE with its key -- the allowlist refuses the key by name.
 
     # attribute_definitions ------------------------------------------------------------------

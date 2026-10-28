@@ -334,7 +334,9 @@ PIPELINE_KEYS = {"cable_boq", "termination_boq", "cable_bcs", "termination_bcs"}
 # ELR-1 (2026-10-27): v66 -> v67, the wiring_cabling `runs` note (owner R-NOTE A); nothing else in the asset moved.
 # ELR-2 (2026-10-28): v67 -> v68, the 28 field notes (owner Phase A answer) and the display_label of 11 components
 # with no single bound field (owner D3-D7, Q3 (a)); no item, rate or step arithmetic moved.
-CURRENT_EALL_ASSET = "rate_master_electrical_all_v68.json"
+# ELR-3a (2026-10-28): v68 -> v69, the nine assembly-step Pricing Inputs (owner R-9, R-R1 Q1 / Q2 / Q8), point_wiring's
+# 12 literals moved to the arms, and `impact_examples` E1-E7; 0 figures moved (replay byte-equal on 18,106 rows).
+CURRENT_EALL_ASSET = "rate_master_electrical_all_v69.json"
 
 # SLICE 12b(A): the two counts the slice MOVED, named so every assertion says WHY it is what it is.
 #
@@ -342,7 +344,8 @@ CURRENT_EALL_ASSET = "rate_master_electrical_all_v68.json"
 # asset is loaded. They are the same number by construction (the loader is wholesale), and that is the
 # point: an assertion that meant "EALL_ITEMS" in one sense and "1400" in the other would be a divergence
 # nobody could see. Retiring a count by editing the digit loses the reason; a named constant keeps it.
-EALL_ITEMS = 1402       # 1400 -> 1402: slice 12b(B) added tray_discount + jb_discount.
+EALL_ITEMS = 1411       # 1400 -> 1402: slice 12b(B) added tray_discount + jb_discount. ELR-3a (v69): 1402 -> 1411, the
+#                         nine assembly-step Pricing Inputs (owner R-9; WAS 1402).
 EALL_CONFIGS = 13       # 12 -> 13: the new `electrical_pricing_inputs` category.
 # ⚠️ AND A THIRD NUMBER, WHICH IS NOT EITHER OF THE ABOVE AND MUST NOT BE CONFLATED WITH THEM.
 # The ALL-CATEGORIES rate file deliberately EXCLUDES the Pricing Inputs (acceptance 15), because a
@@ -350,7 +353,7 @@ EALL_CONFIGS = 13       # 12 -> 13: the new `electrical_pricing_inputs` category
 # make that file's column space meaningless. So the catalogue holds 1400 items while the mode-B file
 # holds 1367 rows, and both numbers are correct. Naming them separately is the only way a reader can
 # tell "the catalogue grew" from "the shared file should not have".
-EALL_ITEMS_IN_ALL_FILE = 1367   # EALL_ITEMS minus the 35 Pricing Inputs, which never join that file.
+EALL_ITEMS_IN_ALL_FILE = 1367   # EALL_ITEMS minus the 44 Pricing Inputs (35 until ELR-3a), which never join that file.
 PRICING_INPUTS_CATEGORY = "electrical_pricing_inputs"   # the 13th: item-only, no pipelines, never prices a row
 # The twelve that DO price. Slice 12b(A) removed a migrated literal from every one of them, so a
 # cumulative "which categories moved" pin now names all twelve -- that IS the pin doing its job.
@@ -632,7 +635,7 @@ def _without_elr1_runs_note(cfg):
         for d in c.get("attribute_definitions") or []:
             if d.get("id") == "runs":
                 d.pop("note", None)
-    return _without_elr2_notes_and_labels(c)
+    return _without_elr3a_assembly_inputs(_without_elr2_notes_and_labels(c))
 
 
 # ELR-2 (owner Phase A answer + the 13:41 amendment, 2026-10-28; v68): the 28 field notes and the `display_label` of the
@@ -663,6 +666,62 @@ def _without_elr2_notes_and_labels(cfg):
             if st.get("step") == "component_ref" and st.get("name") in ELR2_DISPLAY_LABELS.get(cid, ()):
                 st.pop("display_label", None)
     return c
+
+
+# ELR-3a (owner R-9, R-R1 Q1 / Q2 / Q8; v69): the nine assembly-step Pricing Inputs and point_wiring's declared change --
+# the 12 literals read through the four arms, 27 appended rate_ref steps, the step prose of steps 0 / 1 / 7 naming the
+# inputs, `impact_examples`. NAMED, so a latest-asset pin forgives exactly these and nothing else.
+ELR3A_INPUTS = ("pw_circuit_length_first", "pw_circuit_length_further", "pw_circuit_stretch",
+                "conduit_fill_pvc_25", "conduit_fill_pvc_32", "conduit_fill_pvc_50",
+                "conduit_fill_ms_25", "conduit_fill_ms_32", "conduit_fill_ms_50")
+ELR3A_LITERALS = {"table_from_ctx": ("table", {"Primary": 15, "Secondary": 5}),
+                  "constants_from_ctx": ("constants", {"base": 15, "per_extra": 5}),
+                  "default_from_ctx": ("default", 30),
+                  "usable_from_ctx": ("usable", {"PVC": [0.55, 0.55, 0.55], "MS": [0.45, 0.45, 0.47]})}
+_ELR3A_PROSE = {}
+
+
+def _elr3a_prose():
+    """{v69 explain: v68 explain} for point_wiring's steps 0 / 1 / 7 -- read from the two committed assets, never retyped."""
+    if not _ELR3A_PROSE:
+        with open(_asset_path("rate_master_electrical_all_v68.json"), encoding="utf-8") as fh:
+            old = [c for c in json.load(fh)["category_configs"] if c["category_id"] == "point_wiring"][0]
+        with open(_asset_path("rate_master_electrical_all_v69.json"), encoding="utf-8") as fh:
+            new = [c for c in json.load(fh)["category_configs"] if c["category_id"] == "point_wiring"][0]
+        for pid in ("pw_boq_supply", "pw_boq_install", "pw_bcs"):
+            for i in (0, 1, 7):
+                _ELR3A_PROSE[new["pipelines"][pid]["steps"][i]["explain"]] = old["pipelines"][pid]["steps"][i]["explain"]
+    return _ELR3A_PROSE
+
+
+def _without_elr3a_assembly_inputs(cfg):
+    """ELR-3a (v69): point_wiring's declared change normalised away -- each arm back to the literal it replaced (in place,
+    key order kept), the 27 rate_ref steps reading the nine inputs dropped, the step prose back to v68's, the examples
+    dropped. Any OTHER difference still fails the pin that uses this."""
+    if cfg.get("category_id") != "point_wiring":
+        return cfg
+    c = json.loads(json.dumps(cfg))
+    c.pop("impact_examples", None)
+    prose = _elr3a_prose()
+    for pl in (c.get("pipelines") or {}).values():
+        if not isinstance(pl, dict):
+            continue
+        pl["steps"] = [st for st in (pl.get("steps") or [])
+                       if not (st.get("step") == "rate_ref" and (st.get("ref") or {}).get("item") in ELR3A_INPUTS)]
+        for st in pl["steps"]:
+            p = st.get("params")
+            if isinstance(p, dict) and any(k in p for k in ELR3A_LITERALS):
+                st["params"] = {(ELR3A_LITERALS[k][0] if k in ELR3A_LITERALS else k):
+                                (ELR3A_LITERALS[k][1] if k in ELR3A_LITERALS else v) for k, v in p.items()}
+            if st.get("explain") in prose:
+                st["explain"] = prose[st["explain"]]
+    return c
+
+
+def _without_elr3a_input_items(items):
+    """ELR-3a (v69): the catalogue without the nine assembly-step Pricing Inputs."""
+    return [it for it in items if not (str(it.get("kind") or "").endswith(_PI_KIND_SUFFIX)
+                                       and (it.get("attributes") or {}).get("item") in ELR3A_INPUTS)]
 
 
 def _without_pricing_input_items(items):
@@ -8949,17 +9008,40 @@ class TestPointWiringCircuitStretch(FrappeTestCase):
         prev_defs = {d["id"]: d for d in prev["attribute_definitions"]}
         now_defs = {d["id"]: d for d in cfg["attribute_definitions"]}
         self.assertEqual(now_defs["circuit_length_m"], prev_defs["circuit_length_m"])
+        # ELR-3a (owner R-9, Q8; mechanical authority): the 15 / 5 moved from literals to TWO Pricing Inputs. WAS
+        # stretch_steps(cfg) == stretch_steps(v50) and table {Primary: 15, Secondary: 5} / constants {base: 15,
+        # per_extra: 5} as literals. NOW the same two steps, with the literals RESOLVED from the inputs they name, equal
+        # v50's -- and the inputs hold 15 and 5. The NEGATIVE half is kept: the point stretch is still the only thing
+        # these steps write, and no circuit component reads it (below).
+        def resolved(st, inputs):
+            st = copy.deepcopy(st)
+            st.pop("explain", None)
+            p = st["params"]
+            if "table_from_ctx" in p:
+                p["table"] = {k: inputs[v] for k, v in p.pop("table_from_ctx").items()}
+            if "constants_from_ctx" in p:
+                p["constants"] = {k: inputs[v] for k, v in p.pop("constants_from_ctx").items()}
+            return st
+        inputs = {"pi_%s_factor" % it["attributes"]["item"]: it["rates"].get("factor")
+                  for it in self._payload()["items"] if it["kind"] == "electrical_pricing_input"}
+        self.assertEqual(inputs["pi_pw_circuit_length_first_factor"], 15)
+        self.assertEqual(inputs["pi_pw_circuit_length_further_factor"], 5)
         for pid in self.ASSEMBLY:
             def stretch_steps(c):
                 return [s for s in c["pipelines"][pid]["steps"]
                         if (s.get("params") or {}).get("result_attr") == "circuit_length_m"]
-            self.assertEqual(stretch_steps(cfg), stretch_steps(prev), pid)
+            self.assertEqual([resolved(st, inputs) for st in stretch_steps(cfg)],
+                             [dict((k, v) for k, v in st.items() if k != "explain") for st in stretch_steps(prev)], pid)
             # and spelled out, so a reader of this test knows WHAT is being protected
             m, d = stretch_steps(cfg)
-            self.assertEqual(m["params"]["table"], {"Primary": 15, "Secondary": 5})
+            self.assertEqual(m["params"]["table_from_ctx"], {"Primary": "pi_pw_circuit_length_first_factor",
+                                                             "Secondary": "pi_pw_circuit_length_further_factor"})
+            self.assertNotIn("table", m["params"])
             self.assertEqual(m["params"]["prefer_attr"], "circuit_length_m")
             self.assertEqual(d["params"]["formula"], "base + (points - 1) * per_extra")
-            self.assertEqual(d["params"]["constants"], {"base": 15, "per_extra": 5})
+            self.assertEqual(d["params"]["constants_from_ctx"], {"base": "pi_pw_circuit_length_first_factor",
+                                                                 "per_extra": "pi_pw_circuit_length_further_factor"})
+            self.assertNotIn("constants", d["params"])
         # no circuit component anywhere may read the point stretch as its quantity
         for pid, pl in cfg["pipelines"].items():
             for s in pl["steps"]:
@@ -9027,7 +9109,9 @@ class TestPointWiringCircuitStretch(FrappeTestCase):
         conduit; adding the circuit wires to `wire_specs` would enlarge the conduit -- and change the
         price -- on every point wiring row, including rows with no circuit wiring at all."""
         prev = self._prev_cfg()
-        cfg = self._cfg()
+        # ELR-3a (mechanical authority): WAS self._cfg() verbatim; v69 reads the six fills through usable_from_ctx, so
+        # the declared change is normalised away and every other byte is still compared
+        cfg = _without_elr3a_assembly_inputs(self._cfg())
         for pid in self.ASSEMBLY:
             now = [s for s in cfg["pipelines"][pid]["steps"] if s["step"] == "circuit_fit"][0]
             was = [s for s in prev["pipelines"][pid]["steps"] if s["step"] == "circuit_fit"][0]
@@ -9316,7 +9400,7 @@ class TestPointWiringCircuitStretch(FrappeTestCase):
         with open(_asset_path("rate_master_electrical_all_v51.json"), "r", encoding="utf-8") as fh:
             prev = [c for c in json.load(fh)["category_configs"]
                     if c["category_id"] == "point_wiring"][0]
-        cfg = self._cfg()
+        cfg = _without_elr3a_assembly_inputs(self._cfg())   # ELR-3a (mechanical authority): WAS self._cfg() verbatim
         for pid in _PW_ASSEMBLY_PIPELINES:
             def conduit_steps(c):
                 return [s for s in c["pipelines"][pid]["steps"]
@@ -11103,7 +11187,8 @@ class TestIncludesModulesGate(FrappeTestCase):
         # unchanged by that too -- which is what this pin says.
         # ELR-1 (v67, the Runs note): bumped. WAS "rate_master_electrical_all_v66.json"; the gate is unchanged by v67 too.
         # ELR-2 (v68, the notes + display labels): bumped. WAS "rate_master_electrical_all_v67.json"; the gate is unchanged.
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v68.json")
+        # ELR-3a (v69, the assembly-step inputs): bumped. WAS "rate_master_electrical_all_v68.json"; the gate is unchanged.
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v69.json")
         fits = {}
         goldens = asset.get("goldens") or {}
         for c in asset["category_configs"]:
@@ -12191,7 +12276,8 @@ class TestHvacAssetSlice1b(FrappeTestCase):
         # are the ones carrying the real weight; this line is a deliberate per-mint bump.
         # ELR-1 (v67, the Runs note): bumped. WAS "rate_master_electrical_all_v66.json".
         # ELR-2 (v68, the notes + display labels): bumped. WAS "rate_master_electrical_all_v67.json".
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v68.json")
+        # ELR-3a (v69, the assembly-step inputs): bumped. WAS "rate_master_electrical_all_v68.json".
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v69.json")
         data_dir = os.path.dirname(_asset_path(CURRENT_EALL_ASSET))
         names = sorted(os.listdir(data_dir))
         # each series resolved on its own (owner ruling, slice 1c, INVERTING the 1b first-version pin): the HVAC
@@ -15373,7 +15459,10 @@ class TestPricingInputs(FrappeTestCase):
         # ⚠️ INVERTED at slice 12b(B), not edited blind: 33 -> 35. The owner ruled two 0% discounts on
         # 2026-09-27 (cable tray, junction box) and 12b(A) never built them -- a DROPPED RULING. The two
         # new rows are named so a THIRD addition still fails this pin rather than sliding past it.
-        self.assertEqual(len(inputs), 35, "the approved table has 35 rows (33 + tray_discount + jb_discount)")
+        # ELR-3a (owner R-9; mechanical authority): WAS 35. v69 adds the nine assembly-step inputs, named below so a
+        # tenth addition still fails this pin.
+        self.assertEqual(len(inputs), 44, "the approved table has 44 rows (33 + tray_discount + jb_discount + ELR-3a's 9)")
+        self.assertEqual({(i.get("attributes") or {}).get("item") for i in inputs} & set(ELR3A_INPUTS), set(ELR3A_INPUTS))
         self.assertEqual({(i.get("attributes") or {}).get("item") for i in inputs}
                          & {"tray_discount", "jb_discount"},
                          {"tray_discount", "jb_discount"},
@@ -15810,15 +15899,16 @@ class TestRateColumnLabels12bB(FrappeTestCase):
         with open(_asset_path("rate_master_electrical_all_v65.json"), encoding="utf-8") as fh:
             old = json.load(fh)
         o = {i["item_uid"]: i for i in old["items"] if i["kind"] != "cable_tray"}
-        n = {i["item_uid"]: i for i in new["items"] if i["kind"] != "cable_tray"}
+        # ELR-3a (mechanical authority): WAS new["items"] verbatim; v69's nine added inputs are normalised off the NEW side
+        n = {i["item_uid"]: i for i in _without_elr3a_input_items(new["items"]) if i["kind"] != "cable_tray"}
         self.assertEqual(set(o), set(n))
         for uid in o:
             self.assertEqual(json.dumps(n[uid], sort_keys=True), json.dumps(o[uid], sort_keys=True),
                              "%s changed" % uid)
         keys_old = {}
         keys_new = {}
-        for src, dst in ((old, keys_old), (new, keys_new)):
-            for i in src["items"]:
+        for src, dst in ((old["items"], keys_old), (_without_elr3a_input_items(new["items"]), keys_new)):  # ELR-3a: as above
+            for i in src:
                 if i["kind"] == "cable_tray":
                     continue
                 dst.setdefault(i["kind"], set()).update((i.get("rates") or {}).keys())
@@ -16636,11 +16726,13 @@ class TestRateAndFactorColumns(FrappeTestCase):
         """ACCEPTANCE 13, the half that matters most: the blank-column filter means a discipline whose
         inputs carry neither column never sees them. This is the FACT that makes it true."""
         pis = [i for i in self.eall["items"] if csv_exporter.is_pricing_input_kind(i["kind"])]
-        self.assertEqual(len(pis), 35)
+        # ELR-3a (owner R-R1 Q2 "the existing factor value column with a unit"; mechanical authority): WAS 35 inputs and
+        # NEITHER column on any. NOW 44, and `factor` on EXACTLY the nine assembly-step inputs; `rate` still on none.
+        self.assertEqual(len(pis), 44)
         for i in pis:
-            for c in ("rate", "factor"):
-                self.assertNotIn(c, (i.get("rates") or {}),
-                                 "%s carries %s -- Electrical's file would grow a column" % (i["item_uid"], c))
+            item = (i.get("attributes") or {}).get("item")
+            self.assertNotIn("rate", (i.get("rates") or {}), "%s carries rate -- Electrical's file would grow a column" % i["item_uid"])
+            self.assertEqual("factor" in (i.get("rates") or {}), item in ELR3A_INPUTS, "%s / factor" % item)
 
     def test_rf_05_the_blank_column_filter_is_STILL_THERE_at_both_sites(self):
         """⚠️ OWNER RULING 1 REVERSED THE DESIGN, which had called for deleting this filter. Removing it
@@ -16660,10 +16752,12 @@ class TestRateAndFactorColumns(FrappeTestCase):
         out = csv_exporter.build_category_rows("Electrical", cfg["category_id"])
         headers = out["headers"]
         self.assertNotIn("rate", headers)
-        self.assertNotIn("factor", headers)
+        # ELR-3a (owner Q2; mechanical authority): WAS assertNotIn("factor") and n == 35. NOW the nine assembly-step
+        # inputs carry `factor`, so the file has the column; `rate` is still absent.
+        self.assertIn("factor", headers)
         for c in ("discount", "supply_markup", "amount"):
             self.assertIn(c, headers)
-        self.assertEqual(out["n"], 35)
+        self.assertEqual(out["n"], 44)
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -17583,7 +17677,10 @@ class TestServedRatesAreStored(FrappeTestCase):
         # INVERTED at ADP-1 (owner H4 / A4): BEFORE 379 -- two per-number plenum SKUs retired, three ADP inputs added
         # INVERTED at ADP-5c (HVAC v53; standing authority for this slice: a test failing solely because it names the current HVAC asset) by mechanical authority: BEFORE 380 -- the VCD Aluminium SKU added
         self.assertEqual(sum(v for (d, _k), v in counts.items() if d == "HVAC"), 381)   # 12e-1: 335 + 40; 12e-2: + 4 inputs; ADP-1: - 2 + 3; ADP-5c: + 1
-        self.assertEqual(sum(v for (d, _k), v in counts.items() if d == "Electrical"), 1402)
+        # ELR-3a (owner R-9; mechanical authority): WAS 1402. v69 is live with the nine assembly-step Pricing Inputs, so the
+        # served Electrical total is EALL_ITEMS (1411); the per-item byte-for-byte check above is unchanged.
+        self.assertEqual(sum(v for (d, _k), v in counts.items() if d == "Electrical"), EALL_ITEMS)
+        self.assertEqual(counts[("Electrical", "electrical_pricing_input")], 44)   # ELR-3a: 35 + the nine
 
     def test_sv_02_the_display_figure_is_SERVED_in_its_own_map_and_the_GI_rows_still_get_555(self):
         """The grid still shows the live figure (owner F4 of 12c FINISH is intact): `computed_rates` carries

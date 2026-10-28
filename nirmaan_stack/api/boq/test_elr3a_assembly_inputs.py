@@ -403,3 +403,131 @@ class TestElr3aReadBack(FrappeTestCase):
         with mock.patch.object(extraction.frappe, "get_all", return_value=rows[:1]):
             self.assertIsNone(extraction.secondary_length_per_point())
         self.assertEqual(extraction.SECONDARY_LENGTH_INPUT, "pw_circuit_length_further")
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+# COMMIT 2 -- Electrical v69 (AC2), the examples key, the model's question (AC6 stub proof), and the live round trip (AC3)
+# ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+_V69 = "rate_master_electrical_all_v69.json"
+_NAMES = {
+    "pw_circuit_length_first": ("Point wiring - circuit length of the first point", 15, "m"),
+    "pw_circuit_length_further": ("Point wiring - circuit length per further point", 5, "m"),
+    "pw_circuit_stretch": ("Point wiring - circuit wiring stretch, DB to the first point", 30, "m"),
+    "conduit_fill_pvc_25": ("Conduit fill - PVC 25 mm", 0.55, "fraction of the bore"),
+    "conduit_fill_pvc_32": ("Conduit fill - PVC 32 mm", 0.55, "fraction of the bore"),
+    "conduit_fill_pvc_50": ("Conduit fill - PVC 50 mm", 0.55, "fraction of the bore"),
+    "conduit_fill_ms_25": ("Conduit fill - MS 25 mm", 0.45, "fraction of the bore"),
+    "conduit_fill_ms_32": ("Conduit fill - MS 32 mm", 0.45, "fraction of the bore"),
+    "conduit_fill_ms_50": ("Conduit fill - MS 50 mm", 0.47, "fraction of the bore"),
+}
+
+
+class TestElr3aV69(FrappeTestCase):
+    """AC2: v69 = v68 + the nine inputs + point_wiring's declared change, and nothing else."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.v68, cls.v69 = _asset(), _asset(_V69)
+
+    def test_01_items_are_v68_plus_nine_and_no_other_item_changes(self):
+        old = {it["item_uid"]: it for it in self.v68["items"]}
+        new = {it["item_uid"]: it for it in self.v69["items"]}
+        self.assertEqual(set(old) - set(new), set())
+        for uid, it in old.items():
+            self.assertEqual(new[uid], it, uid)                 # the 1,367 SKUs and the 35 existing inputs, byte for byte
+        added = [new[u] for u in sorted(set(new) - set(old))]
+        self.assertEqual(len(added), 9)
+        got = {it["attributes"]["item"]: (it["attributes"]["name"], it["rates"], it["unit"], it["kind"]) for it in added}
+        self.assertEqual(got, {k: (n, {"factor": v}, u, "electrical_pricing_input") for k, (n, v, u) in _NAMES.items()})
+        self.assertEqual(len(new), 1411)
+
+    def test_02_only_point_wiring_changes_and_only_as_declared(self):
+        old = {c["category_id"]: c for c in self.v68["category_configs"]}
+        new = {c["category_id"]: c for c in self.v69["category_configs"]}
+        self.assertEqual(set(old), set(new))
+        for cid in old:
+            if cid != "point_wiring":
+                self.assertEqual(new[cid], old[cid], cid)
+        self.assertEqual(sorted(k for k in self.v69 if k != "category_configs" and k != "items"),
+                         sorted(k for k in self.v68 if k != "category_configs" and k != "items"))
+        for k in self.v68:
+            if k not in ("category_configs", "items"):
+                self.assertEqual(self.v69[k], self.v68[k], k)
+        # point_wiring: the twelve literals became references, 27 rate_ref appended, impact_examples added -- nothing else
+        expect = _moved_configs(self.v68)["point_wiring"]
+        got = copy.deepcopy(new["point_wiring"])
+        self.assertEqual([e["id"] for e in got.pop("impact_examples")], ["E1", "E2", "E3", "E4", "E5", "E6", "E7"])
+        for pid in _PIPES:
+            for s_got, s_exp in zip(got["pipelines"][pid]["steps"], expect["pipelines"][pid]["steps"]):
+                s_got.pop("explain", None), s_exp.pop("explain", None)
+            self.assertEqual(got["pipelines"][pid]["steps"], expect["pipelines"][pid]["steps"], pid)
+        got.pop("pipelines"), expect.pop("pipelines")
+        self.assertEqual(got, expect)
+
+    def test_03_the_prose_names_the_input_instead_of_15_5_30(self):
+        pw = next(c for c in self.v69["category_configs"] if c["category_id"] == "point_wiring")
+        import re
+        for pid in _PIPES:
+            for s in pw["pipelines"][pid]["steps"]:
+                p = s.get("params") or {}
+                if s["step"] in ("map_attribute", "derive_attribute") and p.get("result_attr") in ("circuit_length_m", "circuit_wire_length_m"):
+                    self.assertIsNone(re.search(r"\b(15|5|30)\s*m\b|\b15/5\b|\b(15|5|30)\b(?! *SWG)", s["explain"]), (pid, s["explain"][:120]))
+                    self.assertTrue(any(n in s["explain"] for n, _v, _u in _NAMES.values()), pid)
+
+    def test_04_v69_validates_and_its_ranges_are_the_nine(self):
+        for c in self.v69["category_configs"]:
+            cv._validate_config(c)
+        self.assertEqual(cv.pricing_input_ranges({c["category_id"]: c for c in self.v69["category_configs"]}),
+                         {i: (cv.RANGE_FILL if i.startswith("conduit_fill") else cv.RANGE_LENGTH) for i in _NAMES})
+
+    def test_05_NEGATIVE_impact_examples_are_refused_by_name(self):
+        pw = next(c for c in self.v69["category_configs"] if c["category_id"] == "point_wiring")
+        for mutate, fragment in (
+                (lambda ex: ex[0]["attrs"].__setitem__("no_such_attr", 1), "attribute 'no_such_attr' is not declared"),
+                (lambda ex: ex[1].__setitem__("id", "E1"), "repeats the id 'E1'"),
+                (lambda ex: ex[2].__setitem__("colour", "x"), "unknown key(s): colour"),
+                (lambda ex: ex[3].pop("name"), "needs a non-empty string 'name'"),
+                (lambda ex: ex[4].__setitem__("attrs", {}), "needs a non-empty 'attrs' object"),
+                (lambda ex: ex.clear(), "must be a non-empty list")):
+            c = copy.deepcopy(pw)
+            mutate(c["impact_examples"])
+            with self.assertRaises(frappe.ValidationError) as cm:
+                cv._validate_config(c)
+            self.assertIn(fragment, str(cm.exception))
+
+    def test_06_STUB_PROOF_the_models_question_is_byte_identical_v68_v69(self):
+        """AC6: `_group_context` -- everything the extraction prompt is built from -- for every Electrical category and the
+        two HVAC aliases, v68 vs v69, byte for byte. No call is made."""
+        hv = _asset("rate_master_hvac_all_v54.json")
+        out = {}
+        for tag, a in (("v68", self.v68), ("v69", self.v69)):
+            configs = {("Electrical", c["category_id"]): dict(c, discipline="Electrical") for c in a["category_configs"]}
+            configs.update({("HVAC", c["category_id"]): dict(c, discipline="HVAC") for c in hv["category_configs"]})
+            out[tag] = {}
+            for (disc, cid) in sorted(configs):
+                if disc == "HVAC" and cid not in ("hvac_cables", "hvac_raceway"):
+                    continue
+                out[tag][cid] = json.dumps(extraction._group_context(configs, disc, cid), sort_keys=True, default=str)
+        self.assertEqual(set(out["v68"]), set(out["v69"]))
+        self.assertGreater(len(set(out["v68"].values())), 3, "the contexts hash alike -- the comparison would be vacuous")
+        for cid in out["v68"]:
+            self.assertEqual(out["v69"][cid], out["v68"][cid], cid)
+
+
+class TestElr3aLive(FrappeTestCase):
+    """AC3 / AC6 against the LIVE (dev) catalogue with v69 loaded. READ-ONLY: a download, a preview (`build_plan` never
+    writes) and a read of the input."""
+
+    def test_01_the_pricing_inputs_download_previews_as_ZERO_changes_nine_rows_included(self):
+        text, _h, n = csv_exporter.build_category_csv("Electrical", "electrical_pricing_inputs")
+        for name, _v, _u in _NAMES.values():
+            self.assertIn(name, text)
+        plan = csv_importer.build_plan("Electrical", text.encode("utf-8"), category_id="electrical_pricing_inputs")
+        self.assertEqual(plan.get("errors") or [], [])
+        counts = plan.get("counts") or {}
+        self.assertEqual((counts.get("unchanged"), counts.get("rates_changed"), counts.get("items_added")), (n, 0, 0))
+        self.assertEqual(n, 44)
+
+    def test_02_the_read_back_reads_the_live_input(self):
+        self.assertEqual(extraction.secondary_length_per_point(), 5.0)
