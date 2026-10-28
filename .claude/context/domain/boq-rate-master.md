@@ -2186,6 +2186,56 @@ owner-approved note (v68: the 28, the Runs note since v67). Point-wiring and cir
 three-conductor rule (owner R9, 2026-08-07, and the conductor floor, 2026-09-03). That floor is applied only at
 EXTRACTION (`extraction.apply_conductor_floor`); the calculator applies none, which is an open rule gap for ELR-R2.
 
+**ELR-3a: A STEP THAT BUILDS AN ASSEMBLY READS A PRICING INPUT THROUGH FOUR ARMS, AND ONLY THOSE (owner R-9, R-R1 Q1-Q8,
+2026-10-27 / 28).** `map_attribute` may carry `table_from_ctx` ({source value: ctx key}) and `default_from_ctx` (a ctx
+key); `derive_attribute` `constants_from_ctx` ({constant: ctx key}); `circuit_fit` `usable_from_ctx` ({conduit type:
+[one ctx key per size]}). Each REPLACES its literal (`table`, `default`, `constants`, `usable`): a step carrying both is
+refused by the validator at save and by the interpreter at run, never merged. The ctx keys are `rate_ref` results
+(`pi_<item>_<target>`) the mint APPENDS; the hoist runs them first. A key no `rate_ref` of the pipeline loads is refused
+at save naming it; a key never computed refuses the row naming it. `default_from_ctx` is resolved BEFORE the None-pick
+test reads the default (a stated "None" stretch is still kept). Any other `_from_ctx` on these three step types stays
+refused by name. The registry is `ASSEMBLY_CTX_ARMS` (interpreter) = `_ASSEMBLY_CTX_ARMS` (config_validation), pinned
+equal. First users: point_wiring's 15 / 5 / 30 and six conduit fills (Electrical v69).
+
+**ELR-3a: AN ASSEMBLY-ONLY INPUT ADDS NO WORKING LINE, AND A DERIVED NOTE SHOWS THE NUMBER PRICING USED (owner Q1 a / Q2 a,
+2026-10-28).** A `rate_ref` whose result a pipeline reads ONLY through the four arms (`assemblyOnlyCtxKeys`) is left out
+of the section's `matchedRows` on the BoQ panel and the calculator -- the bill reads exactly as it did while the number
+was a literal. A key also read anywhere else keeps its line. The "Worked out: 15 + (2 - 1) x 5 = 20 m" note substitutes
+the constants the interpreter BOUND (`derivedAttr.constants`, display-only, present only for `constants_from_ctx`), and
+the map note tests a `table_from_ctx`'s KEYS, so neither shows a ctx key nor goes stale when the input is edited.
+
+**ELR-3a: THE ASSEMBLY-ONLY PANEL SHAPE AND THE WORKED EXAMPLES (owner R-9, R-18, Q5, Q7).** An input READ by a category's
+rules that reaches no SKU, no candidate SKU and is not a flat adder takes the impact panel shape `assembly_only` (HVAC's
+flexible duct length per piece and the nine point-wiring inputs, as of v69 / v54). Its panel says "This number moves no
+SKU's own rate. It changes how <category> builds its price" (+ " - worked examples below." where the category has
+examples), replacing the pair shape's "open a SKU" sentence. The examples live in the category config as
+`impact_examples` [{id, name, source?, attrs, no_change_reason?}] -- real stored row shapes, minted with the asset, every
+attr a declared attribute (validated by name). Before and after are BOTH `makePricingSheetHelper(...).compute` of the
+example (after = the catalogue with the edited value patched in, `itemsWithInput`), recomputed as the value is typed,
+before Save; the change and % come from `exampleLegChange`. No arithmetic in `pricingInputExamples.ts` or the panel's
+example list (source-pinned). `pricingInputExamples.test.ts` pins each example's before figures and fails by name if one
+stops pricing or illustrates nothing.
+
+**ELR-3a: AN ASSEMBLY-STEP INPUT HAS A RANGE, DERIVED FROM THE ARM THAT READS IT (owner R-R1 Q4).** A length (read by a
+map / derive arm) must be more than 0, with no upper limit; a conduit fill (read by `usable_from_ctx`) more than 0 and
+at most 1. `config_validation.pricing_input_ranges(configs)` derives it -- no list of ids. It is enforced at the Rate
+Master save (update AND create, `_guard_pricing_input_values`) and on file upload (`build_plan`), in ONE wording
+(`csv_importer.validate_pricing_input_value(value, label, value_range)`, "<name> (<column>): a length must be more than
+0 (got 0)."); the panel shows the same sentence before Save and disables Save; the interpreter refuses a fill outside
+(0, 1] naming the input. Every other input keeps the general rule (zero allowed, negative refused).
+
+**ELR-3a: A WHOLE-NUMBER PRICING INPUT IS STORED AS A FLOAT (15.0, not 15).** The upload reads a cell back as a float, so a
+value stored as an integer previews as a change ("15" -> "15.0") on an untouched file. The HVAC factor convention (2.5,
+300.0) already held. The guard is the live round trip (`test_elr3a_assembly_inputs` TestElr3aLive: the real Electrical
+Pricing Inputs download previews 44 unchanged / 0 changed); a future mint of a whole-number input stores a float. The
+download still writes the integer text (ELR-1).
+
+**ELR-3a: v69 REACHES PRODUCTION ONLY BY DEPLOYMENT MODE (owner R-PI).** v69 ADDS nine Electrical Pricing Inputs that
+production does not hold and changes none. A load supersedes wholesale per kind, so a v69 built from dev's catalogue
+would restore every production edit to the 35 existing inputs (and every SKU) made since that copy. The route is:
+freeze production, export it, build the asset from that export + this slice's declared change (the nine items, the 12
+arms, the 27 rate_refs, the prose, `impact_examples`), load. No deploy happened in ELR-3a.
+
 ---
 
 ## Rate-master invariants filed under Domain Gotchas

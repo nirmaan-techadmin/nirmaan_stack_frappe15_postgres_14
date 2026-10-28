@@ -49488,3 +49488,105 @@ report, for ELR-R2: the calculator applies no three-conductor floor (only extrac
 - The notes do not cover a MULTI-core wire: there the floor adds a 1-core second wire of the same size.
 - ELR-3: the plate default (V1 / V2). ELR-4: the other 11 rules lists.
 - The slice has three commits, not two (commit 2 fixes my own pin edit; commit 1 was already synced, so no amend).
+
+## Slice ELR-3a - Electrical retrofit build 3a: four point-wiring numbers become Electrical Pricing Inputs, with an "impact on assemblies" view (Electrical v69) - as built 2026-10-28 / 29
+
+Desktop session, delegated by the laptop. Recon: ELR-R1 (F1 readers, F2 mechanism, F3 input shapes, F5 the view, F6
+the examples E1-E7, F9 proof plan). Owner rulings carried: R-9 (2026-10-27 22:53: "1,2,3 and 4 c an be moved to pricing
+inputs...let the remaining be as it is. for 1,2,3,4 if they dont durectly impact the price of any sku, we can just tell
+the impact on the assemblies it has...with a few common examples worked out to show before anfd after aND CHANGE");
+R-R1 (2026-10-28 10:32, "1 ok 2 yes 3yes 4 ok 5 ok 6 ok 7 ok 8 ok proceed"): Q1 six conduit-fill rows (MS 50 keeps
+0.47), Q2 the existing `factor` column with a unit, Q3 the extraction read-back reads the per-further-point input, Q4
+ranges (length > 0; fill in (0, 1]) at both write paths + the interpreter, Q5 E1-E7 in point_wiring's config, Q6 3a is
+the move only (0 price moves; the plate default is 3b), Q7 the 0-SKU wording for both disciplines, Q8 one input each for
+15 and 5; R-PI (Deployment Mode), R-18 (one pricing function), R-ONE-CAT (point_wiring only). STAY IN CONFIG (R-9): the
+two "every 3 runs" install steps, the two 3-module back-box defaults, the 25 mm default conduit.
+Phase A answer (18:13): "Q1 a, Q2 a. pricingSheetHelper.ts added to scope for these two changes only" -- (a) the
+"Worked out: 15 + (n - 1) x 5" note substitutes the BOUND constants; (b) a rate_ref read only by the assembly arms adds
+no working line.
+
+### 1. Phase A (read-only)
+- P1: HEAD 60ae6cd30, tree = 4 noise; HVAC v54 31631135 / e9d3689a and Electrical v68 784d1dbe / 7851bcf5 live == file;
+  replay 18,106 rows cmp-equal to ELR-2's elr2final (ac7 `342ec51c...`, ac7v2 `2b4fd389...`).
+- P2: ELR-R1's 12 config sites hold (point_wiring steps 0, 1, 7, 10 x the three pipelines); extraction
+  `secondary_length_m` (n x 5) and its one caller; the step prose; `_CTX_ARM_STEPS`; `inputsRead`. Correction: no test
+  pins the stretch default 30 from the config.
+- P3: inputs with 0 SKUs, 0 candidates and not a flat adder, both disciplines: HVAC "Flexible duct length per piece"
+  only (crosstalk depth has 6 confirmed SKUs; the mixing-box adder is flat). Electrical: none before v69.
+- P4: E1-E7 and all 1,126 point-wiring rows under five variants = ELR-R1's figures.
+- Two surprises at the STOP (18:02): the circuit-length note on 790 rows and 9 extra working lines per section on every
+  priced row; both answered by Q1 a / Q2 a above.
+
+### 2. Built
+- Commit 1 `9f4f06703` (feat, mechanism; prices identical on v68): `ratePipelineInterpreter.ts` -- `ASSEMBLY_CTX_ARMS`
+  (`table_from_ctx` / `default_from_ctx` on map_attribute, `constants_from_ctx` on derive_attribute, `usable_from_ctx` on
+  circuit_fit), `assemblyArmCtxKeys`, `assemblyOnlyCtxKeys`, `conduitFillInRange`; the default resolved BEFORE the
+  None-pick test (ELR-R1's trap); literal + arm on one step refused; a fill outside (0, 1] refused naming the input.
+  `rateMasterTypes.ts` (the four keys, `DerivedAttrOutcome.constants`). `pricingSheetHelper.ts` (Q1 a / Q2 a only).
+  `pricingInputReach.ts` (inputs read through the arms count as READ; `assemblyRange`). `config_validation.py`
+  (`_ASSEMBLY_CTX_ARMS`, every key a rate_ref result of the pipeline, `pricing_input_ranges`). `csv_importer.py`
+  (`validate_pricing_input_value(value, label, value_range)`, one wording) and `api/boq/rate_master.py` (the range at
+  the page save, update and create). `extraction.py` (`secondary_length_m(item, per_point)` = n x the live input, read
+  once per batch). Tests: `elr3aAssemblyInputs.test.ts` (45) + fixture `pricing/__fixtures__/elr3aExampleRows.json`,
+  `test_elr3a_assembly_inputs.py`; the interpreter's None-pick source pin inverted (WAS `p.default !== NONE_SENTINEL`, NOW
+  `dflt !== NONE_SENTINEL`).
+- Commit 2 `0a4ea1002` (feat, v69 + the view): Electrical v69 = v68 + nine Pricing Inputs in `factor` with a unit (first
+  point 15.0 m, per further point 5.0 m, stretch DB to first point 30.0 m, Conduit fill PVC 25 / 32 / 50 mm 0.55, MS 25 /
+  32 / 50 mm 0.45 / 0.45 / 0.47, "fraction of the bore"); point_wiring's 12 literals -> the arms in all three pipelines,
+  27 rate_refs appended, steps 0 / 1 / 7 prose names the inputs, `impact_examples` E1-E7. AssetDiff: 9 items added, 0
+  changed, 1 config (point_wiring). sha256 `94f364b7d942bc04...`, 859,397 bytes; mint gate "No atoms disappeared.
+  PASS", `--latest` disjoint PASS, import gate PASS (13 configs). Loaded on dev (`rmbulk-c061528bc29d`, pre-load snapshot
+  BRMS-26-00314); live == file. The impact panel: shape `assembly_only` + `assemblyOnlySentence`, the examples priced by
+  `makePricingSheetHelper(...).compute` before and after the unsaved edit (`pricingInputExamples.ts`, no arithmetic,
+  source-pinned), the range refusal shown before Save with Save disabled; `_validate_impact_examples`. Pins moved under
+  mechanical authority, WAS kept: CURRENT_EALL_ASSET v68 -> v69, EALL_ITEMS 1402 -> 1411 (test_24b / 24c / 24g, sv_01),
+  inputs 35 -> 44 (pi_09), `factor` on exactly the nine (rf_04 / rf_06 inverted), older-mint comparisons through the
+  named normaliser `_without_elr3a_assembly_inputs`, pw_cs_08 / 10 / 20, wcl_04; PricingInputImpactPanel.test's pinned
+  inputs 46 -> 55. No price assert moved.
+- Commit 3 `93f6aa776` (test): servedVsStoredPricing.test.ts sets v69's nine new uids aside by name on the stored side
+  (`withoutElr3a`, throws if any is missing; the ADP-1 / ADP-5c pattern); found by the scoped vitest run. A fourth commit
+  because commit 2 was already synced (no amend). Commit 4: these docs.
+
+### 3. Proofs and counts
+- Figures: all 1,126 point-wiring rows' whole workings (figures, every section line, every field note) byte-equal
+  HEAD/v68 vs the new code on v68, on the moved configs and on v69. Replay `elr3afinal` (2026-10-29 00:06) byte-equal to
+  `elr3astart`: 0 figure moves on 18,106 rows. Stub proof: the model's question byte-identical v68 / v69 on every
+  Electrical group and both HVAC aliases. Round trip: the Electrical Pricing Inputs download previews 44 unchanged / 0
+  changed. Read-back: n x the live input (5.0); its population on stored data is 0 (ELR-R1).
+- Vacuity (one line at a time, fixtures / source only, restored sha-equal): commit 1 11 breaks red, commit 2 4 TS + 1
+  Python red.
+- Suites (scoped, measured in-session; before = ELR-2's saved logs): Python 87 modules / 4,479 OK -> 87 / 3,767 OK: the 86 modules both runs share have identical counts; out
+  test_rate_master (REUSED by owner decision 23:43: the whole-module run 23:07-23:30, 739, errors=1 = test_w07 only,
+  which reads v69 from HEAD before commit 2; test_w07 by name after commit 2 OK); in test_elr3a_assembly_inputs 27.
+  vitest boq-wizard + pricing 136 / 5,713 -> 138 / 5,794 with 1 failure, servedVsStoredPricing (it reads the latest
+  Electrical asset by file prefix; commit 2's pin search grepped the v68 file name only) -> fixed in commit 3, the file
+  6 / 6 after. tsc 0 new (baseline 3,050) before and after.
+- Browser cert C1-C8 (desktop Chrome, :8080, after the de-stale; 21 screenshots): C1 the nine rows; C2 the first-point
+  panel's sentence and E1-E7 today (1,926 / 389.2; 2,463 / 497.8; 8,029 / 2,794.8; 745 / 149; 5,149 / 1,030.8; 3,821 /
+  685; 589 / 118.8); C3 18 typed (not saved): E1 +411 (+17.8%), E2 +411 (+13.9%), E3 +567 (+5.2%), E5 +432 (+7%), E6
+  +855 (+19%), E4 / E7 no change; C4 further point 6, stretch 35, PVC 25 fill 0.50 = ELR-R1 F6, and the two refusals
+  (length 0, fill 1.2) with Save disabled; C5 HVAC flexible duct length: the new sentence, no examples; C6 E2
+  (BOQ-26-00258 r426) and E5 unchanged on the BoQ page and E2 in the calculator: 2,463 / 497.8, "Worked out: 15 + (2 - 1)
+  x 5 = 20 m", no line for any of the nine; C7 download + upload preview 0 / 0 / 44 unchanged / 0 errors, cancelled;
+  C8 ADP 00325 r178 (7,830 / 1,920) and Insulation 00355 r50 (1,757 / 518) unchanged; live == file both disciplines.
+
+### 4. Deploy note (R-PI)
+v69 ADDS nine Electrical Pricing Inputs and changes none; production holds none of them (ELR-R1 F8). A load supersedes
+wholesale per kind, so loading this dev-built v69 on production would restore every production edit to the 35 existing
+inputs (and every SKU) made since the dev copy. v69 reaches production only through Deployment Mode: freeze, export,
+build from the export + this slice's declared change (the nine items, the 12 arms, the 27 rate_refs, the prose,
+`impact_examples`), load. No deploy action was taken.
+
+### 5. Incident and open items
+- 18:35 an unintended LIVE write: a vacuity break of the range check let `test_03` save factor 0 on the live HVAC input
+  BRMI-26-16596 (Version vovnmthrpp; BOQ-26-00394 r54 1,487 -> 0). STOP; owner (a): restored through the same endpoint
+  (Version 46ire8o33b 18:43:05) and proved (HVAC live == v54, replay byte-equal, r54 1,487). test_03 now runs on an
+  in-memory copy with every write blocked (`_writes_blocked`, proved by test_03b). Rule: a test never drives a write
+  endpoint on a live row.
+- At an out-of-range fill (1.2) every point-wiring example reads "does not price" with a generic reason: the interpreter
+  checks all six fills it reads. The refusal line above names the input.
+- point_wiring's config `notes` and goldens still quote 15 / 5 / 30 in prose (only the step explain text changed).
+- 26 rows naming looped points lack a point type (ELR-R1). The mint gate has no step-parameter atoms (ELR-R1 F8): the
+  replay is the proof of a literal move. The MS / PVC 32 / PVC 50 fills move none of E1-E7 (no example uses them).
+- The download's formula row describes `factor` as "a multiplier"; the nine lengths are metres (HVAC's flexible duct
+  length has the same wording).
