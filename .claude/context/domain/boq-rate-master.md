@@ -2236,6 +2236,22 @@ would restore every production edit to the 35 existing inputs (and every SKU) ma
 freeze production, export it, build the asset from that export + this slice's declared change (the nine items, the 12
 arms, the 27 rate_refs, the prose, `impact_examples`), load. No deploy happened in ELR-3a.
 
+**ELR-3b: THE PLATE-QUANTITY DEFAULT IS THE SERVER'S CASE (b), ON THE PANEL AND THE CALCULATOR, THROUGH ONE FUNCTION (owner
+R-8; R-V1 2026-10-27 "2 v1"; R-V1b / R-V1c 2026-10-29).** `computedPlateQtyDefaults(config, valueOf)` in
+`pricingSheetHelper.ts` mirrors `extraction.fill_paired_slot_defaults` case (b) and `paired_fill_plan`, read from the
+config and never from a name. An item is COMPUTED when it is the `requires_named` item of an `extraction_defaults` spec
+with a `default` AND a `module_fit` ladder `bind` (the face plate). When its quantity and the item are both BLANK and the
+box is OCCUPIED (a term of the first `module_fit` step whose `none_when` item is filled, not "None" and not blank, carries
+a quantity above zero), the quantity takes the declared default. `compute()` calls it once, before `cellOf`, so the BoQ
+panel and the calculator (the same `compute()`, with no extraction) give one answer. Its cell replaces a stored BLANK cell
+(the never-asked map cannot: it fills only a key the stored row lacks) and is marked `defaulted`: the existing "default"
+badge and "(defaulted -- no positive text identification)" line, NOT the never-asked line (the field was asked). It shows
+NO confidence (R-V1c; a server re-read carries 0.5 - display only, the value and the price are the same). A quantity the
+pricer typed (any override, a cleared box included) is never filled. NOT filled: an EMPTY box (every switch / socket None
+or blank - V2 was not ruled), a NAMED plate (ADP-3a U7, calculator only, unchanged) and a "None" plate. The server code
+is unchanged. It is a PRICE CHANGE wherever stored rows carry a blank plate quantity beside an occupied box, production
+included; the deploy pack names it.
+
 ---
 
 ## Rate-master invariants filed under Domain Gotchas

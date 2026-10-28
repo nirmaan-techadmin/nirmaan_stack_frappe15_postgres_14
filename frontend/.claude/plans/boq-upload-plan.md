@@ -49590,3 +49590,82 @@ build from the export + this slice's declared change (the nine items, the 12 arm
   replay is the proof of a literal move. The MS / PVC 32 / PVC 50 fills move none of E1-E7 (no example uses them).
 - The download's formula row describes `factor` as "a multiplier"; the nine lengths are metres (HVAC's flexible duct
   length has the same wording).
+
+## Slice ELR-3b - Electrical retrofit build 3b: the plate-quantity default (V1) on the BoQ pricing panel and the calculator - as built 2026-10-29
+
+Desktop session, delegated by the laptop. Recon: ELR-R0 E5 (+ workbook "PlateDefault") and E7, ELR-1, ELR-3a. Owner
+rulings carried: R-8 (2026-10-20 21:57 "ok", scope 2026-10-27 16:54 "8-ok": the panel refuses blank plate quantities on
+computed plates; giving it the default is a price change); R-V1 (2026-10-27 22:48, "2 v1": the rule the server already
+applies to new AI reads, `extraction.fill_paired_slot_defaults` case (b) since 226509192 - an UNNAMED, computed plate
+gets plate quantity 1 ONLY when the box holds at least one switch or socket; not V2, an empty box keeps refusing);
+R-ONE-RULE (the calculator = the panel; ADP-3a U7 stays); R-EXTRACT-SAME (mirror case (b), the server is not changed).
+Rulings taken at the M1 STOP: **R-V1b** (2026-10-29 ~01:57, "the 2 msg only changes are ok. we can proceed": the two
+still-refusing rows whose refusal stops naming Plate qty join the declared set) and **R-V1c** (~02:05, "(ii) No
+confidence": the defaulted plate quantity shows no confidence on either screen). No model call, no asset, no DB write.
+
+### 1. Phase A (read-only)
+- P1: HEAD c8792f669, tree = 4 noise; HVAC v54 31631135 / e9d3689a and Electrical v69 2c15c116 / 35bf97b9 live == file;
+  BRMI-26-16596 factor 2.5; replay 18,106 rows cmp-equal to ELR-3a's elr3afinal (ac7 `342ec51c...`, ac7v2 `2b4fd389...`).
+- P2: test_rate_master whole module FRESH at c8792f669: 739, OK (ELR-3a had reused it).
+- P3 (scratch bundles = ELR-R0's V1 patch, every row of both disciplines, panel + calculator): 39 rows change, not the
+  expected 37 -> STOP. The 37 switches_sockets rows = ELR-R0's keys and figures exactly; the 2 extra rows
+  (BOQ-26-00232 "Internal  office" r90 point_wiring, r135 switches_sockets) keep refusing on another field and stop naming
+  Plate qty. Answered by R-V1b / R-V1c. Report only (ELR-R0 E7): blanking a plate field refuses today on swsock 99 / pw
+  254 / popup 5 rows - all plate = "None" rows; under V1, 50 of the 358 price again (the plate then computed).
+- P4: one pure function beside `neverAskedDefault`, called once in `compute()`; the calculator runs the same `compute()`;
+  no config, asset or backend change (AC5). Line drift: the server's case (b) is extraction.py:2050-2066.
+
+### 2. Built
+- Commit 1 `3a4e1ed89` (feat): `pricingSheetHelper.ts` - exported `computedPlateQtyDefaults(config, valueOf)` (the
+  server's case (b) read from the config: requires_named item + module_fit ladder bind = computed; qty blank, item blank,
+  occupied by a module_fit term whose none_when item is filled with qty > 0 -> the declared default); in `compute()` one
+  call before `cellOf`, its own map `plateQtyDefault` that wins over a stored BLANK cell, marked `defaulted`, no
+  confidence (R-V1c), skipped when the pricer typed the quantity. U7 untouched. Tests: `elr3bPlateDefault.test.ts` (98) +
+  fixture `pricing/__fixtures__/elr3bPlateRows.json` (49 real stored rows: the 39 declared, 00185 r198, the 8 point-wiring
+  Plate-qty-only rows, 00183 r12).
+- Commit 2 (docs): this entry; the durable rule in `boq-rate-master.md`.
+
+### 3. The declared rows (Electrical v69, dev)
+- 37 switches_sockets rows refusing "Missing to price: Plate qty -- fill them to compute a rate." now price, each at
+  ELR-R0's figure; BOQ-26-00224 "ELECTRICAL" r212 970 / 200, r213 800 / 160, r214 600 / 120, r215 360 / 80, r216 260 / 60;
+  r217 1,900 / 380, r218 360 / 80, r222 1,140 / 230, r223 930 / 190, r224 700 / 140, r225 430 / 90, r226 320 / 70, r227
+  1,840 / 370, r228 430 / 90, r229 170 / 40; BOQ-26-00232 "Internal  office" r119-r124, r126-r133, r142; BOQ-26-00187
+  "Internal Electrical" r117 (RJ-11) 210 / 50; BOQ-26-00242 "LT Electrical works" r46-r51 (full list: the workbook's
+  DeclaredRows). The calculator, fed the same inputs without a plate quantity, gives the same figure on every one.
+- 2 wording-only: 00232 r90 (point_wiring) "Missing to price: Wire 1 - thickness (sqmm)"; r135 "Missing to price: Switch".
+- Still refusing (no default, empty boxes): BOQ-26-00185 r198; the 8 point_wiring rows (00206 "BOQ -ELEC" r213 / 219 /
+  231 / 234 / 237 / 240, 00342 "Electrical BOQ" r284 / 287).
+- What the pricer sees: Plate qty 1 with the existing amber "default" badge (title "Filled from a config default -- the
+  row text gave no positive identification"), no percentage; the plate (computed) and its working line, e.g. "Frame/Face
+  plate: Grid and Face Plates 9M White x 1 = 508".
+
+### 4. Proofs and counts
+- Replay (tracked rig, read-only): elr3bstart 18,106 rows (ac7 `342ec51c...`, ac7v2 `2b4fd389...`); elr3bwt and
+  elr3bfinal (HEAD 3a4e1ed89) byte-equal to each other (ac7 `ba053fce...`, ac7v2 `2adcef3b...`); by key vs the start:
+  ac7v2 changed = the 39 declared keys exactly (37 newly priced at their P3 figures, 2 wording-only; fields values +
+  wderivation), 0 already-priced rows moved, 0 outside; ac7 (figures only) the 37. Dumps cmp-equal; capture 258 -> 258.
+- Whole-row proof over all 18,106 rows, panel + calculator (scratch bundles; HEAD text via `git show`): the working tree
+  changes exactly the 39; it equals the V1 mirror on every row apart from the R-V1c confidence; parity divergences 510 =
+  510 on both feeds; the calculator fed the pricer's inputs without a plate quantity gives the panel's figure on all 39.
+- Vacuity (source lines, one at a time, restored sha-equal): cellOf ignores the default 81 red; occupancy always true 11;
+  none_when ignored 1; item-blank test dropped 1; qty-blank test dropped 1; module_fit bind test dropped 2; a typed qty
+  no longer blocks 1; confidence shown 79; the call removed 81; the empty-computed early return dropped 0 (a short-circuit
+  only).
+- Before commit 1: targeted vitest 58 files / 3,676 passed; 8 Python tests that read pricingSheetHelper.ts by name OK;
+  tsc 0 new errors (baseline 3,050); residence = HEAD (F2 213 / S1 340 / A1 1798).
+- Scoped suites (after commit 1): Python 88 modules / 4,506 tests, all OK (before: ELR-3a's 87-module log + this slice's
+  fresh test_rate_master 739 = 88 / 4,506); vitest boq-wizard + pricing 139 files / 5,892 passed (before 138 / 5,794 at
+  ELR-3a's M8 with servedVsStoredPricing fixed by 93f6aa776; + elr3bPlateDefault 98); related 57 / 3,092; tsc 0 new.
+- Browser cert C1-C7 (12 screenshots): r212 970 / 200 with Plate qty 1 [default] and no %; r213-r216 at their figures;
+  the calculator with r212's inputs 970 / 200 and the same badge; 00185 r198 and 00206 r213 still "Missing to price:
+  Plate qty"; 00183 r12 170 / 40, HVAC 00325 r178 7,830 / 1,920 and point wiring 00196 r281 1,926 / 389.2 unchanged.
+
+### 5. Deploy note and open items
+- A PRICE CHANGE on production too: the same rule runs over production's stored rows (blank plate quantity beside an
+  occupied box with an unnamed plate). Dev measured 39 rows (37 newly priced, 2 wording-only); production's count is
+  its own. The deploy pack names it. No asset, config or backend change is deployed with it.
+- A row whose "None" plate a pricer clears now prices with the computed plate (50 rows on dev, ELR-R0 E7 class) - by
+  the rule, reported, not separately ruled.
+- The stored server-filled plate quantity (new reads) still shows "default 50%"; the V1 fill shows no %. Display only.
+- The existing test_rate_master suite re-saved the live tray_discount row (Version ms6li3nhbp, content-neutral) - the
+  known test_ng_02 re-save (laptop open item (j)).
