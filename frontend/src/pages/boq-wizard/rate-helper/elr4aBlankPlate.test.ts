@@ -133,7 +133,7 @@ describe("ELR-4a AC5: v70 = v69 + the declared wording + the one flag, nothing e
   it("the flag is the one the harness applies, and v70's configs give the same fields and note as the harness", () => {
     const v70 = new Map<string, RateCategoryConfig>(
       (read(ASSET_V70).category_configs as RateCategoryConfig[]).map((c) => [c.category_id, c]));
-    const bi = (v70.get("point_wiring")!.attribute_definitions ?? []).find((d) => d.id === "blank_item") as Record<string, unknown>;
+    const bi = (v70.get("point_wiring")!.attribute_definitions ?? []).find((d) => d.id === "blank_item") as unknown as Record<string, unknown>;
     expect(bi.panel).toBe(false);
     for (const cat of ["point_wiring", "switches_sockets", "popup_boxes"]) {
       expect(attrs(calcResult(v70, cat)).map((a) => [a.id, a.required ?? false, a.leadNote ?? null]), cat)
