@@ -50059,3 +50059,103 @@ Tests:
   - The 4 "BUS BAR" earthing rows count the bus bar twice; earthing's own fix.
   - ELR-4c: the R-39 cases per line, (c), (h).
   - ELR-4d: the wiring conduit fit and the floor.
+
+## Slice ELR-4c - Electrical retrofit build 4c: the R-39 guard and a case per Electrical line, (c) the used-input lines, (h) range first, money to 2 decimals, the field-table rulings, the green-light pack (no asset) - as built 2026-10-30
+
+Desktop session, delegated by the laptop. Run beside DEV2-R1 (dev2 lane; read-only, DONE 02:17, before this slice's cert).
+
+**Recon:** ELR-R2 (G6 reach, G8 field tables, G7 (c) / (h)) and the ELR-4a / 4b reports.
+
+**Owner rulings carried:** R-39 (block 39), R-ELR2 (c) / (h), R-FLOAT, R-FCM, R-53, R-SWG (Q4 a 2026-10-29: the line may describe
+the rule), R-APPROVE. Risk tier 2. No asset, no price move, no paid run.
+
+**The P6 answer (verbatim, 2026-10-30 01:53 IST):**
+> "Q1 b, Q2 a, Q3 a / Q3b a, Q4 a, Q5 a, Q6 a"
+
+### 1. Phase A (read-only)
+- **P1:** HEAD 26818b64c = origin; tree = 4 noise. HVAC v54 31631135 / e9d3689a and Electrical v70 2c15c116 / 1bfa10cb, live ==
+  file. Replay elr4cstart: 18,106 rows, ac7 `56fb5640...` / ac7v2 `978f871f...` = elr4bend. Residence holding.
+- **P2:** 77 Electrical lines from `attributeRuleOrder` on v70 (wiring 15, point wiring 14, switches & sockets 7, pop-up 6, DB 9,
+  industrial 8, earthing 3, conduit 3, tray 6, JB 2, LMS 2, misc 2) = the brief's counts. Electrical joins R-39 as twins beside
+  the HVAC files, pinned the same way.
+- **P3:** every stored row through the panel's entry point (scratch `full.ts`); a reaching stored row for every line but
+  the synthetic set: point wiring's "a normal conduit named elsewhere" and "nothing fits -> refuse", Socket 4 (switches &
+  sockets), pop-up Sockets 3 / 4, DB4's moved-up note, the industrial pole / curve maps on an unstated row, the tray uPVC
+  substitution, WC-f's unstocked size. 17 lines describe the AI's READ (Q6 a: model-read cases, nothing excluded).
+- **P4:** (c) on scratch (a bundle-time patch): 0 figures, 867 point wiring rows gain lines; ac7v2 does not store them.
+  R-FLOAT: 507 rows show long floats (earthing 382 / 1,085, conduit 125 / 742; HVAC 0; every other category 0) in the
+  header, the block figures, the Supply / Install / Combined lines and "Use this value". (h): the range check sat after
+  "cannot be negative" in `csv_importer.validate_pricing_input_value` (both write paths call it); the page returned
+  nothing for a negative.
+- **P5:** field tables on today's code (fields.ts: calculator fresh, panel over all stored rows, a blank test on up to 40
+  priced rows per category). TS-15 confirmed; tray thickness starred on 1,704 / 2,345 rows; no new "not needed" field;
+  DB "Amperage (A)" and wiring "Brand" on neither screen. No asset needed.
+- **P6:** QUESTION-READY 01:48; the answer above.
+
+### 2. Built
+Commit 1 `fe59d392a` (test): `electricalRuleCases.ts` (169 cases, `electricalGuardDiff`, `MODEL_READ_LINES`),
+`__fixtures__/electricalRuleRows.json` (37 stored rows), `electricalRuleReachability.test.ts`,
+`electricalCalculatorPanelParity.test.ts`. No product file.
+
+Commit 2 `f7ff7385b` (feat):
+- `attributeWorkingLines.ts`: `usedAssemblyInputs` (Q1 b: a `derive_attribute` constant is used only when it moves the
+  result), `USED_INPUT_MARK`, `moneyValue`.
+- `pricingSheetHelper.ts`: the used-input lines in the working bill; `moneyValue` on the Supply / Install / Combined lines;
+  TS-15 (`blankShownSource`: a target whose blank source is on screen is not starred; the gate unchanged); `eitherWords`
+  (`ShownAttribute`, `eitherWordsFor`) on a needed target a hidden field can fill.
+- `RateHelperPanel.tsx`: the header, headline and block figures, the copy control, the "Use this value" box and the
+  feedback log's computed value through `moneyValue`; the either words beside the "*" on the BoQ panel only.
+- `pricingInputImpact.ts` / `PricingInputImpactPanel.tsx`: a negative on a ranged input gets the range sentence; out of
+  range, no worked example is listed.
+- `csv_importer.py`: the range before "cannot be negative".
+- Tests: new `elr4cDisplay.test.ts` (20), `elr4cDisplay.dom.test.tsx` (6), `test_elr3a_assembly_inputs` +2
+  (test_02b / 02c). Inverted, WAS kept: `pricingSheetHelper.test.ts` (the copy-value source pin), `elr3aAssemblyInputs.test.ts`
+  (E1-E7 sections; E2 in words), `test_elr3a_assembly_inputs.test_02` (the -5 stretch). `electricalRuleCases.ts` reads its
+  JSON by path (jsdom).
+
+### 3. Proofs and counts
+- **Scratch over all 18,106 rows, the working tree vs HEAD:** 0 figure or refusal moves. Changed only: 507 rows' money
+  words (earthing 382, conduit 125); 867 point wiring rows gain used-input lines (first 697, further 431 - Q1 b drops it on
+  253 1-point formula rows; the P6 file's "269" also counted 16 secondary-only rows, which keep it correctly - fill 792,
+  stretch 72); the either words on 1,751 rows (tray 1,704 + 47 HVAC Raceway rows, which price through the tray's config);
+  one star (the calculator's stretch).
+- **Vacuity** (commit 1, each restored sha-equal): a case renamed off "Board size" 6 red; the line's source gone 5 red; the
+  calculator feed short one answer 170 red. Commit 2: (c) off 7 red; Q1 b off 2; `moneyValue` identity 5; TS-15 off 2;
+  no either words 3; the words on the calculator 1; the page's negative refusal off 1; the examples listed out of range 1;
+  the server order back 3 Python failures.
+- **Suites** (after = HEAD `f7ff7385b`):
+  - vitest related on the 5 changed product files + `electricalRuleCases.ts` + the 2 latest-asset readers: 70 files /
+    3,616 passed. The before (ELR-4b's after json, else TOOL-1's before1, filtered): 66 files / 3,240, every per-file
+    count equal; +4 files / +376 tests are the new ones.
+  - tsc FULL: 0 new (3,050).
+  - Python (the 3 modules that import `csv_importer`, through the parallel runner): test_rate_master 739, test_elr3a 29,
+    test_spec_reader 35, all OK. The before is TOOL-1's after3: 739 / 27 / 35.
+  - Residence 11 / 11. Its first run found 1 new F2 (an inline `JSON.parse` in `electricalRuleCases.ts`), routed through
+    `readJsonFixture`.
+- **Replay elr4cend:** ac7 `56fb5640...` byte-equal (0 figures). ac7v2 `62abb2f5...` moved on exactly the 507 declared rows,
+  only in the money words. The model's question is byte-equal on 15 groups; live == file at the end for both disciplines.
+- **Browser cert** (17 screenshots, read-only; de-stale 1-6, PROOF 1 served code strings, PROOF 2 runtime import):
+  - C1: 00174 r251 shows the first-point length and the PVC 25 fill, no further line, 1,775 / 358. 00245 r221 shows the
+    stretch line, 18,020 / 1,048. The calculator shows the same lines.
+  - C2: "Conduit fill - PVC 25 mm" 1.2 -> the range sentence once, no examples, Save disabled; -0.1 -> the range sentence;
+    Cancel saves nothing.
+  - C3: earthing 00183 r88 216.05 / 29 / 245.05, the box 245.05; conduit r99 59.5 / 20 / 79.5.
+  - C4: no "*" on the calculator's stretch.
+  - C5: the calculator's tray thickness is a plain "*", no gauge.
+  - C6 (calculator): point wiring with nothing fitting refuses; Socket 4 (switches & sockets); pop-up Socket 3.
+  - C7: tray 00174 r309 shows "* this, or a thickness the BoQ gives another way".
+  - C8: DB 00183 r68 5,930 / 1,190; HVAC 00325 r178 9,750.
+- **Disclosed:** Version 479,509 -> 479,510 is the existing test_rate_master `test_ng_02`'s content-neutral re-save of the
+  live tray_discount input (02:44:51; known since ELR-3b; live == file proves it). Not repaired. The cert wrote nothing.
+
+### 4. Deploy note and open items
+- **Deploy:** code only. No asset; Electrical v70 / HVAC v54 unchanged; no price moves on dev or production.
+- **Open items:**
+  - TS-15's residual: the fresh calculator's refusal sentence still names "Circuit wiring stretch (m)" (the gate is
+    unchanged; U4 is the star only).
+  - 47 HVAC Raceway rows (an alias of the tray config) show the same Q4 words.
+  - The Q4 words wrap tightly beside the label on the 320 px panel.
+  - test_rate_master's live re-save of tray_discount (an existing test).
+  - ELR-4d: the floor, the wiring conduit fit, the 38 DB rows at Rs 0.
+  - Earthing's own fix.
+  - The green-light pack (Desktop) awaits the owner.

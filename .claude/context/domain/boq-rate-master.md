@@ -2327,6 +2327,44 @@ None prices at Rs 0, not a refusal (38 rows on dev, 2026-10-29); a row read as e
 bar item itself, and With adds it again (4 rows at 8,700); the Type "Bus bar" rows at CU / GI refuse and are priced by
 hand. Each is an open item for its own fix.
 
+**ELR-4c: EVERY ELECTRICAL DERIVATION LINE HAS A NAMED CASE (owner R-39, block 39; the P6 answer 2026-10-30 "Q6 a").**
+`frontend/src/pages/pricing/electricalRuleCases.ts` holds one positive and one negative case per line (77 lines, 12
+categories, 169 cases at v70), each run through `makePricingSheetHelper(...).compute` on the live asset with its figures and
+its line's own effect on screen asserted (`electricalRuleReachability.test.ts`), and each run through the calculator = panel
+driver (`electricalCalculatorPanelParity.test.ts`; the one accepted difference is `A_wiring_primary`). THE GUARD
+(`electricalGuardDiff`): the lines the cases name must EQUAL the lines `attributeRuleOrder` generates from the configs, so a
+new line with no case, or a case naming a dead line, fails. Nothing is excluded: the 17 lines that describe the AI's READ
+(`MODEL_READ_LINES`) have model-read cases (the AI's answer fed through the panel; the reading itself stays tied to its config
+rule by the ELR-4a / 4b tie tests). A new or reworded Electrical line ships with its two cases; a mint that moves a figure
+fails a case by name. The stored rows the cases use are `__fixtures__/electricalRuleRows.json`, cells verbatim.
+
+**ELR-4c: AN ASSEMBLY INPUT A ROW USED GETS ONE WORKING LINE (owner R-ELR2 (c), "one line per input used"; P6 "Q1 b").**
+ELR-3a kept the assembly-only Pricing Inputs (lengths, the stretch, conduit fills) off the working bill; now a point wiring
+row shows one "<the input's name> = <value> <unit> (Pricing Input)" line per input its pricing USED
+(`usedAssemblyInputs`, `attributeWorkingLines.ts`, from the step traces): a map's table entry or default that resolved the
+value; a `derive_attribute` constant that moves the result (evaluated again at 0 - so a 1-point formula row shows the
+first-point length only, Q1 b); the fill of the size the conduit was fitted to. A stated value, a skipped map, an absent
+conduit and a refusal add none. Display only, panel and calculator alike.
+
+**ELR-4c: MONEY IS SHOWN TO 2 DECIMALS; THE PRICE IS NOT ROUNDED (owner R-FLOAT 2026-10-30 "ok"; P6 "Q3 a" / "Q3b a").**
+`moneyValue` (`attributeWorkingLines.ts`) is the one rule: the panel's header figure, the block figures, the copy control,
+the "Use this value" box and the working lines Supply / Install / Combined show 216.05, never 216.04999999999998; "Use this
+value" and the feedback log's computed value carry that same value. `values` (what pricing computed) is untouched, so no
+stored figure moves; the replay's ac7v2 rewords only the rows that showed a long float (507 at v70: earthing 382, conduit
+125).
+
+**ELR-4c: A RANGED PRICING INPUT IS CHECKED AGAINST ITS RANGE BEFORE "CANNOT BE NEGATIVE" (owner R-ELR2 (h); P6 "Q2 a").**
+`csv_importer.validate_pricing_input_value` checks the length / fill range first, so a negative fill or length gets the
+range sentence on both write paths (the upload and the Rate Master save) and on the page (`pricingInputRangeRefusal`); an
+input with no range keeps "cannot be negative". Out of range, the impact panel lists no worked example and shows the range
+sentence once.
+
+**ELR-4c: THE "*" FOLLOWS THE FIELD THE PRICER MUST FILL (P6 "Q4 a" / "Q5 a").** A target the pipeline fills from a field
+that is ON SCREEN and blank carries no "*" - the source does (TS-15: the calculator's "Circuit wiring stretch" while
+"Circuit wiring included" is blank); the gate is unchanged, so the refusal sentence still names both. A needed target a
+HIDDEN field can also fill (the tray thickness from the BoQ's gauge) carries `eitherWords` - on the BoQ panel "* this, or a
+thickness the BoQ gives another way", no hidden field named (R-SWG); the calculator keeps the plain "*".
+
 **AFTER EVERY ASSET MINT, THE PIN SEARCH RUNS BEFORE ANY SUITE (TOOL-1, owner R-SPEED point 6).**
 `python3 scripts/asset_pin_search.py --discipline <HVAC|Electrical> --new-version <N>` (from the app root; stdlib; reads the
 test files and the data dir) lists every test pin of the asset the mint replaced, with file:line and the test that holds
