@@ -2032,7 +2032,7 @@ Input is named by the LABEL its Pricing Inputs row carries (`GI framework sheet 
 label lives on the ITEM, so the tab receives the discipline's items; pipeline ids are written as plain words. A
 config message's `(R4)` / `(owner ...)` tag is stripped by `plainSentence` at render, so a config may keep its
 provenance without it reaching a pricer. The same mechanism lists ADP's rules (owner-approved); alias and vendor-quote
-tabs stay EMPTY and are pinned so. An Electrical (attribute-path) category's list is `attributeRuleOrder`, see ELR-1 below.
+tabs stay EMPTY and are pinned so. An Electrical (attribute-path) category's list is `attributeRuleOrder`, see ELR-1 below; point wiring, switches & sockets and pop-up boxes list theirs through `assemblyRuleOrder`, see ELR-4a below.
 
 **EVERY PRICER-FACING LINE PASSES THROUGH THE ONE PLAIN-ENGLISH FUNCTION (owner P1 / P2, 2026-10-08,
 slice 12d-5).** `frontend/src/pages/pricing/rate-master/plainEnglish.ts` holds `plainSentence`, the
@@ -2251,6 +2251,46 @@ pricer typed (any override, a cleared box included) is never filled. NOT filled:
 or blank - V2 was not ruled), a NAMED plate (ADP-3a U7, calculator only, unchanged) and a "None" plate. The server code
 is unchanged. It is a PRICE CHANGE wherever stored rows carry a blank plate quantity beside an occupied box, production
 included; the deploy pack names it.
+
+**ELR-4a: A MODULE-FITTING CATEGORY'S RULES LIST IS WRITTEN FROM ITS SOURCES, IN THE OWNER'S APPROVED WORDS (owner R-DERIV
+2026-09-27; R-APPROVE 2026-10-29 "option b"; R-Q4).** Point wiring (14 lines), switches & sockets (7) and pop-up boxes (6)
+list their rules through `assemblyRuleOrder` in `itemListRuleOrder.ts`. `attributeRuleOrder` sends a category there when
+EVERY key of its `DERIVATION_RULINGS` entry is an assembly line (`isAssemblyRulings`); wiring's keys are its own, so its 13
+lines take the ELR-1 path untouched. The KEY ORDER of the entry IS the line order (run order: the AI's read, then the BoQ
+pipeline steps; BCS not listed). A line EXISTS ONLY WHILE ITS SOURCE DOES (`assemblyFacts`):
+- a config STEP - `map_attribute` (the length table, the conduit-included chain, conduit type, the circuit stretch and the
+  secondary exclusion), `derive_attribute`, `circuit_fit`, `module_fit` (terms, ladders, the zero path, the pick, blanks,
+  `include_when`), the per-part `component_ref` supply / install, `sum_components` + `scale` + `roundup`,
+  `match_master_row` + the per-module `scale`;
+- a config RULE the AI is given (R9 the wires and points, S1-S3 the switch, S4 the bare box, P1 includes-modules);
+- a config DEFAULT (`extraction_defaults`: points, back box, colour, circuit wiring);
+- the CONFIG MARKER a code rule reads, the code rule named and tested to exist in `extraction.py`: `conductor_floor` ->
+  `apply_conductor_floor`; a `point_type` definition -> `point_type_of` / `secondary_length_m`; `requires_named` ->
+  `fill_paired_slot_defaults`; `absent_dependents` -> `force_absent_dependents`.
+Every Pricing Input (by its label), size, count, default and item name in a line is READ from that source; the words around
+them are the owner's approved wording, held in `ASSEMBLY_TEXT` (per category where the approved words differ - the
+quantities line). Each line ends "-- why:" with its approved reason or "reason not recorded". The pin is structural: delete
+a line's source on a copy and the line goes; change a value and the text follows; no snake_case, no rule id, no Pricing
+Input value. These three tabs draw no extraction Rules card (R-Q4). A NEW line needs the owner's approval of its words
+(R-APPROVE) and a source; never a line without one.
+
+**ELR-4a: POINT WIRING'S "BLANK PLATE" IS COMPUTED, NOT ASKED (owner R-PW-BLANK 2026-10-29; R-KEEP 2026-10-27 "4 let it
+be"; Q1 (A)).** The blanks are worked out by `module_fit` (the plate's modules less the modules used, a '1M Blanker' per
+spare, "Blank plate qty" honoured below the spare and capped above it); the blank component reads `@blank_fit_item`, never
+the row's `blank_item`, so the field priced nothing and only gated the row. Electrical v70 sets `"panel": false` on point
+wiring's `blank_item`: gone from the panel, the calculator and the "needed to price" gate. It is STILL ASKED of the model
+(`build_attribute_defs` skips only `extract: false` / `selector: false`), so the model's question is byte-identical. In its
+place both screens draw `blanksWorkedOutNote(config)` (`pricingSheetHelper.ts`) - written from the config's blanks block,
+for a block that shows its blanker on NO field (no `display_attr`) - as the `leadNote` of the blanks' quantity field
+(`RateHelperPanel.tsx`). Switches & sockets and pop-up boxes carry `display_attr: "blank_item"`, keep the field and draw no
+note. The change prices rows that refused ONLY on a blank "Blank plate" (the AI asked, returned blank): 21 on dev
+(BOQ-26-00190, -00332, -00366), now at the figures of the same row read "None"; 67 still-refusing rows stop naming it. A
+PRICE CHANGE on production too, counted on production's own rows.
+
+**ELR-4a: v70 REACHES PRODUCTION ONLY BY DEPLOYMENT MODE, WITH v69 (owner R-PI).** v70 = v69 + wording (the multi-core
+clause on point wiring's four runs notes; its config notes and golden pw5's note, both copies, naming the Pricing Inputs)
++ the `blank_item` flag; no item, rate or step moved. A load is wholesale per kind (`_load_multi` replaces every config):
+deploy v69 and v70 together - freeze, export, build, load - never one asset's config by hand.
 
 ---
 

@@ -49669,3 +49669,101 @@ confidence": the defaulted plate quantity shows no confidence on either screen).
 - The stored server-filled plate quantity (new reads) still shows "default 50%"; the V1 fill shows no %. Display only.
 - The existing test_rate_master suite re-saved the live tray_discount row (Version ms6li3nhbp, content-neutral) - the
   known test_ng_02 re-save (laptop open item (j)).
+
+## Slice ELR-4a - Electrical retrofit build 4a: the rules lists of point wiring, switches & sockets and pop-up boxes; point wiring's Blank plate becomes a note; Electrical v70 (wording) - as built 2026-10-29
+
+Desktop session, delegated by the laptop. Recon: ELR-R2 (report + workbook DraftLines / Inventory / NamedQuestions),
+ELR-1 (the wiring list mechanism). Owner rulings carried: R-R2, R-DERIV (2026-09-27; ADP-4b D1 / D8; wiring's 13 lines
+the pattern), R-Q4 (a listed category draws no AI rules card), R-APPROVE (2026-10-29 10:41 "option b": every line
+approved at a planned stop, category by category, with a real example beside it), R-3C (the floor line describes today;
+ELR-4d changes it), R-ELR2 (b) / (d) / (f) (2026-10-29 10:39 "4 to 9 ok"), R-PW-BLANK (2026-10-29 10:39: "remove it and
+in its place goive a note explaining how blank count is arrived"), R-KEEP (2026-10-27 "4 let it be"), R-PI, R-39 (the
+per-line compute cases are ELR-4c's; no guard built here). NOT this slice: (e) and earthing (owner 2026-10-29 10:39).
+
+### 1. Phase A (read-only) and the P6 stop
+- P1: HEAD 0e8ed1451 = origin (laptop-measured), tree = 4 noise; HVAC v54 31631135 / e9d3689a and Electrical v69
+  2c15c116 / 35bf97b9 live == file; BRMI-26-16596 factor 2.5; replay elr4astart 18,106 rows byte-equal to ELR-R2's
+  elrr2start (ac7 `ba053fce...`, ac7v2 `2adcef3b...`).
+- P2: the 26 ELR-R2 draft lines re-checked against the v69 steps and the code (circuit_fit, module_fit, stageRate,
+  apply_conductor_floor, point_type_of, secondary_length_m). Corrections proposed: PW1's reason (it carried the floor
+  quote); the floor line's precision ("when every wire is multi-core"; circuit wires too); three rules missing from the
+  drafts (n x further-point length; "a normal conduit named elsewhere -> included"; point wiring's back box / colour
+  defaults); the fit's refusal when nothing fits; the blanker and the "Blank plate qty" cap; runs and "wastage not
+  applied" in the supply; run order (the AI's read first; circuit wiring before the fit); SS2 (a copy-error reason, and
+  "a range takes the higher count" is not delivered: BOQ-26-00232 r169 "9/8M" read no count and priced an assumed 3M);
+  PB1's "blank -> does not price"; (f) on the three quantities lines. A real stored row per line from ELR-R2's step
+  log; unreached and said so: n x further, the normal-conduit map, Socket 4, pop-up Sockets 3 / 4.
+- P3: `attributeRuleOrder` knew wiring's shapes only; fed point wiring it would label the conduit-included chain "the
+  size the BoQ states" -> new shapes needed. Scratch demo: a circuit_fit line generated from the step, gone when the
+  step is deleted.
+- P4 - A PREMISE STOP: hiding point wiring's "Blank plate" (`panel: false`, honoured by the gate, the panel and the
+  calculator; not read by the model's question builder) moves 0 priced figures but ends 21 refusals (rows whose AI read
+  left the field blank: BOQ-26-00190 Sheet1 r167-172 / 175-177, BOQ-26-00332 ADMIN BLOCK r273 / 276 / 278 / 279 and
+  KITCHEN&CANTEEN AREA r270 / 276, BOQ-26-00366 KITCHEN&CANTEEN AREA r270 / 273 / 275-278), and 67 refusal sentences
+  lose ", Blank plate". Put to the owner inside the P6 stop.
+- P5: notes 8 / 9 / 11 / 12 = the `note` of wire1_runs / wire2_runs / circuit_wire1_runs / circuit_wire2_runs; (d)'s
+  phrases are in point_wiring's config `notes` (three) and golden pw5's note (two copies: top-level and config). Stub
+  proof: every proposed v70 edit in memory -> the model's question byte-identical on 15 groups.
+- **The owner's answer (verbatim, 2026-10-29, after 11:56):**
+  > Q1 A. The 21 rows are declared as the slice's only replay change, and the deploy pack must name them (counted on
+  > production's own rows).
+  > Approve all lines, N1, B1-B4 (my wording as it stands) and D1-D4, with these edits:
+  > PW7 why: "if the line item mentions only Primary/ first or any synonym then length will be ['Point wiring - circuit
+  > length of the first point']. if it mentions only secondary/looping/ second/ third etc points then length will be
+  > ['Point wiring - circuit length per further point'] ... in case of confusion default to the formula" (owner,
+  > 2026-09-01); n times: "ok. still buid the mechanism" (owner, 2026-09-05). No figures.
+  > PW12 why: use the owner's own words from the 2026-08-06 take-the-larger plate ruling and the 2026-08-09 zero-module
+  > back-box ruling; if no plain-words quote is recorded, write "reason not recorded". No internal names such as
+  > on_zero_modules.
+  > SS2 why: "extraction should provide the higher count" (owner, 2026-09-08); ranges: accepted as built, the
+  > higher-count rule not applied today (owner, 2026-09-08); the mm-only rows at 3M: "this is ok" (owner, 2026-09-07).
+  > In the line itself, say "not applied today" instead of "not applied in code today".
+  Plus (laptop relay, ~12:00): the 67 wording-only rows are "covered" by Q1 A. PW12: no plain-words quote of either ruling
+  is recorded (plan doc 17000-21500, boq-rate-master.md, pricing-rate-master-frontend.md searched) -> "reason not recorded".
+
+### 2. Built
+- Commit 1 `fffffc623` (feat): `itemListRuleOrder.ts` - reasons `E` + `DERIVATION_RULINGS` point_wiring (14) /
+  switches_sockets (7) / popup_boxes (6), key order = line order; `assemblyRuleOrder` (dispatched when every key of the
+  category's reasons is an assembly line), `assemblyFacts` (each line's source; every label / size / count / default /
+  item name read from it), `ASSEMBLY_TEXT` (the approved words); `pricingSheetHelper.ts` `blanksWorkedOutNote` (N1 from
+  the config) as the `leadNote` of the blanks' quantity field; `rateHelperTypes.ts` `leadNote`; `RateHelperPanel.tsx`
+  the note box before that field (panel + calculator). Tests: attributeRuleOrder.elr4a.test.ts, elr4aBlankPlate.test.ts
+  / .dom.test.tsx / .harness.ts; inverted (WAS kept): attributeRuleOrder.test.ts, RateMasterDerivation.elr1.dom.test.tsx,
+  adp4b.dom.test.ts (per-tab map: the three now list - 12 / 6 / 7 on the v66 it names), RateHelperPanel.test.ts
+  (NOTE_BOX_CLASS call sites 3 -> 4).
+- Commit 2 `a799c49e0` (feat): Electrical v70 = v69 + B1-B4 (the multi-core clause on the four runs notes) + D1-D3 (the
+  config notes name the inputs) + D4 (golden pw5's note, both copies) + `blank_item` `panel: false`; 8 diff paths, every
+  item and other config byte-identical; gates PASS; loaded on dev rmbulk-e0ff95e3ae1e (pre-load snapshot BRMS-26-00462),
+  live == file. Pins: CURRENT_EALL_ASSET v69 -> v70 + its two per-mint literals; `_without_elr4a_wording` /
+  `_without_elr4a_goldens` (the ELR-3a normaliser pattern) on the cross-version pins that failed solely on v70 (r12,
+  f25s3_04, v61_04, v63_03, wcl_05; the goldens asserts of img_07, lms_12 and three of those); v70 pins added.
+- Commit 4 `7164c3472` (test, by the owner's R-TSC): the v70 test's type cast (tsc TS2352).
+- Commit 3 (docs, last): this entry; the durable rules in boq-rate-master.md. Four commits in all (R-TSC).
+
+### 3. Proofs and counts
+- Replay (tracked rig, read-only): elr4astart = elrr2start; elr4awt (commit-1 code, v69) byte-equal to the start;
+  elr4av70 (v70 live) by key vs the start: ac7 21 rows = the 21 declared, each refusing -> priced at the P4 figure; ac7v2
+  88 = those 21 + the 67 declared wording-only rows (wderivation); 0 already-priced figures moved, 0 other rows.
+- The model's question: byte-identical on 15 groups, live v70 vs v69 (stub, no call).
+- Before / after the lists (scratch, HEAD's builder via `git show`): wiring's 13, the other 9 Electrical and every HVAC
+  tab byte-identical; the three tabs 0 -> 14 / 7 / 6.
+- Vacuity (source, restored sha-equal, run twice): dispatch off 9 red; a line's source tie cut 1; note not attached 4;
+  note not drawn 2.
+- Targeted before commit 1: vitest related 69 files / 3,989 (2 inverted -> pass), re-run after the A1 retype 61 / 3,632;
+  tsc 0 new; residence F2 213 / S1 340 / A1 1798 = HEAD (HEAD fails the stale baseline 338 / 1754; the slice's own +9
+  explicit any were removed). Before commit 2: test_elr3a 27, test_piping_v34 60, test_spec_reader 35,
+  test_extraction_coercion 216 OK; test_rate_master 739: 7 F + 1 E, all v70's declared change -> normalised / passed by
+  name, test_w07 (git show HEAD:v70) OK after the commit; vitest 8 / 221.
+- Scoped suites (after commit 2): Python 88 modules / 4,506 tests ALL OK (= ELR-3b's 88 / 4,506, the before); vitest boq-wizard + pricing 142 files / 5,919 passed (before ELR-3b 139 / 5,892; +3 = the slice's new test files); related (the 4 product files) 69 / 3,993; tsc FULL 1 NEW error (TS2352, elr4aBlankPlate.test.ts:136, from commit 2) -> STOP; owner R-TSC (~15:25, "(a) 4th commit"): commit 4 `7164c3472` casts through `unknown`; tsc FULL then 0 new (3,050). The suites were not re-run for the test-only cast (by the owner's relay); the after counts are those above plus that tsc re-run.
+- Browser cert C1-C8 (16 screenshots, .png + .jpg): C1 point wiring 14 lines, C2 switches & sockets 7, C3 pop-up boxes 6 (no card, no pointer, no snake_case); C4 wiring's 13 lines byte-equal to HEAD's builder (DOM sha256 ac54ad17...), DB & switchgear pointer + 4-rule card; C5 BOQ-26-00241 "BOQ | Electircal" r146: circuit length 15 ("Point type Primary read as 15"), 1,985 / 418, no Blank plate, N1 in its place, the (b) clause on the runs notes; C6 the calculator with r146's inputs 1,985 / 418, the same note; C7 00183 r12 (switches & sockets) 170 / 40 and 00139 "RFQ" r732 (pop-up) 7,800 / 920 keep Blank plate, no note; the config / golden notes are shown on no screen (search); C8 HVAC 00325 r178 7,830 / 1,920 and wiring 00201 r194 180 / 70 unchanged, live == file both disciplines. Read-only; dev_login not needed.
+
+### 4. Deploy note and open items
+- v70 is wording + the Blank plate flag; no item, rate or step moved. It reaches production only by Deployment Mode,
+  together with v69 (a load is wholesale per kind). The Blank plate flag is a PRICE CHANGE on production as on dev: rows
+  whose stored read left "Blank plate" blank and that refuse on it alone start to price (dev 21; production counts its
+  own rows); the deploy pack names it.
+- Disclosed: the existing suites re-saved tray_discount (Version 9m95hbs51t, content-neutral, the known test_ng_02
+  re-save) and touched BRMI-26-16827's modified stamp (hvac_piping_item, no Version); live == file both disciplines.
+- Open: the approved PB2 / PB6 reason quotes "(owner R1)" verbatim (a raw id inside the owner's quote, on screen);
+  ELR-4b (the other 8 lists, wiring's 6 corrections, (g)); ELR-4c (R-39 cases per line, the field-table rulings, (c),
+  (h)); ELR-4d (the shared floor; PW2's last sentence changes there).
