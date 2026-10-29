@@ -94,7 +94,10 @@ export function componentLabel(step: StepConfig, config: RateCategoryConfig): st
  * `matchedRows` source: a `rate_ref` Pricing Input or a `component_ref` component).
  *   rate_ref                     -> pricingInputLine
  *   component_ref with a qty     -> "<label>: <item> x <qty> = <amount>"
- *   component_ref, formula shape -> "<item> = <amount>" (owner D8: no bound field, no quantity -- "Bus bar = 0")
+ *   component_ref, formula shape -> "<item> = <amount>" (owner D8: no bound field, no quantity -- "Bus bar = 3,000")
+ *     ... whose matched condition gives it a factor of 0 -> "<item>: not included" (ELR-4b, owner (g) 2026-10-29:
+ *     "Bus bar: not included" when Without, in place of "Bus bar = 0"; display only -- the step's own `params` are the
+ *     condition the interpreter matched, so the words follow the price, never a second reading of the answers)
  *   anything it cannot name      -> "(unnamed input) = <value>"
  * `resolveBound` reads an `@`-bound ref value the way the pipeline did (the row's selected answers).
  */
@@ -122,7 +125,7 @@ export function attributeWorkingLine(
   }
   if (st.step === "component_ref") {
     const item = st.refItem ?? "";
-    if (cfg.qty === undefined && typeof st.qty !== "number") return `${item} = ${amountText(value)}`;
+    if (cfg.qty === undefined && typeof st.qty !== "number") return st.params?.factor === 0 ? `${item}: not included` : `${item} = ${amountText(value)}`;
     const label = componentLabel(cfg, config);
     if (!label || typeof st.qty !== "number") return `${UNNAMED_INPUT} = ${amountText(value)}`;
     return `${label}: ${item} x ${qtyText(st.qty)} = ${amountText(value)}`;
