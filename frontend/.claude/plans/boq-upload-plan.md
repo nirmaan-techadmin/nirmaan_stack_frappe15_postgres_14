@@ -49942,3 +49942,84 @@ does not exist" asserts, CURRENT_HVAC_ASSET and its six asserts, test_extraction
 - An owner option: split test_rate_master across database copies (the only way under its ~25-min floor).
 - vitest's DOM project still runs one file at a time (~4.5 min of its ~7.5); faster only with nothing beside it.
 - test_rate_master's two Suggestion Events on BOQ-26-00001 per run (a write on a live BOQ's children).
+
+## Slice DEV2-2 - dev2 refreshed from main dev on the desktop; branch feature/boq-rate-history cut - as run 2026-10-29
+
+Desktop session `dev22`, delegated by the laptop. Risk tier 3: a data load into dev2 only. No code change, no commit, no
+asset, no paid run. Report and ledger: `2026-10-29_DEV2-2_Report.md` / `_Ledger.md` on the Desktop.
+
+Owner rulings carried (quoted):
+- R-LANE (2026-10-29 11:40): "i want to start parallel work on another feature - pricing based on historical quotes
+  from other BoQs. I will do this ondev2 in desktop. themechanism will remain same...i will give prpmts to laptop cc and
+  it will dlegate work to desktop cc. theonly change will be that the work will happen on dev2 in dsktop and will be
+  synced with dev2 on laptop. before starting wor, we will have to bring dev2 in laptop and desktop withthe current main
+  dev environment."
+- R-BRANCH (11:43 "agree"): the feature lives on its own branch, feature/boq-rate-history, cut from today's tip, merged
+  back later.
+- R-DEV2R0 (12:06 "all ok"): (1) refresh the existing dev2 copies in place; (2) keep ports 8100 / 8180 / 9100; (3)
+  scheduler OFF in dev2; (5) dev2's data = a fresh backup of main dev taken while Electrical is idle; (7) the laptop
+  holds one environment at a time.
+- R-ORDER (16:01 / 16:03): TOOL-1 before DEV2-2; ELR-4b may run alongside DEV2-2 once DEV2-2's copy of main's data is
+  taken.
+- R-DEV2-1 P6 (16:24): dev2's start scripts were not read in DEV2-1 ("Q4 a"); proved here.
+- R-DEV2LOGIN (19:31): "use the login file and details for dev 2 also. ithe login should happen automatiocllay and not
+  need me".
+- AMENDMENT (22:49): ELR-4b runs in parallel; main's backup waits for an ELR-4b quiet point. (ELR-4b had not launched at
+  the backup; it launched at about 23:10.)
+
+### 1. Done
+- Code: the dev2 checkout's two local edits (App.tsx, main.tsx) saved to the Desktop and restored (both superseded by
+  the tip); `git switch -c feature/boq-rate-history 544bf6fdc`; feature/boq-jev-integration kept at d0fa68adc.
+- Data: main backed up once (`bench --site localhost backup --with-files`, 20261029_225725); dev2's database renamed
+  `<db>_dev2_prev`; a fresh database owned by the site role (as main's; dev2's old one was owned by postgres) loaded
+  from main's dump with `\restrict` stripped; files extracted with `./localhost/` -> `./dev2.localhost/` (677 private,
+  0 public), the old folders kept as `*.dev2_prev`.
+- Guards before any start: site_config gained disable_push, disable_cloud_upload and nirmaan_env "dev" (mute_emails was
+  there; the file is now byte-equal to main's); `disable-scheduler` + `pause_scheduler` 1; dev_isolate `--yes` (1 push
+  token blanked, 8 api secrets rotated) then `--verify` PASS.
+- migrate exit 0 (it created 7 index-manifest indexes main's database lacks); start_bench.sh then start_vite.sh under
+  `docker exec -d`; ping 8100 with `Host: dev2.localhost`, 8180 200, socket 9100 up. `.claude/state/env.local` written
+  and `env_sync.sh print` names the dev2 values.
+
+### 2. Proofs
+- dev2's fingerprint = main's at the backup (10601 / BRMS-26-00462 / 479508); HVAC v54 / Electrical v70 live == file
+  with main's hashes; the replay in dev2: 18,106 rows, ac7 / ac7v2 byte-equal to main's (TOOL-1's final at the same tip).
+- test_dev_isolate in dev2's container: 15 OK. `--verify` PASS three times.
+- Browser cert C1-C5 (11 screenshots): automatic login on dev2.localhost:8180, socket on 9100 connected, HVAC r178 7830 /
+  1920 / 9750 and Electrical r194 180 / 30 / 210 and 70 / 20 / 90 on both dev2 and main.
+- Main unchanged: fingerprint, live == file, HEAD and tree equal at the start, after the backup and at the end.
+
+### 3. Open items
+- env_sync's restore_db.sh / restore_files.sh cannot refresh dev2 from a main backup as they are (the kept name; the
+  unrenamed tar paths; the migrate before the guards): documented in DEV2-3.
+- Main's database lacks the 7 index-manifest indexes until its next migrate.
+- dev2's old data (`<db>_dev2_prev`, `*.dev2_prev`) stays until deleted by hand.
+- ac5_dump.py selects the category configs with no ORDER BY, so its configs dump is not byte-stable across a restore
+  (the replay outputs are).
+- The dev2 checkout needed Claude trust on the desktop (since given).
+
+## Slice DEV2-3 - the dev2 write-up (refresh from main, the dev2 sync, the laptop turn file) and the dev2 sync in both directions - 2026-10-29 / 30
+
+The laptop runs the sync (L0-L8); a desktop session (`dev23`, D0-D3) writes the docs. Risk tier 3 (data loads into
+dev2) plus one docs-only commit, dev2's first on feature/boq-rate-history.
+
+Owner rulings carried (quoted): R-LANE, R-BRANCH, R-DEV2R0 and R-DEV2LOGIN as in DEV2-2, and
+- R-DEV23 (2026-10-29 23:39 "1 ok 2 ok 3ok"): (1) the write-up of the dev2 refresh is committed on
+  feature/boq-rate-history (dev2's first commit) and the owner pushes it, creating the branch on GitHub; (2) the reverse
+  direction (laptop dev2 -> desktop dev2 data) is tested in this step; (3) DEV2-3 takes the laptop between ELR-4b's
+  commits; an ELR-4b sync due meanwhile waits (usually under 30 min).
+- Standing: ELR-4b continues on main on the desktop; nothing in this step may change main's code, data or behaviour.
+
+### 1. The commit (docs only)
+- `docs/agents/environments.md`, "Second environment (dev2)": the site_config flags belong to each machine; how the
+  scheduler is switched off and that a refresh from main turns it on again; the automatic dev login (R-DEV2LOGIN); Claude
+  trust per machine for the dev2 checkout; three new subsections - "Refreshing dev2 from a main backup" (DEV2-2's
+  procedure, step by step, and why env_sync's restore scripts do not fit it), "The dev2 sync between the machines"
+  (env.local on each machine; status / db-pull / db-push from the dev2 checkout; the dev2 pull record; db-push in dev2 by
+  ruling) and "The laptop's turn file" (`C:\Users\nites\envsync_laptop_turn.txt`: `dev2 <step> <time>` / `free <time>`).
+- This entry and the DEV2-2 entry above.
+- No code, no test, no CLAUDE.md change. No test reads either doc.
+
+### 2. The sync
+- Laptop: db-pull desktop dev2 -> laptop dev2 before the desktop session; the reverse direction (db-push laptop dev2 ->
+  desktop dev2) and the proofs after it. The laptop records the results in its DEV2-3 report, not here.
