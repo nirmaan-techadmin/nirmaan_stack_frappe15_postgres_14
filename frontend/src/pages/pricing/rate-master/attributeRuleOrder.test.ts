@@ -77,12 +77,19 @@ describe("ELR-1 AC6: wiring & cabling's rules list", () => {
     expect(text(cfg)).not.toContain("install unit per");
   });
 
-  it("UNCHANGED: the other eleven Electrical categories, the HVAC aliases and every HVAC category get no attribute list", () => {
+  it("UNCHANGED: the other eight Electrical categories, the HVAC aliases and every HVAC category get no attribute list", () => {
     const others = elec.category_configs.map((c: Cfg) => c.category_id).filter((id: string) => id !== "wiring_cabling");
     expect(others.sort()).toEqual(["cabletray_raceway", "conduit_piping", "db_switchgear", "earthing", "electrical_pricing_inputs",
       "industrial_sockets", "junction_box_raceway", "lighting_mgmt_system", "miscellaneous", "point_wiring", "popup_boxes",
       "switches_sockets"]);
-    for (const id of others) expect(lines(cfgOf(elec, id)), id).toEqual([]);
+    // ELR-4a (owner R-APPROVE, 2026-10-29) INVERTED: WAS every one of these eleven -> []; NOW point wiring, switches &
+    // sockets and pop-up boxes list their own rules (pinned line by line in attributeRuleOrder.elr4a.test.ts) and the
+    // other eight still get none
+    const elr4a = ["point_wiring", "popup_boxes", "switches_sockets"];
+    for (const id of others) {
+      if (elr4a.includes(id)) expect(lines(cfgOf(elec, id)).length, id).toBeGreaterThan(0);
+      else expect(lines(cfgOf(elec, id)), id).toEqual([]);
+    }
     for (const c of hvac.category_configs as Cfg[]) expect(attributeRuleOrder(c, hvac.items), c.category_id).toEqual([]);
     // and the item-list builder still returns [] for wiring: one list per category, never two
     expect(itemListRuleOrder(wiring(), elec.items)).toEqual([]);

@@ -37,9 +37,23 @@ describe("ELR-1: the Derivation tab", () => {
     for (const raw of ["R10", "R11", "conduit_included", "size_mm", "applies_to"]) expect(host.textContent, raw).not.toContain(raw);
   });
 
+  // ELR-4a (owner R-APPROVE + R-Q4, 2026-10-29) INVERTED: WAS the eleven other categories all kept the pointer line and
+  // card; NOW point wiring, switches & sockets and pop-up boxes show their rules list, no pointer line and no card,
+  // and the other eight are unchanged (the negative half below)
+  it("ELR-4a: point wiring, switches & sockets and pop-up boxes show 'How a row is priced', no pointer line, no extraction Rules card", () => {
+    for (const id of ["point_wiring", "switches_sockets", "popup_boxes"]) {
+      const host = tab(id);
+      expect(host.querySelectorAll('[data-testid="rate-master-item-list-order"] li').length, id).toBeGreaterThan(0);
+      expect(host.querySelector('[data-testid="rate-master-derivation-notice"]'), id).toBeNull();
+      expect(host.querySelector('[data-testid="rate-master-rules-panel"]'), id).toBeNull();
+      for (const raw of ["R9", "R12", "R13", "S4", "P1", "applies_to", "blank_item", "conduit_handoff"]) expect(host.textContent, `${id} ${raw}`).not.toContain(raw);
+    }
+  });
+
   it("UNCHANGED: every other Electrical category shows the pointer line, and its extraction card exactly where it had one", () => {
     const line = `This category's rules are not listed yet. To see how a row is priced, open ${PAGE} -> Calculator.`;
-    for (const c of asset.category_configs.filter((x) => x.category_id !== "wiring_cabling")) {
+    const listed = ["wiring_cabling", "point_wiring", "switches_sockets", "popup_boxes"];
+    for (const c of asset.category_configs.filter((x) => !listed.includes(x.category_id))) {
       const host = tab(c.category_id);
       expect(host.querySelector('[data-testid="rate-master-item-list-order"]'), c.category_id).toBeNull();
       const notice = host.querySelector('[data-testid="rate-master-derivation-notice"]')?.textContent;

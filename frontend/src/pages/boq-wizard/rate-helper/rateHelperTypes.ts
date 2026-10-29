@@ -71,6 +71,9 @@ export interface WorkingsAttribute {
    * declared in config. Rendered in the SAME blue box and style as an item-list field's `typedNote`. ABSENT when
    * the definition carries none, which is every field but wiring's Runs as of v67. */
   typedNote?: string;
+  /** ELR-4a (owner R-PW-BLANK, 2026-10-29): a note the panel draws BEFORE this field, in the place of a field the
+   * config hides -- point wiring's "how the blank count is worked out" (`blanksWorkedOutNote`). ABSENT elsewhere. */
+  leadNote?: string;
   // (see `startsAttributeGroup` below for the rule the panel applies to this field)
   /** DERIVED DISPLAY: the PIPELINE computes this attribute (a `module_fit` ladder bind, or a
    * `{from_fit}` quantity that superseded its `<name>_qty`). Read from CONFIG via `derivedAttrIds` --

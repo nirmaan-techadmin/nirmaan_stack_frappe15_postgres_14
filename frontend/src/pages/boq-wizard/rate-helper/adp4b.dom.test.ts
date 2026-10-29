@@ -101,13 +101,18 @@ describe("AC1 -- the Derivation tab is the rules listing on every category (owne
       "Electrical/conduit_piping": ePointer,
       "Electrical/junction_box_raceway": `${ePointer} + rules 1`,
       "Electrical/cabletray_raceway": `${ePointer} + rules 2`,
-      "Electrical/popup_boxes": `${ePointer} + rules 1`,
+      // INVERTED by ELR-4a (owner R-APPROVE + R-Q4, 2026-10-29): WAS `${ePointer} + rules 1`; NOW its rules list (this
+      // test reads the older asset it names, whose configs give the counts below)
+      "Electrical/popup_boxes": "list 6",
       "Electrical/industrial_sockets": `${ePointer} + rules 1`,
-      "Electrical/switches_sockets": `${ePointer} + rules 4`,
+      // INVERTED by ELR-4a: WAS `${ePointer} + rules 4`; NOW its rules list
+      "Electrical/switches_sockets": "list 7",
       "Electrical/db_switchgear": `${ePointer} + rules 4`,
       "Electrical/miscellaneous": ePointer,
       "Electrical/lighting_mgmt_system": ePointer,
-      "Electrical/point_wiring": `${ePointer} + rules 6`,
+      // INVERTED by ELR-4a: WAS `${ePointer} + rules 6`; NOW its rules list (12 on this older asset: its circuit length and
+      // circuit stretch read literals, not Pricing Inputs (ELR-3a moved them), so those two lines have no source here)
+      "Electrical/point_wiring": "list 12",
       "Electrical/electrical_pricing_inputs": PRICING_INPUTS_DERIVATION_LINE,
       "HVAC/hvac_adp": "list 38",
       "HVAC/hvac_insulation": "list 43",

@@ -104,6 +104,25 @@ const W = {
   totals: "supply = the cable supply rounded to tens + the conduit supply unrounded, the total rounded up to units; install = the two rounded legs, not rounded again (owner, 2026-08-23)",
   terminationInstall: "\"for termination install dont multiply by R as it is already beign dervide from supply which has the multiplication done\" (owner, 2026-08-05)",
 } as const;
+/** ELR-4a: point wiring's, switches & sockets' and pop-up boxes' reasons, word for word as the owner approved them at
+ *  the P6 stop (2026-10-29), with his three edits (the circuit-length reason without figures, the plate line's
+ *  "reason not recorded", the bare-box reason). */
+const E = {
+  wires: "the wire-reading rule is your own rule text, given to the AI word for word (owner, c. 2026-08-08; rewritten 2026-09-03)",
+  floor: "\"the number of conductors must ne coerced to 3 if the extraction reads less than 3 conductors, 3 core 1 run is also 3 conductors\"; \"if the wire given is 2 core then we have to add another wire 2 of 1 core and same thickness even if it results in higher install price\" (owner, 2026-09-03)",
+  points: "\"Where the line names no count at all, record 1.\" (owner, c. 2026-08-08)",
+  switch: "\"No 6A switch exists in the catalog. When a line states a 6A switch, select the 10A switch with the same other parameters\" (owner, c. 2026-08-06; the way-count and 16A rules likewise, no further reason recorded)",
+  quantities: "\"if the item is filled but qty is blank then it should be populated default 1. when item is none or blank it, the default qty rule sshould not be applied ... this should be included\" (owner, 2026-09-07); clearing None = work it out (owner, 2026-10-27, \"2 v1\")",
+  length: "\"if the line item mentions only Primary/ first or any synonym then length will be ['Point wiring - circuit length of the first point']. if it mentions only secondary/looping/ second/ third etc points then length will be ['Point wiring - circuit length per further point'] ... in case of confusion default to the formula\" (owner, 2026-09-01); n times: \"ok. still buid the mechanism\" (owner, 2026-09-05)",
+  conduitIncluded: "\"slash alternation (existing conduit / raceway) | INCLUDE PVC -- genuinely ambiguous; silent on conduit | INCLUDE PVC\"; \"a NORMAL conduit named elsewhere | INCLUDE PVC -- ambiguous\"; \"conduit price EXPLICITLY EXCLUDED | DROP -- the document says so; outranks all inference\" (owner, 2026-09-01)",
+  conduitType: "\"silent on conduit | INCLUDE PVC\" (owner, 2026-09-01; why PVC is not recorded)",
+  circuitWiring: "\"we need to include only for positive cases ... the ciricuit wiring cost wil be added only to thr eprimary point rows or mixed rows and not secondary point rows\" (owner, 2026-09-02)",
+  install: "\"we are pricing the 2 wires separately\" (owner, 2026-09-03; the wire install, ruling (a) 2026-08-10); the rest: reason not recorded",
+  bareBox: "\"extraction should provide the higher count\" (owner, 2026-09-08); ranges: accepted as built, the higher-count rule not applied today (owner, 2026-09-08); the mm-only rows at 3M: \"this is ok\" (owner, 2026-09-07)",
+  moduleWidths: "\"The owner's rule is 2 x (sockets) + 1 x (switches)\" (owner, c. 2026-08-06; per-item widths 2026-08-21)",
+  includesModules: "\"if the user edits it to no, they should get the bare box price. if they set it to yes they should get price of box oplus components as [per the selction\" (owner, 2026-09-10)",
+  boxAdded: "\"the switch-socket module set now lives INSIDE this category (owner R1) and its price is ADDED to the box price\" (owner, 2026-08-21)",
+} as const;
 const each = (parts: Array<[string, string]>): string => parts.map(([what, why]) => `${what} -- ${why}`).join("; ");
 export const DERIVATION_RULINGS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   hvac_adp_item: {
@@ -150,6 +169,41 @@ export const DERIVATION_RULINGS: Readonly<Record<string, Readonly<Record<string,
     totals: W.totals,
     termination_supply: each([["runs", W.runs], ["the gland sizes and the rounding", NOT_RECORDED]]),
     termination_install: W.terminationInstall,
+  },
+  // ELR-4a (owner R-APPROVE, 2026-10-29 "option b"; the P6 answer): the three module-fitting categories' reasons, each
+  // line's "why" as the owner approved it. The KEY ORDER IS THE LINE ORDER on the tab (`assemblyRuleOrder`).
+  point_wiring: {
+    wires: E.wires,
+    floor: E.floor,
+    points: E.points,
+    switch: E.switch,
+    quantities: E.quantities,
+    box_colour: NOT_RECORDED,
+    length: E.length,
+    conduit_included: E.conduitIncluded,
+    conduit_type: E.conduitType,
+    circuit_wiring: E.circuitWiring,
+    conduit_fit: NOT_RECORDED,
+    plate: NOT_RECORDED,   // owner P6 edit: no plain-words quote of the 2026-08-06 / 2026-08-09 rulings is recorded
+    supply: NOT_RECORDED,
+    install: E.install,
+  },
+  switches_sockets: {
+    switch: E.switch,
+    bare_box: E.bareBox,
+    quantities: E.quantities,
+    box_colour: NOT_RECORDED,
+    plate: E.moduleWidths,
+    supply: NOT_RECORDED,
+    install: NOT_RECORDED,
+  },
+  popup_boxes: {
+    includes_modules: E.includesModules,
+    box: E.boxAdded,
+    quantities: `${E.quantities}; White: ${NOT_RECORDED}`,
+    plate: E.moduleWidths,
+    modules_price: NOT_RECORDED,
+    totals: E.boxAdded,
   },
 };
 
@@ -1049,6 +1103,10 @@ export function attributeRuleOrder(config: unknown, items: ReadonlyArray<RuleOrd
   if (!c || (c.list_spec && typeof c.list_spec === "object")) return [];
   const rulings = DERIVATION_RULINGS[String(c.category_id ?? "")];
   if (!rulings) return [];
+  // ELR-4a: a category whose lines are all assembly lines (point wiring, switches & sockets, pop-up boxes) lists its
+  // rules through `assemblyRuleOrder`; wiring's keys are its own, so its thirteen lines below are untouched. Decided
+  // by the reasons table, not by a step, so a deleted step removes its own line and never the whole list.
+  if (isAssemblyRulings(rulings)) return assemblyRuleOrder(c, items, rulings);
   const pipelines = Object.entries(c.pipelines ?? {}).filter(([id]) => !/bcs/i.test(id));
   if (!pipelines.length) return [];
   const label = (id: string): string => c.attribute_definitions?.find((d) => d.id === id)?.label ?? id.replace(/_/g, " ");
@@ -1168,5 +1226,277 @@ export function attributeRuleOrder(config: unknown, items: ReadonlyArray<RuleOrd
     l.reason = why;
     l.detail = l.detail ? `${l.detail} -- why: ${why}` : `why: ${why}`;
   });
+  return out;
+}
+
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// ELR-4a (owner R-DERIV 2026-09-27; R-APPROVE 2026-10-29 "option b"; the P6 answer) -- THE RULES LIST OF A CATEGORY
+// THAT FITS MODULES: point wiring, switches & sockets, pop-up boxes. Each line EXISTS ONLY WHILE ITS SOURCE DOES -- a
+// config step, a config rule the AI is given, a config default, or the config marker a code rule reads -- and every
+// Pricing Input, size, count, default and item name in it is READ FROM THAT SOURCE. The words around them are the
+// owner's approved wording (2026-10-29), held per category as its reasons are; a line whose source goes, goes.
+//
+// THE CODE RULES, EACH TIED TO THE MARKER ITS FUNCTION READS (a test fails if the function is removed):
+//   three conductors       `conductor_floor` on a wire definition  -> extraction.apply_conductor_floor
+//   point type, n times    a `point_type` definition               -> extraction.point_type_of / secondary_length_m
+//   quantities left blank  an `extraction_defaults` `requires_named` -> extraction.fill_paired_slot_defaults
+//   circuit wiring No      a definition's `absent_dependents`      -> extraction.force_absent_dependents
+// The AI-reading lines are tied to the config rule the AI is given (the wires, the points, the switch, the bare box,
+// the includes-modules read). Run order: the AI's read first, then the BoQ pipeline steps; BCS is not listed.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The step keys the assembly lines read -- only those; everything else in a step is not this builder's business. */
+type AsmLadder = { where?: { family?: string }; bind?: string; on_zero_from?: string; on_zero_modules?: number; pick_from?: string };
+type AsmParams = {
+  terms?: Array<{ weight?: number; none_when?: string; weight_from?: unknown }>; ladders?: AsmLadder[];
+  blanks?: { item_when_positive?: string; qty_attr?: string }; include_when?: unknown;
+  table_from_ctx?: Record<string, string>; constants_from_ctx?: { base?: string; per_extra?: string };
+  from_attr?: string; result_attr?: string; default?: unknown; default_from_ctx?: string; table?: Record<string, unknown>;
+  sizes?: number[]; usable_from_ctx?: Record<string, string[]>; m_from_ctx?: string; digits?: number;
+  module_count_from_attr?: string; modules_from_ctx?: string;
+};
+type AnyStep = {
+  step?: string; name?: string; target?: string; result?: string; ref?: Record<string, unknown>; params?: AsmParams;
+  rate_stages?: Array<{ mult_from_ctx?: string; mult_step_divisor?: number } | null>; pricing_input?: boolean;
+};
+type AsmCfg = {
+  category_id?: string; pipelines?: Record<string, { steps?: AnyStep[] }>;
+  attribute_definitions?: Array<{ id: string; label?: string; conductor_floor?: { group?: string } }>;
+  extraction_defaults?: Record<string, unknown>; rules?: Array<{ id?: string }>;
+};
+
+function boqPipelines(c: AsmCfg): Array<[string, { steps?: AnyStep[] }]> {
+  return Object.entries(c.pipelines ?? {}).filter(([id]) => !/bcs/i.test(id));
+}
+
+/** Whether every line a category's reasons name is an assembly line (`ASSEMBLY_TEXT`). */
+function isAssemblyRulings(rulings: Readonly<Record<string, string>>): boolean {
+  const keys = Object.keys(rulings);
+  return keys.length > 0 && keys.every((k) => k in ASSEMBLY_TEXT);
+}
+
+const andList = (xs: readonly string[]): string => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}` : xs.join(""));
+const COUNT_WORDS = ["no", "one", "two", "three", "four", "five", "six"];
+const countWord = (n: number): string => COUNT_WORDS[n] ?? String(n);
+const num = (v: unknown): string => String(Number(v));
+
+/** The facts one config gives the lines, or null where a line's source is absent. */
+function assemblyFacts(c: AsmCfg, items: ReadonlyArray<RuleOrderItem>) {
+  const steps = boqPipelines(c).flatMap(([, pl]) => pl.steps ?? []);
+  const defs = c.attribute_definitions ?? [];
+  const def = (id: unknown) => defs.find((d) => d.id === id);
+  const label = (id: unknown): string => def(id)?.label ?? String(id ?? "").replace(/_/g, " ");
+  const rule = (id: string): boolean => (c.rules ?? []).some((r) => r?.id === id);
+  const dflt = (id: string): unknown => c.extraction_defaults?.[id];
+  // ctx name -> the Pricing Inputs it is built from: a `rate_ref` reads one; a Pricing-Input `scale` combines its own
+  const reads = new Map<string, string>();
+  const scales = new Map<string, AnyStep>();
+  for (const st of steps) {
+    if (st.step === "rate_ref" && typeof st.result === "string") reads.set(st.result, String(st.ref?.item ?? ""));
+    else if (st.step === "scale" && typeof st.result === "string" && (st as { pricing_input?: boolean }).pricing_input) scales.set(st.result, st);
+  }
+  const inputs = (ctx: unknown, seen = new Set<string>()): string[] => {
+    const k = String(ctx ?? "");
+    if (seen.has(k)) return [];
+    seen.add(k);
+    const id = reads.get(k);
+    if (id) return [pricingInputLabel(id, items as never)];
+    const sc = scales.get(k);
+    if (!sc) return [];
+    const out = [...inputs(sc.target, seen)];
+    for (const [pk, pv] of Object.entries(sc.params ?? {})) if (/_from_ctx$/.test(pk)) out.push(...inputs(pv, seen));
+    return [...new Set(out)];
+  };
+  const lastInput = (ctx: unknown): string => inputs(ctx).slice(-1)[0] ?? "a Pricing Input";
+  const maps = steps.filter((s) => s.step === "map_attribute");
+  const mapOf = (pred: (p: AsmParams) => boolean) => maps.find((s) => pred(s.params ?? {}));
+  const mf = steps.find((s) => s.step === "module_fit");
+  const ladders: AsmLadder[] = mf?.params?.ladders ?? [];
+  const isBox = (L: AsmLadder) => /back box/i.test(String(L.where?.family ?? ""));
+  const boxLadder = ladders.find(isBox);
+  const plateLadder = ladders.find((L) => !isBox(L));
+  const blanks = mf?.params?.blanks;
+  const named = Object.entries(c.extraction_defaults ?? {})
+    .filter((e): e is [string, { default?: unknown; requires_named: string }] => !!e[1] && typeof e[1] === "object" && !!(e[1] as { requires_named?: unknown }).requires_named);
+  const plateQty = named.find(([, v]) => v.requires_named === plateLadder?.bind)?.[0];
+  // the pipelines whose components add to the supply and to the install
+  const sumPl = (result: string) => boqPipelines(c).find(([, pl]) => (pl.steps ?? []).some((s) => s.step === "sum_components" && s.result === result))?.[1].steps ?? [];
+  const compIn = (pl: AnyStep[], name: string) => pl.find((s) => s.step === "component_ref" && s.name === name);
+  const stageCtx = (s: AnyStep | undefined, i: number): unknown => s?.rate_stages?.[i]?.mult_from_ctx;
+  const scaleTo = (result: string) => steps.find((s) => s.step === "scale" && s.result === result && s.params?.m_from_ctx);
+  const roundOf = (target: string) => steps.find((s) => s.step === "roundup" && s.target === target);
+  const fit = steps.find((s) => s.step === "circuit_fit");
+  const lenMap = mapOf((p) => !!p.table_from_ctx);
+  const lenDerive = steps.find((s) => s.step === "derive_attribute" && s.params?.constants_from_ctx);
+  const handoff = mapOf((p) => p.from_attr === "conduit_handoff" && p.default !== undefined);
+  const stretch = mapOf((p) => !!p.default_from_ctx);
+  const assemblyComps = steps.some((s) => s.step === "component_ref" && Array.isArray(s.rate_stages) && s.rate_stages.some((r) => r?.mult_from_ctx));
+  const supplyPl = sumPl("supply"), installPl = sumPl("install");
+  return {
+    // the AI's read
+    wires: rule("R9") ? {} : null,
+    floor: defs.some((d) => d.conductor_floor) ? { circuit: defs.some((d) => d.conductor_floor?.group === "circuit") } : null,
+    points: rule("R9") && dflt("points") !== undefined ? { n: num(dflt("points")) } : null,
+    switch: (() => {
+      const cl = [["S1", "a 6A switch is priced as 10A"], ["S2", "an unstated way count is 1 way"], ["S3", "more than one socket makes it 16A"]]
+        .filter(([id]) => rule(id)).map(([, t]) => t);
+      return cl.length ? { clauses: cl } : null;
+    })(),
+    bare_box: rule("S4") && boxLadder?.on_zero_from ? { n: num(boxLadder.on_zero_modules) } : null,
+    includes_modules: rule("P1") && mf?.params?.include_when ? {} : null,
+    quantities: named.length && plateQty ? { q: num(named[0][1].default), plateQty: label(plateQty), colour: dflt("colour") } : null,
+    box_colour: dflt("back_box") !== undefined && dflt("colour") !== undefined
+      ? { box: dflt("back_box") === "Yes" ? "included" : "not included", colour: String(dflt("colour")) } : null,
+    // the BoQ pipeline steps
+    length: lenMap && lenDerive
+      ? { first: lastInput(lenDerive.params?.constants_from_ctx?.base), further: lastInput(lenDerive.params?.constants_from_ctx?.per_extra), nTimes: !!def("point_type") }
+      : null,
+    conduit_included: handoff
+      ? { other: !!mapOf((p) => p.from_attr === "other_conduit"), excluded: !!mapOf((p) => p.from_attr === "conduit_price_excluded") }
+      : null,
+    conduit_type: (() => {
+      const m = mapOf((p) => p.result_attr === "conduit_type" && p.default !== undefined && !p.from_attr);
+      return m ? { dflt: String(m.params?.default), drop: !!mapOf((p) => p.result_attr === "conduit_type" && !!p.from_attr) } : null;
+    })(),
+    circuit_wiring: stretch
+      ? { stretch: lastInput(stretch.params?.default_from_ctx), silence: dflt(String(stretch.params?.from_attr)), secondary: !!mapOf((p) => p.from_attr === "point_type" && p.result_attr !== stretch.params?.result_attr && !!p.table && !p.table_from_ctx) }
+      : null,
+    conduit_fit: fit
+      ? (() => {
+        const sizes: number[] = fit.params?.sizes ?? [];
+        const types = Object.entries<unknown[]>(fit.params?.usable_from_ctx ?? {}).map(([t, ks]) => [t, ks.map((k) => lastInput(k))] as const);
+        return { sizes: sizes.map(num), types };
+      })()
+      : null,
+    plate: mf
+      ? {
+        terms: (mf.params?.terms ?? []).map((t) => ({ what: label(t.none_when).toLowerCase().replace(/\s+\d+$/, ""), weight: num(t.weight), own: !!t.weight_from })),
+        box: !!boxLadder, pick: !!boxLadder?.pick_from, zero: boxLadder?.on_zero_modules !== undefined && !boxLadder?.on_zero_from ? num(boxLadder.on_zero_modules) : null,
+        blanker: blanks?.item_when_positive ? String(blanks.item_when_positive) : null, blankQty: blanks?.qty_attr ? label(blanks.qty_attr) : null,
+      }
+      : null,
+    supply: assemblyComps && supplyPl.length
+      ? (() => {
+        const w = lastInput(stageCtx(compIn(supplyPl, "wire1"), 0));
+        return { assembly: true as const, wire: w, wastage: /wastage/i.test(w), conduit: lastInput(stageCtx(compIn(supplyPl, "conduit"), 0)), swsock: lastInput(stageCtx(compIn(supplyPl, "switch"), 0)) };
+      })()
+      : scaleTo("supply") && roundOf("supply")
+        ? { assembly: false as const, input: lastInput(scaleTo("supply")!.params?.m_from_ctx), round: roundWords(roundOf("supply")!.params?.digits) }
+        : null,
+    install: assemblyComps && installPl.length
+      ? (() => {
+        const w = compIn(installPl, "wire1");
+        return {
+          assembly: true as const, cable: lastInput(stageCtx(w, 0)), divisor: num(w?.rate_stages?.[0]?.mult_step_divisor),
+          conduit: lastInput(stageCtx(compIn(installPl, "conduit"), 1)), switchShare: lastInput(stageCtx(compIn(installPl, "switch"), 1)),
+          accessory: lastInput(stageCtx(compIn(installPl, "socket"), 0)),
+        };
+      })()
+      : scaleTo("install") && roundOf("install")
+        ? { assembly: false as const, input: lastInput(scaleTo("install")!.params?.m_from_ctx), round: roundWords(roundOf("install")!.params?.digits) }
+        : null,
+    box: steps.some((s) => s.step === "match_master_row") && steps.find((s) => s.step === "scale" && s.params?.module_count_from_attr)
+      ? { count: label(steps.find((s) => s.step === "scale" && s.params?.module_count_from_attr)!.params?.module_count_from_attr) }
+      : null,
+    modules_price: scaleTo("module_supply") && scaleTo("module_install")
+      ? {
+        supply: lastInput(scaleTo("module_supply")!.params?.m_from_ctx), supplyRound: roundWords(roundOf("module_supply")?.params?.digits),
+        install: lastInput(scaleTo("module_install")!.params?.m_from_ctx), installRound: roundWords(roundOf("module_install")?.params?.digits),
+      }
+      : null,
+    totals: steps.some((s) => s.step === "scale" && s.params?.modules_from_ctx) ? {} : null,
+  };
+}
+type AsmFacts = ReturnType<typeof assemblyFacts>;
+type AsmKey = keyof AsmFacts;
+
+/** The owner-approved wording of each line (2026-10-29), filled from its facts; `at(key)` is another line's number. */
+type AsmText = { [K in AsmKey]: (f: NonNullable<AsmFacts[K]>, cat: string, at: (k: string) => number | undefined) => [string, string] };
+const ASSEMBLY_TEXT: AsmText = {
+  wires: () => ["The wires",
+    "Read as the BoQ states them: '3R x 1.5' or '3 x 1.5' is 3 runs of a 1-core 1.5 sqmm wire; a bare size is 1 run; a separately named earth is wire 2; with two sizes and no counts, the larger is wire 1, one run each; more than 1 core only when stated."],
+  floor: (f) => ["Three conductors",
+    `On the AI's read, the point wires${f.circuit ? ", and the circuit wires as well," : ""} are raised to three conductors: a single-core wire gets more runs (the bigger one when there are two); when every wire is multi-core, a 1-core wire of the same size is added; a BoQ stating more is never reduced. A value you type on the panel or the calculator is priced as typed.`],
+  points: (f) => ["Points covered", `The number the BoQ states; where none is stated, ${f.n}.`],
+  switch: (f) => ["Switch", `As stated, with ${countWord(f.clauses.length)} catalogue rule${f.clauses.length > 1 ? "s" : ""}: ${f.clauses.join("; ")}.`],
+  bare_box: (f) => ["Back box size (a bare box)",
+    `A module count the BoQ gives for the box itself is used only when nothing sits on the board. A size in millimetres, or a count of ports or outlets, is not a module count. With none readable, the box is ${f.n} modules, shown as assumed. Where the BoQ writes a range such as '9/8M', the box takes whatever count the AI read; the "higher of a range" rule is not applied today.`],
+  includes_modules: () => ["Includes modules",
+    "Yes only when the BoQ supplies the modules; a box \"with provision for\", \"suitable for\" or simply \"N module\" is a box without modules. No -> the box alone (the module picks stay on screen and are not charged). Blank -> the row does not price."],
+  quantities: (f, cat) => ["Quantities left blank", cat === "point_wiring"
+    ? `A named switch, socket or plate with no quantity -> ${f.q}; an unnamed plate on a board holding a switch or socket -> ${f.q}; a component the BoQ says is absent ("None") has no quantity. Clearing a "None" plate means "work it out": the plate is computed, or, where the board holds nothing, "${f.plateQty}" is asked.`
+    : cat === "popup_boxes"
+      ? `A named switch, socket or plate with no quantity -> ${f.q}; an unnamed plate in a box holding a switch or socket -> ${f.q}; colour ${f.colour} where unstated. Clearing a "None" plate means "work it out": the plate is computed, or, on an empty box, "${f.plateQty}" is asked.`
+      : `A named switch, socket or plate with no quantity -> ${f.q}; an unnamed plate on a board holding a switch or socket -> ${f.q}; a component the BoQ says is absent has no quantity. Clearing a "None" plate means "work it out": the plate is computed, or, on an empty box, "${f.plateQty}" is asked.`],
+  box_colour: (f) => ["Back box and colour", `Where unstated, a back box is ${f.box} and the colour is ${f.colour}.`],
+  length: (f) => ["Circuit length",
+    `The length the BoQ states. Otherwise: a row naming only a first or primary point takes '${f.first}'; a row naming only secondary, looped or further points takes '${f.further}'${f.nTimes ? ", or n times it when the row names n such points" : ""}; otherwise the first point's length + '${f.further}' for every additional point.${f.nTimes ? " The point type is read by code from the row and its headings." : ""}`],
+  conduit_included: (f) => ["Conduit included",
+    `Yes, unless the BoQ says the run uses something already there (a raceway, tray, trunking or existing conduit), which means no conduit. Also: ${[
+      "a choice between a conduit and another container -> included", "silence -> included",
+      ...(f.other ? ["a normal conduit named elsewhere on the row -> included"] : []),
+      ...(f.excluded ? ["an explicit \"conduit paid separately\" -> no conduit, whatever else the row says"] : []),
+    ].join("; ")}.`],
+  conduit_type: (f) => ["Conduit type", `The BoQ's answer; where none is stated, ${f.dflt}${f.drop ? "; with no conduit included, none" : ""}.`],
+  circuit_wiring: (f) => ["Circuit wiring",
+    `Only when the BoQ says the rate includes it${f.silence ? `; silence is ${f.silence}` : ""}. When it is included, the circuit wires are priced over '${f.stretch}' (a stretch you type is kept), once per row. It is ${f.secondary ? "never charged on a secondary-point row (that row still shows the stretch) and " : ""}never multiplied by the points.`],
+  conduit_fit: (f) => {
+    const [first, ...rest] = f.types as Array<readonly [string, string[]]>;
+    const prefix = (ls: string[]) => ls.reduce((a, b) => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return a.slice(0, i); }).trim();
+    const others = rest.map(([t, ls]) => `the ${countWord(ls.length)} '${prefix(ls)} ...' inputs for an ${t} conduit`);
+    return ["Conduit size and length",
+      `Fitted to the wires: the wires' overall width (each wire's diameter x cores x runs) fits the smallest of ${andList(f.sizes)} mm whose usable share holds it. The shares are ${andList((first?.[1] ?? []).map((l) => `'${l}'`))}${others.length ? `, or ${others.join(", or ")}` : ""}. As many circuits as fit share one conduit, so the conduit length = the circuit length / circuits, rounded up. If even ${f.sizes[f.sizes.length - 1]} mm cannot hold the wires, the row does not price.`];
+  },
+  plate: (f, _cat, at) => {
+    const t = f.terms as Array<{ what: string; weight: string; own: boolean }>;
+    const counts = t.every((x) => x.own)
+      ? `each ${andList([...t].reverse().map((x) => x.what).filter((w, i, a) => a.indexOf(w) === i))} counts its own module width`
+      : t.map((x, i) => (i === 0 ? `a ${x.what} counts ${x.weight} modules` : `a ${x.what} ${x.weight}`)).join(" and ");
+    const larger = "the plate is the larger of the stated and the computed size";
+    if (!f.box) {
+      return ["The plate and blanks",
+        `Fitted to what the box holds: ${counts}; ${larger}; spare modules get '${f.blanker}'s ("${f.blankQty}" can lower, never raise). There is no back box: the pop-up box is the enclosure.`];
+    }
+    if (f.zero !== null) {
+      return ["Plate, back box and blanks",
+        `Fitted to what the board holds: ${counts}; ${larger}; the back box takes the plate's size (the computed size when the plate is "None"); with nothing on the board, a ${f.zero}-module back box and no plate; each spare module on the plate gets a '${f.blanker}'; "${f.blankQty}" can lower that count but never raise it above the spare.`];
+    }
+    const bare = at("bare_box");
+    return ["Plate, back box and blanks",
+      `Fitted to what the board holds: ${counts}; ${larger}; the back box is the plate's size, or the computed size with no plate${f.pick ? "; a back box size you pick is used if it holds the contents, else raised to fit" : ""}${bare ? `; with nothing on the board, see line ${bare}` : ""}; spare modules get '${f.blanker}'s ("${f.blankQty}" can lower that count, never raise it).`];
+  },
+  supply: (f) => ["Supply", f.assembly
+    ? `Each part at its own discount and supply markup, rounded up to the rupee per metre or per piece, x its quantity, then added up and not rounded again: each wire x its runs, from '${f.wire}'${f.wastage ? " (the wastage is not applied)" : ""}, x the circuit length; the circuit wires x the circuit stretch; the conduit from '${f.conduit}', x its fitted length; switch, socket, blanks, plate and back box from '${f.swsock}'.`
+    : `The parts' list prices added, x (1 - discount) x (1 + supply markup) from '${f.input}', ${f.round}.`],
+  install: (f) => ["Install", f.assembly
+    ? `Each part's own install: wires: install base x (1 + '${f.cable}') x one install unit per ${f.divisor} runs, rounded up to the rupee, x the length; the conduit: its discounted rate x '${f.conduit}', rounded up; the switch: its rounded supply rate x '${f.switchShare}', not rounded again; socket, blanks, plate and back box: the switch & socket discounted rate x '${f.accessory}', rounded once.`
+    : `The supply x '${f.input}', ${f.round}.`],
+  box: (f) => ["The box", `The catalogue's per-module supply and install rates, as they stand, x the "${f.count}".`],
+  modules_price: (f) => ["The modules' price",
+    `Supply = their list prices added, x (1 - discount) x (1 + supply markup) from '${f.supply}', ${f.supplyRound}. Install = that x '${f.install}', ${f.installRound}.`],
+  totals: () => ["Totals", "Supply = the box + the modules' supply; install = the box's install + the modules' install."],
+};
+
+/**
+ * ELR-4a -- PURE. "How a row is priced" for a category that fits modules: the lines its `DERIVATION_RULINGS` entry
+ * names, in that order, each only while its source is in the config, each ending with its reason.
+ */
+function assemblyRuleOrder(config: unknown, items: ReadonlyArray<RuleOrderItem>, rulings: Readonly<Record<string, string>>): RuleOrderLine[] {
+  const c = config as AsmCfg;
+  const cat = String(c.category_id ?? "");
+  const facts = assemblyFacts(c, items);
+  const out: RuleOrderLine[] = [];
+  const keys: string[] = [];
+  const at = (k: string): number | undefined => { const i = keys.indexOf(k); return i < 0 ? undefined : i + 1; };
+  for (const key of Object.keys(rulings)) {
+    const f = (facts as Record<string, unknown>)[key];
+    const text = ASSEMBLY_TEXT[key as AsmKey] as unknown as ((f: unknown, cat: string, at: (k: string) => number | undefined) => [string, string]) | undefined;
+    if (f == null || !text) continue;
+    const [title, body] = text(f, cat, at);
+    keys.push(key);
+    const why = rulings[key] || NOT_RECORDED;
+    out.push({ n: out.length + 1, title, detail: `${body} -- why: ${why}`, reason: why });
+  }
   return out;
 }

@@ -769,6 +769,14 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                             {a.groupLabel}
                           </div>
                         )}
+                        {/* ELR-4a (owner R-PW-BLANK, 2026-10-29): a note in the place of a field the config hides --
+                            point wiring's "Blank plate" -- drawn before the field it explains, on the panel and the calculator */}
+                        {a.leadNote && (
+                          <div className={NOTE_BOX_CLASS} data-testid="attribute-lead-note">
+                            <Info className={NOTE_ICON_CLASS} aria-hidden />
+                            <p className={TYPED_NOTE_CLASS}>{a.leadNote}</p>
+                          </div>
+                        )}
                         <div className="group/attr space-y-0.5">
                         {/* Calculator layout slice: the label sits ABOVE its box (a column, boxes
                             full-width and equal within a column); the BoQ variants keep label-left /

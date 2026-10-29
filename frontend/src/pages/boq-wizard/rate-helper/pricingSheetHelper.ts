@@ -1190,6 +1190,39 @@ function readGroupLabel(d: unknown): string | undefined {
  * (reused, not a second mark) plus the "(never asked at extraction ...)" derivation line are the only
  * guard. A pricer's override still wins, exactly as over a model-claimed default.
  */
+/**
+ * ELR-4a (owner R-PW-BLANK, 2026-10-29: "remove it and in its place goive a note explaining how blank count is
+ * arrived"; text N1 approved at P6) -- PURE. The note that says how the blank count is worked out, for a category
+ * whose `module_fit` `blanks` block shows its blanker on NO field (no `display_attr`: point wiring's v70 hides its
+ * "Blank plate" with `panel: false`). It is drawn where that field was, so on the field before the blanks' own
+ * quantity. Written FROM THE CONFIG -- the terms' items and weights, the blanker's name, the quantity's label -- and
+ * null for a block that displays its blanker (switches & sockets, pop-up boxes keep "Blank plate", owner "4 let it be").
+ */
+export function blanksWorkedOutNote(config: RateCategoryConfig): { attr: string; text: string } | null {
+  const defs = config.attribute_definitions ?? [];
+  const label = (id: unknown): string => defs.find((d) => d.id === id)?.label ?? String(id ?? "");
+  for (const [pid, pl] of Object.entries(config.pipelines ?? {})) {
+    if (/bcs/i.test(pid)) continue;
+    for (const raw of pl.steps ?? []) {
+      const s = raw as { step?: string; params?: { terms?: Array<{ weight?: number; none_when?: string }>; blanks?: Record<string, unknown> } };
+      const b = s.params?.blanks;
+      if (s.step !== "module_fit" || !b || b.display_attr || typeof b.qty_attr !== "string" || typeof b.item_when_positive !== "string") continue;
+      const terms = (s.params?.terms ?? []).map((t) => ({ what: label(t.none_when).toLowerCase(), weight: Number(t.weight) }));
+      if (!terms.length) continue;
+      const plural = (w: string) => (/(ch|sh|s|x)$/.test(w) ? `${w}es` : `${w}s`);
+      const users = [...terms].reverse().map((t) => plural(t.what));
+      const users2 = users.length > 1 ? `${users.slice(0, -1).join(", ")} and ${users[users.length - 1]}` : users[0];
+      const weights = terms.map((t, i) => (i === 0 ? `a ${t.what} takes ${t.weight}` : `a ${t.what} ${t.weight}`)).join(", ");
+      return {
+        attr: b.qty_attr,
+        text: `Blank plates are worked out, not chosen: the plate's modules less the modules its ${users2} use (${weights}). ` +
+          `Each spare module gets a '${b.item_when_positive}'. '${label(b.qty_attr)}' can lower that count but never raise it above the spare.`,
+      };
+    }
+  }
+  return null;
+}
+
 function readExtractionDefaults(config: RateCategoryConfig): Record<string, unknown> {
   // `extraction_defaults` is carried by the config but is not on the RateCategoryConfig type (out of
   // this slice's scope) -- read through `unknown`, the `readGroupLabel` precedent.
@@ -1491,6 +1524,7 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
 
     // Build the workings attributes (pre-filled from extraction, overridable) + the selected map.
     const workingsAttrs: WorkingsAttribute[] = [];
+    const blanksNote = blanksWorkedOutNote(category);
     const selected: Record<string, string | number> = {};
     const defaulted: string[] = []; // EA-4a: attrs the extraction filled from a config default
     const neverAskedTrace: string[] = []; // 2026-09-08: the subset of `defaulted` this helper synthesized
@@ -1644,6 +1678,8 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
         ...(ratingUp ? { notes: [ratingUp] } : {}),
         // ELR-1 (owner R-NOTES-RULE, AC2): the definition's own note, as the item-list path shows its typed note
         ...(typeof d.note === "string" && d.note.trim() !== "" ? { typedNote: d.note } : {}),
+        // ELR-4a (owner R-PW-BLANK): how the blank count is worked out, drawn before this field (`blanksWorkedOutNote`)
+        ...(blanksNote && d.id === blanksNote.attr ? { leadNote: blanksNote.text } : {}),
         // F4b: carry the config's group label through untouched. A non-string (or empty) is dropped
         // rather than rendered -- attribute-definition keys carry no backend type guard, so a bad
         // value must degrade to "no group" here instead of drawing a blank header.
