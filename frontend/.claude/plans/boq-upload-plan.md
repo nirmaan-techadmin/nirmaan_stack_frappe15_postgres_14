@@ -49767,3 +49767,96 @@ per-line compute cases are ELR-4c's; no guard built here). NOT this slice: (e) a
 - Open: the approved PB2 / PB6 reason quotes "(owner R1)" verbatim (a raw id inside the owner's quote, on screen);
   ELR-4b (the other 8 lists, wiring's 6 corrections, (g)); ELR-4c (R-39 cases per line, the field-table rulings, (c),
   (h)); ELR-4d (the shared floor; PW2's last sentence changes there).
+
+## Slice DEV2-1 - desktop Docker memory raised; env_sync, the launcher and dev_isolate work for a second environment (dev2); App.tsx socketPort - as built 2026-10-29
+
+Desktop session, delegated by the laptop. Recon: DEV2-R0 (Q6-Q9). Owner rulings carried: R-LANE (2026-10-29 11:40,
+parallel work "ondev2 in desktop... synced with dev2 on laptop"), R-BRANCH (11:43 "agree": feature/boq-rate-history is
+cut in DEV2-2, after this slice), R-DEV2R0 (12:06 "all ok": (1) refresh dev2 in place, (2) ports 8100 / 8180 / 9100,
+(3) scheduler OFF in dev2, (4) dev_isolate accepts dev2.localhost and App.tsx's socketPort committed, (5) dev2's data =
+a fresh main backup, (6) the desktop's Docker memory to about 24 GB first, (7) the laptop's syncs take turns), R-MEM
+(12:06 / 12:08 "ok"). Risk tier 1: tooling and one no-op prop; no price code, no asset, no data, no paid run, dev2 not
+started, read or changed.
+
+### 1. S0 (Docker memory) and Phase A
+- S0: `docker info` 15.27 GiB (WSL default, no `.wslconfig`) -> `C:\Users\USER\.wslconfig` `[wsl2]` `memory=24GB`
+  (outside the repo) -> bench stopped, `docker compose -p frappe_docker_devcontainer stop`, `docker desktop stop`,
+  `wsl --shutdown`, `docker desktop start`, only the 4 main containers started, bench + vite by the documented
+  `start_bench.sh` -> **23.47 GiB**. Postgres "shut down at 10:36:23 UTC" -> "ready to accept connections", no recovery
+  line; ping after ~3 min. HVAC v54 / Electrical v70 live == file, the fingerprint and the replay (dev21start 18,106
+  rows, ac7 `56fb5640...`, ac7v2 `978f871f...` = ELR-4a's final) unchanged.
+- P2: DEV2-R0's Q7 table confirmed item by item; four more places than it listed (the db-push run-record's site text,
+  the destale filter's and stop_bench's port check, `Get-ScheduledTaskInfo`'s task name). env_sync had no test and no
+  dry-run.
+- P3: correction to DEV2-R0 Q9 - `--verify` never calls `refusals()`, so it already ran on any site; only `--yes` and
+  `--restore` are gated by the site check.
+- P4: the SDK (frappe-react-sdk 1.17.0) sets `socket_port = socketPort ?? "9000"`, so `undefined` = no prop; main sets
+  no VITE_SOCKET_PORT.
+- P5: only `services/test_dev_isolate.py` imports `dev_isolate.py`; no test reads App.tsx (imported by main.tsx only),
+  ruled SHARED (the app root) -> the full vitest suite once.
+- Both bench folders are named `frappe-bench`, so the launcher task cannot be named after the bench folder (Q3).
+- **The owner's P6 answer (verbatim, 2026-10-29):**
+  > Q1 approve. Q2 b: run only the pure refusal tests plus the new refusal tests - no database touch; keep AC3's
+  > read-only --verify on localhost. Q3 a. Q4 a. Wrap yes.
+
+  (Q2 b: the full Python suite would write fixture and Version rows and move the fingerprint; Q3 a: the task is named
+  after the docker folder; Q4 a: dev2's start scripts are named from DEV2-R0's paths, not read, proved in DEV2-2.)
+
+### 2. Built
+- Commit 1 `7808042f3` (feat):
+  - `scripts/env_sync/env_sync.sh`: ENV_SYNC_SITE (default localhost), ENV_SYNC_START_BENCH / ENV_SYNC_START_VITE
+    (default the staged start_bench.sh / none; vite second, once :8000 is open), ENV_SYNC_VITE_PORT (8080),
+    ENV_SYNC_STOP_PATTERN (unset = stop_bench.sh's own); a setting goes into a container (`docker exec -e`) only when it
+    differs from main's default; `wait_ping` sends `Host: <site>` only for a non-default site; `print`; the dispatch is
+    one `{ ...; exit; }` block (bash reads a script as it runs, and from-desktop can fast-forward the file itself).
+  - `remote/` backup, destale, restore_files, get_db_name, db_fingerprint read the site; ports and stop_bench the vite
+    port; stop_bench the pattern.
+  - `desktop/start_task.ps1`: task `envsync-claude-launch-<folder holding development\frappe-bench>` (main
+    `envsync-claude-launch-frappe_docker`, dev2 `envsync-claude-launch-frappe_docker_dev2`), `-PrintOnly`. The old
+    `envsync-claude-launch` task is left registered, unused; nothing deletes it. A desktop/*.ps1 or remote/* change
+    reaches `<bench>\envsync\` through the laptop's `ensure_stage` at its first staged command after it holds the
+    commit (here, AC0's db-pull); the new name registers at the next launch.
+  - `scripts/env_sync/tests/test_env_sync.sh` (new; bash + git; stub docker / ssh / scp).
+  - `scripts/dev_isolate.py`: `SITES = ("localhost", "dev2.localhost")`; developer_mode, db_host, the nirmaan_env
+    marker and `--yes` unchanged. `test_dev_isolate.py`: 4 new tests in the pure TestRefusals.
+  - `frontend/src/App.tsx`: `socketPort={import.meta.env.VITE_SOCKET_PORT || undefined}`.
+- Commit 2 (docs): `docs/agents/environments.md` (the per-environment launcher, how scripts reach the desktop, `print`,
+  the test, and the "Second environment (dev2)" section: settings table, sample env.local, isolation, scheduler OFF,
+  socketPort, `--site dev2.localhost`); this entry.
+
+### 3. Proofs and counts
+- AC1 (test_env_sync.sh, 29 / 29): with no env.local, the commands of 2ea4b10f9 and of commit 1 are byte-identical
+  over 14 docker + 15 ssh calls (every remote script on both machines, start, ping, destale, a postgres copy); with dev2
+  values every command names dev2.localhost (`-e` and the Host header), 8180, `/workspace/dev2_scripts/start_bench.sh`
+  then `start_vite.sh`, and the `frappe_dev2-*` containers; each changed remote script equals the old one with the site
+  / port put back; PowerShell keeps a single-quoted `-e 'K=V'` with `|` and spaces intact (read-only printenv).
+- AC2: `start_task.ps1 -PrintOnly` from main- and dev2-shaped folders names the two tasks; main's argument string is the
+  old one. AC0 (laptop): from-desktop by the old script, then db-pull --yes with the new one (its desktop backup ran
+  the new `backup.sh`) and status.
+- AC3: TestRefusals 6 -> 10, run with no database connection (run_pure.py: each method on its own, no setUpClass;
+  `bench run-tests` itself writes - the scheduler toggle, before_tests). `dev_isolate.py --verify` on localhost, before
+  and after: identical output - **VERIFY FAIL: push_tokens 1, push_on 1, pre-existing** (admins@nirmaan.app's push
+  token, re-armed by browser sessions on 10-27 / 10-28 / 10-29; disable_push 1 still blocks sends; open item).
+- Live read-only: the new db_fingerprint.py / get_db_name.sh = the old on main; with ENV_SYNC_SITE=dev2.localhost in
+  main's container both refuse (no such site) - they read the setting.
+- Vacuity (code only, restored sha-equal): allowlist -> `!= SITE` 3 red; the site's `-e` dropped 2 red; a fixed task
+  name 2 red; main's ping given a Host header 2 red (the byte compare is not vacuous).
+- Related suites (after commit 1): Python TestRefusals 6 (before, 2ea4b10f9) -> 10 OK; test_env_sync.sh 0 -> 29;
+  vitest FULL (App.tsx shared) before (App.tsx at 2ea4b10f9) 329 files / 9,061 tests, 1 failed = returnsRemoved
+  (known 30 s timeout) -> after 329 / 9,061, the same 1 known failure, per-file counts identical; tsc FULL 0 new (3,050 = before, ELR-4a). Replay at the end (dev21end): ac7 / ac7v2 and the rows / configs / items dumps byte-equal to dev21start; capture 258 -> 258.
+- Browser cert C1-C4 (10 screenshots): C1 real boot; the served App module carries `socketPort:
+  import.meta.env.VITE_SOCKET_PORT || void 0` and its `import.meta.env` has no VITE_SOCKET_PORT. C2 BoQ hub
+  BOQ-26-00325: runtime read socketPort undefined, `socket.io.uri http://localhost:9000/localhost`, connected
+  (websocket); 8 socket.io requests to :9000, all 200; 0 console errors. C3 HVAC BOQ-26-00325 r178 7830 / 1920 / 9750;
+  Electrical BOQ-26-00201 r194 Cable 180 / 30, Termination 70 / 20 / 90 (= the replay and ELR-4a's C8). C4 live == file
+  both, fingerprint = P1. U1: nothing visible changed.
+- AC5: no app Python, asset, doctype or BoQ file changed; no database write (fingerprint 10,601 / BRMS-26-00462 /
+  479,503 at P1, after S0 and at the end).
+
+### 4. Open items
+- admins@nirmaan.app holds a push token on main dev (verify FAIL push_tokens / push_on); re-isolate, or stop the
+  browser re-arming it - owner's call.
+- residence baseline: S1 340 > 338 and A1 1798 > 1754 at HEAD before this slice (stale baseline).
+- The old Task Scheduler task `envsync-claude-launch` stays registered; delete by hand when convenient.
+- DEV2-2: dev2's start scripts under `docker exec -d`, its site_config flags, `--verify` with `--site dev2.localhost`,
+  the first dev2 `env_sync.sh print` and status.
