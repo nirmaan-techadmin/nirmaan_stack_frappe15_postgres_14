@@ -336,7 +336,10 @@ PIPELINE_KEYS = {"cable_boq", "termination_boq", "cable_bcs", "termination_bcs"}
 # with no single bound field (owner D3-D7, Q3 (a)); no item, rate or step arithmetic moved.
 # ELR-3a (2026-10-28): v68 -> v69, the nine assembly-step Pricing Inputs (owner R-9, R-R1 Q1 / Q2 / Q8), point_wiring's
 # 12 literals moved to the arms, and `impact_examples` E1-E7; 0 figures moved (replay byte-equal on 18,106 rows).
-CURRENT_EALL_ASSET = "rate_master_electrical_all_v69.json"
+# ELR-4a (2026-10-29): v69 -> v70, wording only (owner P6 answer: the multi-core clause on point_wiring's four runs notes,
+# its config notes and golden pw5's note naming the Pricing Inputs) + point_wiring `blank_item` panel:false (owner
+# R-PW-BLANK); no item, rate or step moved.
+CURRENT_EALL_ASSET = "rate_master_electrical_all_v70.json"
 
 # SLICE 12b(A): the two counts the slice MOVED, named so every assertion says WHY it is what it is.
 #
@@ -629,13 +632,64 @@ def _without_elr1_runs_note(cfg):
     """ELR-1 (owner R-NOTE A, 2026-10-27; v67): a config with wiring_cabling's ONE added key -- the `note` on its `runs`
     definition -- normalised away, on either side. The latest-asset pins below compare the CURRENT asset key by key
     against an older one; this is the only thing v67 changed, so it is the only thing they forgive.
-    ELR-2 (v68): plus v68's declared additions (`_without_elr2_notes_and_labels`) -- again the only things v68 changed."""
+    ELR-2 (v68): plus v68's declared additions (`_without_elr2_notes_and_labels`) -- again the only things v68 changed.
+    ELR-4a (v70): plus v70's declared wording and Blank plate flag (`_without_elr4a_wording`) -- the only things v70 changed."""
     c = json.loads(json.dumps(cfg))
     if c.get("category_id") == "wiring_cabling":
         for d in c.get("attribute_definitions") or []:
             if d.get("id") == "runs":
                 d.pop("note", None)
-    return _without_elr3a_assembly_inputs(_without_elr2_notes_and_labels(c))
+    return _without_elr4a_wording(_without_elr3a_assembly_inputs(_without_elr2_notes_and_labels(c)))
+
+
+# ELR-4a (owner P6 answer + R-PW-BLANK, 2026-10-29; v70): point_wiring's declared change -- the multi-core clause on its
+# four runs notes, its config notes and golden pw5's note naming the Pricing Inputs (both golden copies), and
+# `blank_item` "panel": false. NAMED, so a latest-asset pin forgives exactly these and nothing else.
+ELR4A_CLAUSE = " A multi-core wire keeps its cores; a 1-core wire of the same size is added to make three."
+_ELR4A_TEXTS = {}
+
+
+def _elr4a_texts():
+    """{v70 text: v69 text} for point_wiring's config notes and golden pw5's note -- read from the two committed
+    assets, never retyped."""
+    if not _ELR4A_TEXTS:
+        pw = {}
+        for v in ("v69", "v70"):
+            with open(_asset_path("rate_master_electrical_all_%s.json" % v), encoding="utf-8") as fh:
+                pw[v] = [c for c in json.load(fh)["category_configs"] if c["category_id"] == "point_wiring"][0]
+        _ELR4A_TEXTS[pw["v70"]["notes"]] = pw["v69"]["notes"]
+        _ELR4A_TEXTS[pw["v70"]["goldens"][4]["note"]] = pw["v69"]["goldens"][4]["note"]
+    return _ELR4A_TEXTS
+
+
+def _without_elr4a_wording(cfg):
+    """ELR-4a (v70): point_wiring's declared change normalised away -- the four notes' clause, the config notes and golden
+    pw5's note back to v69's, the Blank plate flag dropped. Any OTHER difference still fails the pin that uses this."""
+    if cfg.get("category_id") != "point_wiring":
+        return cfg
+    c = json.loads(json.dumps(cfg))
+    t = _elr4a_texts()
+    if c.get("notes") in t:
+        c["notes"] = t[c["notes"]]
+    for g in c.get("goldens") or []:
+        if isinstance(g, dict) and g.get("note") in t:
+            g["note"] = t[g["note"]]
+    for d in c.get("attribute_definitions") or []:
+        if d.get("id") == "blank_item" and d.get("panel") is False:
+            d.pop("panel")
+        if isinstance(d.get("note"), str) and d["note"].endswith(ELR4A_CLAUSE):
+            d["note"] = d["note"][: -len(ELR4A_CLAUSE)]
+    return c
+
+
+def _without_elr4a_goldens(goldens):
+    """ELR-4a (v70): the top-level `goldens` with golden pw5's re-worded note back to v69's (the effective copy)."""
+    g = json.loads(json.dumps(goldens))
+    t = _elr4a_texts()
+    for x in g.get("point_wiring") or []:
+        if isinstance(x, dict) and x.get("note") in t:
+            x["note"] = t[x["note"]]
+    return g
 
 
 # ELR-2 (owner Phase A answer + the 13:41 amendment, 2026-10-28; v68): the 28 field notes and the `display_label` of the
@@ -10255,7 +10309,8 @@ class TestLmsPricingHelper(FrappeTestCase):
         for cat in was:
             if cat == "lighting_mgmt_system":
                 continue
-            self.assertEqual(self.payload["goldens"].get(cat), prev["goldens"].get(cat),
+            # ELR-4a (mechanical authority): WAS self.payload["goldens"] verbatim; v70 re-words golden pw5's note (owner P6 D4)
+            self.assertEqual(_without_elr4a_goldens(self.payload["goldens"]).get(cat), prev["goldens"].get(cat),
                              "%s goldens must not move" % cat)
 
 
@@ -10747,10 +10802,12 @@ class TestF25Slice3PickFrom(FrappeTestCase):
                 self.assertEqual(n2, w2, "%s moved for something other than the pricing-input migration" % cid)
         self.assertEqual(_without_pricing_input_items(self.now["items"]),
                          _without_with_cover_list(self.was["items"]))
-        self.assertEqual(self.now["goldens"], self.was["goldens"])
+        # ELR-4a (mechanical authority): WAS self.now["goldens"] verbatim; v70 re-words golden pw5's note (owner P6 D4)
+        self.assertEqual(_without_elr4a_goldens(self.now["goldens"]), self.was["goldens"])
         for key in self.was:
             if key not in ("category_configs", "items"):  # SLICE 12b(A): `items` is compared ABOVE with the 33 Pricing Inputs filtered out; comparing it again here, unfiltered, would undo that
-                self.assertEqual(self.now[key], self.was[key], "top-level %s moved" % key)
+                # ELR-4a (mechanical authority): WAS self.now[key] verbatim; v70 re-words golden pw5's note (owner P6 D4)
+                self.assertEqual(_without_elr4a_goldens(self.now[key]) if key == "goldens" else self.now[key], self.was[key], "top-level %s moved" % key)
         self.assertNotIn("pick_from", json.dumps(now["point_wiring"]))
         self.assertNotIn("pick_from", json.dumps(now["popup_boxes"]))
         pw_box = [s for s in now["point_wiring"]["pipelines"]["pw_boq_supply"]["steps"] if s["step"] == "module_fit"][0]["params"]["ladders"][1]
@@ -10959,10 +11016,12 @@ class TestV61TwoWays(FrappeTestCase):
         self.assertEqual(_without_pricing_input_items(self.now["items"]),
                          _without_with_cover_list(self.was["items"]))  # SLICE 12b(A): minus the 33 new Pricing Input items; every OTHER item must still be byte-equal
         self.assertEqual(len(self.now["items"]), EALL_ITEMS)
-        self.assertEqual(self.now["goldens"], self.was["goldens"])
+        # ELR-4a (mechanical authority): WAS self.now["goldens"] verbatim; v70 re-words golden pw5's note (owner P6 D4)
+        self.assertEqual(_without_elr4a_goldens(self.now["goldens"]), self.was["goldens"])
         for key in self.was:
             if key not in ("category_configs", "items"):  # SLICE 12b(A): `items` is compared ABOVE with the 33 Pricing Inputs filtered out; comparing it again here, unfiltered, would undo that
-                self.assertEqual(self.now[key], self.was[key], "top-level %s moved" % key)
+                # ELR-4a (mechanical authority): WAS self.now[key] verbatim; v70 re-words golden pw5's note (owner P6 D4)
+                self.assertEqual(_without_elr4a_goldens(self.now[key]) if key == "goldens" else self.now[key], self.was[key], "top-level %s moved" % key)
 
     # -- the projection (chokepoint 1) -------------------------------------------------------------
     def test_v61_05_the_projection_both_defs_reach_the_model_as_a_free_number_with_no_values(self):
@@ -11188,7 +11247,8 @@ class TestIncludesModulesGate(FrappeTestCase):
         # ELR-1 (v67, the Runs note): bumped. WAS "rate_master_electrical_all_v66.json"; the gate is unchanged by v67 too.
         # ELR-2 (v68, the notes + display labels): bumped. WAS "rate_master_electrical_all_v67.json"; the gate is unchanged.
         # ELR-3a (v69, the assembly-step inputs): bumped. WAS "rate_master_electrical_all_v68.json"; the gate is unchanged.
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v69.json")
+        # ELR-4a (v70, wording + the Blank plate flag): bumped. WAS "rate_master_electrical_all_v69.json"; the gate is unchanged.
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v70.json")
         fits = {}
         goldens = asset.get("goldens") or {}
         for c in asset["category_configs"]:
@@ -11215,10 +11275,12 @@ class TestIncludesModulesGate(FrappeTestCase):
             now = json.load(fh)
         self.assertEqual(_without_pricing_input_items(now["items"]),
                          _without_with_cover_list(was["items"]))  # SLICE 12b(A): minus the 33 new Pricing Input items; SLICE v66: minus the removed cable_tray.with_cover_list on the OLD side; every OTHER item must still be byte-equal
-        self.assertEqual(now["goldens"], was["goldens"])
+        # ELR-4a (mechanical authority): WAS now["goldens"] verbatim; v70 re-words golden pw5's note (owner P6 D4)
+        self.assertEqual(_without_elr4a_goldens(now["goldens"]), was["goldens"])
         for k in was:
             if k not in ("category_configs", "items"):  # SLICE 12b(A): `items` is compared ABOVE with the 33 Pricing Inputs filtered out; comparing it again here, unfiltered, would undo that
-                self.assertEqual(now[k], was[k], k)
+                # ELR-4a (mechanical authority): WAS now[k] verbatim; v70 re-words golden pw5's note (owner P6 D4)
+                self.assertEqual(_without_elr4a_goldens(now[k]) if k == "goldens" else now[k], was[k], k)
         for c in was["category_configs"]:
             n = [x for x in now["category_configs"] if x["category_id"] == c["category_id"]][0]
             if c["category_id"] == "conduit_piping":
@@ -11348,10 +11410,12 @@ class TestV63ConduitTradeSizeLadder(FrappeTestCase):
         self.assertEqual(_without_pricing_input_items(self.now["items"]),
                          _without_with_cover_list(self.was["items"]))  # SLICE 12b(A): minus the 33 new Pricing Input items; every OTHER item must still be byte-equal
         self.assertEqual(len(self.now["items"]), EALL_ITEMS)
-        self.assertEqual(self.now["goldens"], self.was["goldens"])
+        # ELR-4a (mechanical authority): WAS self.now["goldens"] verbatim; v70 re-words golden pw5's note (owner P6 D4)
+        self.assertEqual(_without_elr4a_goldens(self.now["goldens"]), self.was["goldens"])
         for key in self.was:
             if key not in ("category_configs", "items"):   # SLICE 12b(A): `items` is compared above, filtered
-                self.assertEqual(self.now[key], self.was[key], key)
+                # ELR-4a (mechanical authority): WAS self.now[key] verbatim; v70 re-words golden pw5's note (owner P6 D4)
+                self.assertEqual(_without_elr4a_goldens(self.now[key]) if key == "goldens" else self.now[key], self.was[key], key)
         # conduit differs in EXACTLY the def, the two ladder steps and its notes
         for k in set(self.cp_now) | set(self.cp_was):
             if k not in ("attribute_definitions", "pipelines", "notes"):
@@ -12277,7 +12341,8 @@ class TestHvacAssetSlice1b(FrappeTestCase):
         # ELR-1 (v67, the Runs note): bumped. WAS "rate_master_electrical_all_v66.json".
         # ELR-2 (v68, the notes + display labels): bumped. WAS "rate_master_electrical_all_v67.json".
         # ELR-3a (v69, the assembly-step inputs): bumped. WAS "rate_master_electrical_all_v68.json".
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v69.json")
+        # ELR-4a (v70, wording + the Blank plate flag): bumped. WAS "rate_master_electrical_all_v69.json".
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v70.json")
         data_dir = os.path.dirname(_asset_path(CURRENT_EALL_ASSET))
         names = sorted(os.listdir(data_dir))
         # each series resolved on its own (owner ruling, slice 1c, INVERTING the 1b first-version pin): the HVAC

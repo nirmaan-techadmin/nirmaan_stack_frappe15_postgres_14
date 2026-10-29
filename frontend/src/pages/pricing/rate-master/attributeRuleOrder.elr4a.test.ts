@@ -179,3 +179,13 @@ describe("ELR-4a AC2: nothing else moves", () => {
     for (const c of hvac.category_configs) expect(attributeRuleOrder(c, hvac.items), c.category_id).toEqual([]);
   });
 });
+
+describe("ELR-4a AC5: the live asset v70 (wording only) lists the same lines", () => {
+  it("v70 gives line for line what v69 gives, on all thirteen categories", () => {
+    const v70 = readJsonFixture<AssetFile>(pathToFileURL(path.join(DATA, "rate_master_electrical_all_v70.json")));
+    for (const c of elec.category_configs) {
+      const live = v70.category_configs.find((x) => x.category_id === c.category_id)!;
+      expect(attributeRuleOrder(live, v70.items), c.category_id).toEqual(lines(c));
+    }
+  });
+});
