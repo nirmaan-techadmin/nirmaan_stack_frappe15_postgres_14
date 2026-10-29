@@ -25,7 +25,9 @@ import {
   type ItemListSuggestion,
   type ItemListView,
   type SectionBlockView,
+  type ShownAttribute,
 } from "./pricingSheetHelper";
+import { moneyValue } from "./attributeWorkingLines";
 import {
   attrDisplayValue,
   attrNoteText,
@@ -270,12 +272,12 @@ function FiguresRow({ figures, copy = true, muted = false, unit }: {
           <span key={k} className="inline-flex items-center gap-1 tabular-nums">
             <span className={muted ? "opacity-70" : "text-muted-foreground"}>{kindLabel(k)}</span>
             <span className="font-semibold text-foreground">
-              {typeof v === "number" ? v : "—"}
+              {typeof v === "number" ? moneyValue(v) : "—"}
             </span>
             {label && typeof v === "number" && (
               <span className={muted ? "opacity-70" : "text-muted-foreground"}>per {label}</span>
             )}
-            {copy && typeof v === "number" && <CopyFigureButton value={v} label={kindLabel(k)} />}
+            {copy && typeof v === "number" && <CopyFigureButton value={moneyValue(v)} label={kindLabel(k)} />}
           </span>
         );
       })}
@@ -625,8 +627,9 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
             );
           }
           const computed = result.values[kind!]; // non-null: this block only renders with a selection
+          // ELR-4c (owner R-FLOAT, "Q3 a"): the box carries the figure as shown -- money to 2 decimals (216.05, not 216.04999999999998)
           const finalStr =
-            finalOverride[helper.id] ?? (typeof computed === "number" ? String(computed) : "");
+            finalOverride[helper.id] ?? (typeof computed === "number" ? String(moneyValue(computed)) : "");
           const finalNum = Number.parseFloat(finalStr);
           // SLICE 6: an item-list suggestion renders its blocks instead of the flat attribute list, and "Use
           // this value" stays disabled until EVERY item priced (S4 -- all or nothing).
@@ -662,7 +665,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           <div key={`${h.label}-${hi}`} className="flex items-baseline gap-1.5">
                             <span className="text-[11px] text-muted-foreground">{h.label}</span>
                             <span className="text-sm font-semibold tabular-nums">
-                              {typeof hv === "number" ? hv : "—"}
+                              {typeof hv === "number" ? moneyValue(hv) : "—"}
                             </span>
                           </div>
                         );
@@ -670,7 +673,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                     </div>
                   ) : (
                     <span className="text-sm font-semibold tabular-nums">
-                      {typeof computed === "number" ? computed : "—"}
+                      {typeof computed === "number" ? moneyValue(computed) : "—"}
                     </span>
                   )}
                   {isOpen ? (
@@ -788,6 +791,11 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                             <label htmlFor={`${fieldUid}-attr-${a.id}`}>{a.label}</label>
                             {/* ADP-3a (owner H1, U1): "*" after the label of a field needed to price */}
                             {a.required && <span aria-hidden="true" data-testid="needed-marker">*</span>}
+                            {/* ELR-4c (owner "Q4 a"): on the BoQ panel a field the BoQ can also give another way says so beside
+                                its "*" (no hidden field named, R-SWG); the calculator, with no other way, keeps the plain "*" */}
+                            {a.required && !isCalculator && (a as ShownAttribute).eitherWords && (
+                              <span className="text-[10px]" data-testid="needed-either">{(a as ShownAttribute).eitherWords}</span>
+                            )}
                             {showingDerived && (
                               <span
                                 className="text-[10px] italic"
@@ -1101,7 +1109,8 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           correctedAttributes: Object.fromEntries(
                             result.workings.attributes.map((a) => [a.id, a.value]),
                           ),
-                          computedValue: typeof computed === "number" ? computed : null,
+                          // ELR-4c (owner "Q3b a"): the feedback log records the value shown, so accepting it reads as not overridden
+                          computedValue: typeof computed === "number" ? moneyValue(computed) : null,
                           ...(itemList ? { itemsOnScreen: itemsOnScreen(itemList) } : {}),
                         })
                       }

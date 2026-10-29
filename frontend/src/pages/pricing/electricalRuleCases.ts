@@ -25,7 +25,12 @@ import type { RateCategoryConfig, RateMasterItem } from "./rate-master/rateMaste
 import { attributeRuleOrder } from "./rate-master/itemListRuleOrder";
 import { makePricingSheetHelper } from "@/pages/boq-wizard/rate-helper/pricingSheetHelper";
 import { attrNoteText, isSuggestion, type ExtractedAttr, type HelperResult } from "@/pages/boq-wizard/rate-helper/rateHelperTypes";
+import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import { PANEL_ROW, panelCtx, readJsonFixture, type ParityCase } from "./calculatorPanelParity.harness";
+
+/** Located by path, not by `import.meta.url`, so the jsdom tests can load it too (jsdom's module URL is not a file URL). */
+const readJson = <T,>(...parts: string[]): T => readJsonFixture<T>(pathToFileURL(path.resolve(__dirname, ...parts)));
 
 export interface ElectricalAsset {
   discipline: string;
@@ -33,15 +38,13 @@ export interface ElectricalAsset {
   category_configs: RateCategoryConfig[];
 }
 /** The live Electrical asset (v70; live == file at the start of ELR-4c). */
-export const ELECTRICAL_ASSET = readJsonFixture<ElectricalAsset>(
-  new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_electrical_all_v70.json", import.meta.url),
-);
+export const ELECTRICAL_ASSET = readJson<ElectricalAsset>("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_electrical_all_v70.json");
 export const ELECTRICAL_CONFIGS = new Map<string, RateCategoryConfig>(ELECTRICAL_ASSET.category_configs.map((c) => [c.category_id, c]));
 export const ELECTRICAL_ITEMS: RateMasterItem[] = ELECTRICAL_ASSET.items.map((it) => ({ ...it, discipline: ELECTRICAL_ASSET.discipline } as RateMasterItem));
 
 /** A stored row as the replay dump holds it: the cells verbatim (value, confidence, the defaulted mark, a pole-ladder stamp). */
 export interface StoredRow { cat: string; unit: string; desc: string; headings: string[]; cells: Record<string, ExtractedAttr> }
-export const ELECTRICAL_RULE_ROWS = readJsonFixture<Record<string, StoredRow>>(new URL("./__fixtures__/electricalRuleRows.json", import.meta.url));
+export const ELECTRICAL_RULE_ROWS = readJson<Record<string, StoredRow>>("__fixtures__", "electricalRuleRows.json");
 
 export type CaseHow = "stored" | "synthetic" | "model-read";
 export interface ElectricalRuleCase {
