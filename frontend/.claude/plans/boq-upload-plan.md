@@ -49860,3 +49860,85 @@ started, read or changed.
 - The old Task Scheduler task `envsync-claude-launch` stays registered; delete by hand when convenient.
 - DEV2-2: dev2's start scripts under `docker exec -d`, its site_config flags, `--verify` with `--site dev2.localhost`,
   the first dev2 `env_sync.sh print` and status.
+
+## Slice TOOL-1 - test tooling: the BoQ Python set in parallel by measured locks, the asset-pin search, the residence re-base - as built 2026-10-29
+
+Desktop session, delegated by the laptop. Risk tier 1 (test and script code only): no product code, no asset, no data,
+no price, no screen change, no paid run, no browser cert. Branch feature/boq-pricing-helper, start tip 79e7d2ae4.
+
+Owner rulings carried: R-SPEED (12:15-12:26; approved points (5) run the slow test_rate_master in parallel or split it,
+(6) script the block-57 asset-pin search; point 3, sync once per slice, NOT approved). R-PAR (12:27) "all tests which can
+run in parallel should run in parallel. we dont have memory constarints now". R-RES (12:56) "ok. add  the reset to tool
+1". R-COVER: no test dropped, weakened or skipped for speed. Owner answers during the slice (verbatim):
+- 19:3x "(b): serial once, parallel twice - the second serial run is waived (owner 19:3x). Deliver at the end of the
+  current run, before the next run starts, not at commit 1. Resume by the full session id only."
+- ~19:36 "pause at a safe pontafter 8:00 PM. I will leave for home and we will continue once i reach home"
+- ~21:40 "resume" ... "option a" (one more full parallel run, after3)
+- ~21:45 "lets do only one final sync after all 3 committs as an exception for this slice"
+- ~22:25 "option c" (Python-only parallel: the runner runs no frontend)
+
+### 1. Phase A
+- P1: HEAD 79e7d2ae4 = origin; tree = the 4 noise entries; docker 23.47 GiB; HVAC v54 / Electrical v70 live == file;
+  replay 18,106 rows byte-equal to DEV2-1's end (ac7 56fb5640..., ac7v2 978f871f...).
+- P2, serial once (today's way, one `bench run-tests --module` per module, junit + pg_stat observers): Python 88 modules
+  / 4,506 tests ALL OK in 3,863 s (64.4 min); vitest scoped 142 files / 5,919 passed in 447.5 s; tsc 0 new (3,050) in
+  48.3 s; all three 4,359 s (72.7 min). 43% of the Python time is start-up and class fixtures (~16 s a module).
+  test_rate_master: 739 tests, 1,478.6 s; its TestRateMaster class (167 tests) is 1,347.9 s = 94.5%; the 20 slowest
+  BoQ tests are all in it (f19e 51.9 s, f19b 50.4 s ...); it inserted 123,455 Rate Master Items through the BRMI-26-
+  series. vitest's 6 DOM files run one at a time after the unit files (267 s of the 447 s).
+- P3 (the answer, as recorded): a LOCK SCHEDULER, not serial lanes. Conflicts are pairwise, not transitive
+  (test_rate_suggest shares BRSE-26- with test_rate_master and BOQN-26- / BQSH-26- with the wizard modules), so lanes as
+  connected components would chain the whole wizard set behind test_rate_master. Each module holds an EXCLUSIVE lock on
+  every series it bumps (frappe/model/naming.py getseries: SELECT ... FOR UPDATE; Postgres REPEATABLE READ ->
+  SerializationFailure for the second of two overlapping transactions) and every table it writes, a SHARED lock on every
+  app table it reads; framework noise (the scheduler toggle, session touches) and hash-named append logs hold none; three
+  reads reviewed as keyed (test_rate_master's oldest-live-BOQ lookup and its BoQ Sheet lookup; every other module's Rate
+  Suggestion Event read = Frappe's link check on its own BOQ). The three AI-settings writers (test_ai_settings,
+  test_classify, test_row_category flip BOQ Upload Review AI Settings.enabled) run alone. Longest first, 6 processes. No
+  new site, database or container. Floor = test_rate_master (~25 min): splitting it needs one database copy per part
+  (an owner option, not built).
+- P4: the pins ELR-1 / ELR-2 / ELR-3a / ELR-4a moved, by class: the CURRENT constant, asserts naming the current file,
+  item / config counts, latest-asset readers comparing with an older mint (via `_without_*` normalisers), prefix readers
+  (`latestAsset("rate_master_electrical_all_v")` - ELR-3a's miss), digests pinned on an older version, the new version's
+  uids set aside by name; HVAC also `max(ns) == <old>` and "the next file does not exist".
+- P5: residence counts at the tip: A1 1798 vs 1754 (+44), S1 340 vs 338 (+2); every rise traced to a commit (ADP-1 to
+  ADP-5a, 12e-6c, develop's tendering merge b2f568a5f / e0f48f0e3 / 2cd392b59), met the baseline in merge acb169769; no
+  slice since ELR-3b raised either. This desktop has no core.hooksPath, so the pre-commit ratchet never ran here.
+
+### 2. Built
+- Commit 0 94b5b48c4 (chore): residence_baseline.json re-based once with `--init` (a1 1754 -> 1798, s1 338 -> 340).
+- Commit 1 b7968fb02 (test): scripts/run_tests_parallel.py (the lock scheduler; scheduler off once / on once instead of 88
+  toggles; refuses beside a suite / backup / vitest / tsc; refuses an unclassified module; `--measure` for a new
+  module), scripts/parallel_test_plan.json (88 measured entries; `--measure`'s rules reproduce all 88 from the P2
+  snapshots), scripts/test_run_tests_parallel.py (17), root CLAUDE.md § Commands. Python only (owner "option c").
+- Commit 2 91bdc7203 (feat): scripts/asset_pin_search.py + test (13).
+- Commit 3 (docs): this entry; boq-rate-master.md rule: the pin search after every mint, and the runner for the readers.
+
+### 3. Measured (AC0 / AC1 / AC2)
+- after1 (exploratory, run-alone modules first, vitest + tsc beside): 2,166 s. Python 88/88, 4,506 ids equal; vitest
+  142 / 5,919 ids equal; tsc 0 new.
+- after2 (final runner): 1,959 s; after3 (final runner, original vitest config): 1,980 s. Python both times 88/88 OK and
+  the same 4,506 test ids and results as the serial run; test_rate_master 1,621 / 1,632 s of tests beside the others.
+  Python wall 32.6-33.0 min vs 64.4 min serial (about 1.95x); with vitest + tsc on their own (~8 min) the whole set is
+  about 41 min vs 72.7 min.
+- vitest beside the Python lanes dropped a DOM test file both times ("Failed to start forks worker":
+  RateMasterDerivation.elr1.dom in after2 with my DOM-worker experiment, RateMasterDataViewer.file.dom in after3 with the
+  ORIGINAL single-fork config): jsdom needs ~33 s to start per file even alone, and under the Python load it passes
+  vitest's hard-coded 60 s worker-start limit; the rmAccess1 sweep also timed out. Hence "option c": the runner runs no
+  frontend and refuses to start beside vitest or tsc; vitest.config.ts is unchanged.
+- Database, whole run vs whole run: every app table got identical inserts / updates / deletes in the serial run and in
+  every parallel run (e.g. Rate Master Item 130,199 / 6,220 / 129,491); residue identical. Framework-only differences:
+  the serial way re-enables the scheduler between modules, so scheduled jobs and the global-search sync run in the gaps.
+- Pre-existing, not changed: test_rate_master leaves two Rate Suggestion Events on the oldest live BOQ (BOQ-26-00001 /
+  S6-TEST) on every run.
+
+### 4. The pin search, on the four real mints
+At each mint's parent with the minted asset: MUST = the CURRENT constant + its two asserts (ELR-3a also EALL_ITEMS);
+every asset-pin hunk the mint commit and its follow-ups changed is listed (0 missed; ELR-3a's servedVsStoredPricing as
+`prefix`); 0 MUST at the mint commit itself. HVAC v54 (ADP-5d) sanity: 26 MUST - every `max(ns) == 53`, the three "v54
+does not exist" asserts, CURRENT_HVAC_ASSET and its six asserts, test_extraction_coercion's assert.
+
+### 5. Open
+- An owner option: split test_rate_master across database copies (the only way under its ~25-min floor).
+- vitest's DOM project still runs one file at a time (~4.5 min of its ~7.5); faster only with nothing beside it.
+- test_rate_master's two Suggestion Events on BOQ-26-00001 per run (a write on a live BOQ's children).

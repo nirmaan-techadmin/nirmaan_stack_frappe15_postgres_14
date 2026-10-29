@@ -2292,6 +2292,24 @@ clause on point wiring's four runs notes; its config notes and golden pw5's note
 + the `blank_item` flag; no item, rate or step moved. A load is wholesale per kind (`_load_multi` replaces every config):
 deploy v69 and v70 together - freeze, export, build, load - never one asset's config by hand.
 
+**AFTER EVERY ASSET MINT, THE PIN SEARCH RUNS BEFORE ANY SUITE (TOOL-1, owner R-SPEED point 6).**
+`python3 scripts/asset_pin_search.py --discipline <HVAC|Electrical> --new-version <N>` (from the app root; stdlib; reads the
+test files and the data dir) lists every test pin of the asset the mint replaced, with file:line and the test that holds
+it. MUST MOVE - the `CURRENT_*_ASSET` constant, an assertion naming the old file as current, a data-dir scan pinned to the
+old version (`max(ns) == <old>`), an assertion that the new file does not exist, a suite constant holding a count the mint
+changed - and the script exits 1 until every one has moved. LIKELY TO BREAK - a latest-asset reader that compares the
+current asset with an older mint (`now` vs `was`; it forgives a declared change only through a named `_without_*`
+normaliser, also listed: the new one chains there), a reader of the latest asset by bare file PREFIX
+(`latestAsset("rate_master_electrical_all_v")` - the form ELR-3a's hand search missed: `servedVsStoredPricing.test.ts`), an
+old count inside an assertion, a digest of the old file. REVIEW - every other latest-asset reader and every other line
+naming the old version (often a deliberate historical pin; never "fix" one of those). A hand grep for the old file name
+and `CURRENT_EALL_ASSET` finds the MUST class only. To check a past mint: `--rev <mint>^ --asset-rev <mint>`.
+Then run the readers it names, and test_rate_master, through the parallel runner (root `CLAUDE.md` § Commands,
+`scripts/run_tests_parallel.py --modules <file>`; Python only - vitest and tsc on their own): test_rate_master is the long pole (about 25 minutes, its
+167-test `TestRateMaster` class is 95% of it) and holds the rate-master naming series under `SELECT ... FOR UPDATE` for
+all of it, so it never runs beside another module that inserts rate-master rows - the runner holds those back by their
+measured locks and runs every other module beside it.
+
 ---
 
 ## Rate-master invariants filed under Domain Gotchas
