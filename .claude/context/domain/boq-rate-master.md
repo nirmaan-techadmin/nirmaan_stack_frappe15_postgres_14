@@ -2032,7 +2032,7 @@ Input is named by the LABEL its Pricing Inputs row carries (`GI framework sheet 
 label lives on the ITEM, so the tab receives the discipline's items; pipeline ids are written as plain words. A
 config message's `(R4)` / `(owner ...)` tag is stripped by `plainSentence` at render, so a config may keep its
 provenance without it reaching a pricer. The same mechanism lists ADP's rules (owner-approved); alias and vendor-quote
-tabs stay EMPTY and are pinned so. An Electrical (attribute-path) category's list is `attributeRuleOrder`, see ELR-1 below; point wiring, switches & sockets and pop-up boxes list theirs through `assemblyRuleOrder`, see ELR-4a below.
+tabs stay EMPTY and are pinned so. An Electrical (attribute-path) category's list is `attributeRuleOrder`, see ELR-1 below; point wiring, switches & sockets and pop-up boxes list theirs through `assemblyRuleOrder`, see ELR-4a below, and so do the other eight Electrical categories, see ELR-4b below.
 
 **EVERY PRICER-FACING LINE PASSES THROUGH THE ONE PLAIN-ENGLISH FUNCTION (owner P1 / P2, 2026-10-08,
 slice 12d-5).** `frontend/src/pages/pricing/rate-master/plainEnglish.ts` holds `plainSentence`, the
@@ -2291,6 +2291,41 @@ PRICE CHANGE on production too, counted on production's own rows.
 clause on point wiring's four runs notes; its config notes and golden pw5's note, both copies, naming the Pricing Inputs)
 + the `blank_item` flag; no item, rate or step moved. A load is wholesale per kind (`_load_multi` replaces every config):
 deploy v69 and v70 together - freeze, export, build, load - never one asset's config by hand.
+
+**ELR-4b: EVERY ELECTRICAL CATEGORY BUT THE PRICING INPUTS LISTS ITS RULES (owner R-APPROVE, the P6 answer 2026-10-29).**
+DB & switchgear (9), industrial sockets (8), earthing (3), conduit (3), cable tray (6), junction box (2), lighting
+management (2) and miscellaneous (2) list through `assemblyRuleOrder` like ELR-4a's three: their `DERIVATION_RULINGS`
+keys are in `ELECTRICAL_TEXT`, their facts come from `electricalFacts`, and the ELR-4a contract holds - a line exists only
+while its source does, every Pricing Input (by label), default, count and field label is read from it, and the approved
+words sit around them. The sources beyond ELR-4a's: the composite's `composite_slots` and `decomposition_rules` (DB);
+the rules R2 / R3 / R4 / R8 / R12 / R7 / R13 / R11; `catalog_fit` (`direction`, `on_miss`, `on_missing_fact`,
+`prefer_attr`, `absent_when`); the pole / SWG / curve `map_attribute`s; the `if_attr` x0 component; the conditional
+`component` / legacy `component_ref` adders; `match_master_row`; `matching_mode` `item_identity`; `extraction_defaults`
+with `text_overrides`; `synonyms`. Code rules by marker: the composite's breaker catalogue -> `breaker_catalog_for` /
+`apply_pole_plus_neutral_ladder`; `inch_trade_mm` -> `apply_inch_trade_size`. Vocabulary the owner approved AS WORDS (the
+four-pole and SP+N families, the breaker words, the parts the catalogue does not carry) stays words, and a test ties each
+word to the config table or rule that rules it. A JSON table keyed by fractions is written in VALUE order: JavaScript puts
+integer-like keys ("1", "2") before "3/4". Wiring has 15 lines (insulation and runs / cores after line 2); its conduit line
+says "at the size the BoQ states" only while its pipeline carries no `catalog_fit` on the conduit's bound size, so ELR-4d's
+fit changes the line with the code. The pop-up boxes reason quotes the owner without the raw "(owner R1)" (Q1).
+
+**ELR-4b: A FACTOR-0 CONDITIONAL ADDER READS "NOT INCLUDED" (owner R-ELR2 (g), 2026-10-29).** In
+`attributeWorkingLines.ts`, a formula-shape `component_ref` (no quantity) whose matched condition gives it `factor: 0`
+writes "<item>: not included" ("Bus bar: not included" on an earthing row Without); any other factor keeps "<item> =
+<amount>" ("Bus bar = 3,000" With). The words follow the step's own `params` - the condition the interpreter priced - never
+a second reading of the answers. Display only, panel and calculator alike; the replay's ac7v2 stores
+`workings.derivation`, not the sections' matched rows, so this line does not reach it.
+
+**ELR-4b: AN ALIAS CATEGORY HAS NO RATE MASTER TAB (owner R-ALIAS-A, 2026-10-30 "a").** HVAC Cables / Raceway are
+`holds_items: false`, and `rateMasterPageEntry` drops such categories from the Rate Master page, so `AliasDerivation`
+(`RateMasterDerivation.tsx`: the target's list word for word under one lead line, read through the page's own SWR keys)
+renders nowhere today. It is kept, tested and dormant; listing the aliases on the Rate Master is a later slice's approved
+change. A tab claim is checked against the PAGE's category list, not the tab's pure functions.
+
+**ELR-4b: TODAY'S BEHAVIOUR THE LISTS DESCRIBE, NOT ENDORSE (owner Q3 a / Q7 / R-EARTH).** A DB row whose parts are all
+None prices at Rs 0, not a refusal (38 rows on dev, 2026-10-29); a row read as earthing Material "BUS BAR" matches the Bus
+bar item itself, and With adds it again (4 rows at 8,700); the Type "Bus bar" rows at CU / GI refuse and are priced by
+hand. Each is an open item for its own fix.
 
 **AFTER EVERY ASSET MINT, THE PIN SEARCH RUNS BEFORE ANY SUITE (TOOL-1, owner R-SPEED point 6).**
 `python3 scripts/asset_pin_search.py --discipline <HVAC|Electrical> --new-version <N>` (from the app root; stdlib; reads the

@@ -49942,3 +49942,120 @@ does not exist" asserts, CURRENT_HVAC_ASSET and its six asserts, test_extraction
 - An owner option: split test_rate_master across database copies (the only way under its ~25-min floor).
 - vitest's DOM project still runs one file at a time (~4.5 min of its ~7.5); faster only with nothing beside it.
 - test_rate_master's two Suggestion Events on BOQ-26-00001 per run (a write on a live BOQ's children).
+
+## Slice ELR-4b - Electrical retrofit build 4b: the rules lists of the other eight Electrical categories, wiring's six corrections, the earthing "Bus bar" wording (no asset) - as built 2026-10-29 / 30
+
+Desktop session, delegated by the laptop, run beside DEV2-2 (dev2 only; DEV2-2 DONE 23:32, before this slice's cert).
+
+**Recon:** ELR-R2 (its workbook was recovered from the container, sha-equal to the delivered copy) and ELR-4a.
+
+**Owner rulings carried:**
+- R-R2.
+- R-DERIV (ADP-4b D1 / D8).
+- R-Q4.
+- R-APPROVE (2026-10-29 "option b").
+- R-ELR2 (g).
+- R-W6: the wiring conduit line describes today; ELR-4d fits the size.
+- R-3C.
+- R-EARTH: "handle by hand for now ... currently it is not correct".
+- R-RAW.
+- R-PI.
+
+Risk tier 1: wording and display. No asset, no price move, no paid run.
+
+### 1. Phase A (read-only) and the stops
+- **P1:**
+  - HEAD 544bf6fdc; the tree holds the 4 noise entries.
+  - HVAC v54 31631135 / e9d3689a and Electrical v70 2c15c116 / 1bfa10cb, live == file.
+  - Replay elr4bstart: 18,106 rows, byte-equal to tool1end (ac7 `56fb5640...`, ac7v2 `978f871f...`).
+  - Residence check holding.
+- **P2:**
+  - ELR-R2's drafts hold 35 lines for the eight categories, not the brief's 39 (count drift), plus wiring's 6
+    corrections.
+  - Each draft was re-checked against the v70 configs and the code rules.
+  - Corrections:
+    - DB4 rewritten to today's ladder.
+    - DB7 adds "every part answered" and today's Rs 0 row.
+    - The raw-id reasons (DB9 "(owner-locked, F-17)", IS1 "(owner ruling A)") become "reason not recorded".
+    - IS4 states the silent "amps not read -> no MCB".
+    - EA1 becomes today's match, including the 4 "BUS BAR" rows.
+    - CT2 adds "not fitted"; CT5 discounts the cover; CT6 adds "not rounded" and drops the 0%-value reason; JB1
+      adds the exact match.
+  - Example rows were mined from the dump.
+- **P3:** the new generator shapes, listed in the P6 file. Scratch demo: a catalog_fit line generated from the step,
+  gone when the step is deleted.
+- **P4:**
+  - "Bus bar = 0" is built in code (`attributeWorkingLines.ts`), so there is no v71.
+  - Scratch proof over all 18,106 rows, panel and calculator: 0 figures and 0 refusals move; only 540 earthing rows
+    reword.
+  - 4 rows read as Material "BUS BAR" match the Bus bar item and price at 8,700, the bus bar counted twice (Q7).
+- **P5:** proposed the HVAC alias lists (later found wrong, see M6).
+- **The owner's P6 answer (verbatim, 2026-10-29 23:34):**
+  > "all approved; Q1 yes; Q2 no; Q3 a; Q4 a; Q5 a; Q6 a; Q7 noted; aliases b; DB4 keep verbatim; MI2 repeat MI1's quote
+  > in full on the tab"
+- **M6 stop (cert C4):**
+  - The HVAC Rate Master picker lists no Cables or Raceway: both are `holds_items: false`, so `rateMasterPageEntry`
+    drops them.
+  - P5's premise was wrong (it checked the tab's functions, not the page's list).
+  - **The owner's answer (verbatim, 2026-10-30 00:47):** "a" = keep the alias code dormant, open an item, no code
+    change (R-ALIAS-A).
+
+### 2. Built
+Commit 1 `c54df738b` (feat), product files:
+- **`itemListRuleOrder.ts`:**
+  - Reasons `W2` / `B` and the eight `DERIVATION_RULINGS` entries (key order = line order).
+  - `electricalFacts` + `ELECTRICAL_TEXT`, dispatched through `assemblyRuleOrder`.
+  - Wiring WC-a..WC-f in `attributeRuleOrder`, now 15 lines.
+  - PB2 / PB6 quote without "(owner R1)".
+- **`attributeWorkingLines.ts`:** a factor-0 condition gives "<item>: not included".
+- **`RateMasterDerivation.tsx`:** `aliasTarget` / `aliasLeadLine` / `AliasDerivation` (dormant, R-ALIAS-A) and a
+  shared `RuleOrderCard`.
+
+Tests:
+- New: `attributeRuleOrder.elr4b.test.ts` (17), `elr4bBusBar.test.ts` (5), `RateMasterDerivation.elr4b.dom.test.tsx` (5).
+- Inverted, with the WAS half kept: `attributeRuleOrder.test.ts`, `attributeRuleOrder.elr4a.test.ts`,
+  `RateMasterDerivation.elr1.dom.test.tsx`, `adp4b.dom.test.ts`, `attributeWorkingLines.test.ts` (the template takes
+  both forms).
+
+### 3. Proofs and counts
+- **Lines:** generated == the P6 text word for word (35 lines + wiring's 15). Wiring's other 9 lines are
+  byte-identical to the WAS text. Point wiring and switches & sockets are byte-identical; pop-up boxes changes only
+  lines 2 and 6's reason. Every HVAC tab is byte-identical.
+- **Vacuity** (source breaks, each restored sha-equal):
+  - dispatch: 12 red;
+  - a source tie: 1 red;
+  - the WC-f clause: 1 red;
+  - the Bus bar check: 3 red;
+  - the alias branch: 1 red.
+- **Replay on the working tree and at the end (elr4bwt, elr4bend):** byte-equal to elr4bstart (ac7 / ac7v2,
+  18,106 rows). The P4 harness on the real code is byte-equal to the scratch patch (540 rows reword). The model's
+  question is byte-equal on 15 groups; live == file at the end for both disciplines.
+- **Suites:**
+  - vitest related (the 3 product files): 64 files / 3,663 passed. The before is TOOL-1's before1, filtered: 61 / 3,636,
+    every per-file count equal; +3 files / +27 tests are the new ones.
+  - tsc FULL: 0 new (3,050).
+  - Python: none. No Python file changed and no Python test reads a changed file.
+- **Browser cert** (22 screenshots, read-only):
+  - De-stale 1-6; PROOF 1 (served code strings); PROOF 2 (runtime import).
+  - C1-C3: the eight tabs show their lines, with no pointer, no card and no snake_case.
+  - C4:
+    - wiring: 15 lines; the DOM equals `attributeRuleOrder` over the live config and items.
+    - pop-up boxes: no "(owner R1)".
+    - aliases: the stop, then R-ALIAS-A.
+  - C5: BOQ-26-00184 r133 "10 Way TPN DB" -> 12WAY, 16A x 24 D, 26,130 / 5,230.
+  - C6:
+    - Without: 00183 r88 shows "Bus bar: not included", 216.05 / 29; the calculator matches.
+    - With: 00174 r470 shows "Bus bar = 3,000", 4,690.75 / 79.75.
+  - C7: 00171 r297 refuses. Industrial 00194 r197 is 8,214 / 2,880 and tray 00184 r97 is 1,087 / 180.
+  - C8: HVAC 00325 r178 9,750 and point wiring 00241 r146 1,985.
+- **Disclosed write:** one Nirmaan Users Version (admins' `fcm_token`, the app's own push-token registration after the
+  cert's step 6 cleared IndexedDB; the known DEV2-1 item). Not repaired.
+
+### 4. Deploy note and open items
+- **Deploy:** code only. No asset; Electrical v70 / HVAC v54 unchanged; no price moves on dev or production.
+- **Open items:**
+  - The HVAC alias tabs (list them on the Rate Master as their own approved change).
+  - 38 DB rows with every part None price at Rs 0.
+  - The 4 "BUS BAR" earthing rows count the bus bar twice; earthing's own fix.
+  - ELR-4c: the R-39 cases per line, (c), (h).
+  - ELR-4d: the wiring conduit fit and the floor.
