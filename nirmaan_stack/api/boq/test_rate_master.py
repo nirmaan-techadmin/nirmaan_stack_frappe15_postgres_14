@@ -339,7 +339,9 @@ PIPELINE_KEYS = {"cable_boq", "termination_boq", "cable_bcs", "termination_bcs"}
 # ELR-4a (2026-10-29): v69 -> v70, wording only (owner P6 answer: the multi-core clause on point_wiring's four runs notes,
 # its config notes and golden pw5's note naming the Pricing Inputs) + point_wiring `blank_item` panel:false (owner
 # R-PW-BLANK); no item, rate or step moved.
-CURRENT_EALL_ASSET = "rate_master_electrical_all_v70.json"
+# ELR-4d (2026-10-30): v70 -> v71 (owner R-W6, R-DB-MANUAL; P6 "Q5 a"): the hop-only conduit fit on wiring's cable_boq and
+# `none_refusal` on the DB's two pricing pipelines; no item, rate or other step moved.
+CURRENT_EALL_ASSET = "rate_master_electrical_all_v71.json"
 
 # SLICE 12b(A): the two counts the slice MOVED, named so every assertion says WHY it is what it is.
 #
@@ -633,13 +635,29 @@ def _without_elr1_runs_note(cfg):
     definition -- normalised away, on either side. The latest-asset pins below compare the CURRENT asset key by key
     against an older one; this is the only thing v67 changed, so it is the only thing they forgive.
     ELR-2 (v68): plus v68's declared additions (`_without_elr2_notes_and_labels`) -- again the only things v68 changed.
-    ELR-4a (v70): plus v70's declared wording and Blank plate flag (`_without_elr4a_wording`) -- the only things v70 changed."""
+    ELR-4a (v70): plus v70's declared wording and Blank plate flag (`_without_elr4a_wording`) -- the only things v70 changed.
+    ELR-4d (v71): plus v71's conduit fit and DB refusal (`_without_elr4d_steps`) -- the only things v71 changed."""
     c = json.loads(json.dumps(cfg))
     if c.get("category_id") == "wiring_cabling":
         for d in c.get("attribute_definitions") or []:
             if d.get("id") == "runs":
                 d.pop("note", None)
-    return _without_elr4a_wording(_without_elr3a_assembly_inputs(_without_elr2_notes_and_labels(c)))
+    return _without_elr4d_steps(_without_elr4a_wording(_without_elr3a_assembly_inputs(_without_elr2_notes_and_labels(c))))
+
+
+def _without_elr4d_steps(cfg):
+    """ELR-4d (owner R-W6, R-DB-MANUAL, P6 "Q5 a"; v71): the hop-only `catalog_fit` on wiring's cable_boq and `none_refusal` on
+    the DB's pricing pipelines normalised away. Any OTHER difference still fails the pin that uses this."""
+    if cfg.get("category_id") not in ("wiring_cabling", "db_switchgear"):
+        return cfg
+    c = json.loads(json.dumps(cfg))
+    for pl in (c.get("pipelines") or {}).values():
+        steps = pl.get("steps") or []
+        pl["steps"] = [s for s in steps if not (s.get("step") == "catalog_fit" and (s.get("params") or {}).get("hop_only") is True)]
+        for s in pl["steps"]:
+            if s.get("step") == "sum_components":
+                s.pop("none_refusal", None)
+    return c
 
 
 # ELR-4a (owner P6 answer + R-PW-BLANK, 2026-10-29; v70): point_wiring's declared change -- the multi-core clause on its
@@ -11248,7 +11266,8 @@ class TestIncludesModulesGate(FrappeTestCase):
         # ELR-2 (v68, the notes + display labels): bumped. WAS "rate_master_electrical_all_v67.json"; the gate is unchanged.
         # ELR-3a (v69, the assembly-step inputs): bumped. WAS "rate_master_electrical_all_v68.json"; the gate is unchanged.
         # ELR-4a (v70, wording + the Blank plate flag): bumped. WAS "rate_master_electrical_all_v69.json"; the gate is unchanged.
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v70.json")
+        # ELR-4d (v71, the conduit fit + the DB refusal): bumped. WAS "rate_master_electrical_all_v70.json"; the gate is unchanged.
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v71.json")
         fits = {}
         goldens = asset.get("goldens") or {}
         for c in asset["category_configs"]:
@@ -11288,7 +11307,9 @@ class TestIncludesModulesGate(FrappeTestCase):
             if c["category_id"] != "popup_boxes":
                 # SLICE 12b(A): normalise the pricing-input migration off both sides; everything else
                 # is still compared verbatim, so a change that rode along still fails.
-                n2, c2 = _strip_12b_migration(n, c)
+                # ELR-4d (mechanical authority): WAS _strip_12b_migration(n, c); v71's declared steps come off first, since the
+                # strip aligns steps by position and the v71 fit is one more step
+                n2, c2 = _strip_12b_migration(_without_elr4d_steps(n), c)
                 # SLICE v66: the one sentence that described the removed with_cover_list column is
                 # normalised off BOTH sides. This pin is a claim about the v61->v62 mint and must not
                 # start failing for a note corrected four mints later that it never spoke to.
@@ -11382,8 +11403,13 @@ class TestV63ConduitTradeSizeLadder(FrappeTestCase):
                 a2, b2 = _strip_12b_step(a_, b_)
                 self.assertEqual(a2, b2, pid)
             self.assertEqual(n_steps[1], {"step": "match_master_row", "params": {"kind": "conduit"}}, pid)
+        # ELR-4d (owner R-W6, v71; mechanical authority): WAS every catalog_fit counted. Wiring's hop-only fit is v71's own and
+        # is pinned here by name; a fit of any other shape on wiring or point wiring still fails below.
         fits = {c["category_id"] for c in self.now["category_configs"] for p in c["pipelines"].values()
-                for s in p["steps"] if s["step"] == "catalog_fit"}
+                for s in p["steps"] if s["step"] == "catalog_fit" and (s.get("params") or {}).get("hop_only") is not True}
+        hop_only = {c["category_id"] for c in self.now["category_configs"] for p in c["pipelines"].values()
+                    for s in p["steps"] if s["step"] == "catalog_fit" and (s.get("params") or {}).get("hop_only") is True}
+        self.assertEqual(hop_only, {"wiring_cabling"})
         was_fits = {c["category_id"] for c in self.was["category_configs"] for p in c["pipelines"].values()
                     for s in p["steps"] if s["step"] == "catalog_fit"}
         self.assertEqual(fits - was_fits, {"conduit_piping"})
@@ -12342,7 +12368,8 @@ class TestHvacAssetSlice1b(FrappeTestCase):
         # ELR-2 (v68, the notes + display labels): bumped. WAS "rate_master_electrical_all_v67.json".
         # ELR-3a (v69, the assembly-step inputs): bumped. WAS "rate_master_electrical_all_v68.json".
         # ELR-4a (v70, wording + the Blank plate flag): bumped. WAS "rate_master_electrical_all_v69.json".
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v70.json")
+        # ELR-4d (v71, the conduit fit + the DB refusal): bumped. WAS "rate_master_electrical_all_v70.json".
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v71.json")
         data_dir = os.path.dirname(_asset_path(CURRENT_EALL_ASSET))
         names = sorted(os.listdir(data_dir))
         # each series resolved on its own (owner ruling, slice 1c, INVERTING the 1b first-version pin): the HVAC

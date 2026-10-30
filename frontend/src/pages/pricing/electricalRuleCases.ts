@@ -19,7 +19,7 @@
  *               asserts it prices on it and shows it; its partner gives the other answer. The reading itself stays tied to
  *               its config rule by the ELR-4a / 4b tie tests and to the Python extraction tests. Nothing is excluded.
  *
- * The figures were measured on the live asset (Electrical, v70); a mint that moves one fails here by name.
+ * The figures were measured on the live asset (Electrical, v70 at ELR-4c, v71 at ELR-4d); a mint that moves one fails here by name.
  */
 import type { RateCategoryConfig, RateMasterItem } from "./rate-master/rateMasterTypes";
 import { attributeRuleOrder } from "./rate-master/itemListRuleOrder";
@@ -37,8 +37,8 @@ export interface ElectricalAsset {
   items: Array<Omit<RateMasterItem, "discipline">>;
   category_configs: RateCategoryConfig[];
 }
-/** The live Electrical asset (v70; live == file at the start of ELR-4d). */
-export const ELECTRICAL_ASSET = readJson<ElectricalAsset>("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_electrical_all_v70.json");
+/** The live Electrical asset (v71, ELR-4d; v70 at ELR-4c). */
+export const ELECTRICAL_ASSET = readJson<ElectricalAsset>("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_electrical_all_v71.json");
 export const ELECTRICAL_CONFIGS = new Map<string, RateCategoryConfig>(ELECTRICAL_ASSET.category_configs.map((c) => [c.category_id, c]));
 export const ELECTRICAL_ITEMS: RateMasterItem[] = ELECTRICAL_ASSET.items.map((it) => ({ ...it, discipline: ELECTRICAL_ASSET.discipline } as RateMasterItem));
 
@@ -258,7 +258,9 @@ export const ELECTRICAL_RULE_CASES: readonly ElectricalRuleCase[] = [
   { id: "W14-", cat: "wiring_cabling", line: "Termination supply per set = the lug + the gland, each list price x (1 - discount) x (1 + supply markup), rounded up to the next 10, x runs", kind: "neg", how: "stored", row: "BOQ-26-00190|Sheet1|69", set: {"runs": 1}, fig: [1060, 270], re: ["runs=1", "[Termination — per Set] "] },
   { id: "W15+", cat: "wiring_cabling", line: "Termination install = its supply (already x runs) x 'Termination installation share', rounded up to the next 10", kind: "pos", how: "stored", row: "BOQ-26-00190|Sheet1|69", fig: [2120, 530], re: ["runs=2"] },
   { id: "W15-", cat: "wiring_cabling", line: "Termination install = its supply (already x runs) x 'Termination installation share', rounded up to the next 10", kind: "neg", how: "stored", row: "BOQ-26-00190|Sheet1|69", set: {"runs": 1}, fig: [1060, 270], re: ["runs=1"] },
-  { id: "W11u", cat: "wiring_cabling", line: "The conduit is priced at its catalogue rate: list price x (1 - discount) x (1 + supply markup), from 'Conduit discount & supply markup', not rounded", kind: "neg", how: "synthetic", row: "BOQ-26-00183|Electrical Works|19", set: {"conduit_included": "Yes", "conduit_type": "PVC", "size_mm": 40}, fig: null, re: ["size_mm=40", "size_mm: As the row states", "No cable rate row matches"] },
+  // ELR-4d (owner R-W6) INVERTED: WAS size 40, kind neg, fig null, "size_mm=40", "size_mm: As the row states", "No cable rate row matches" -- the fit takes it to 50; the refusal is now W11v, above the largest
+  { id: "W11u", cat: "wiring_cabling", line: "The conduit is priced at its catalogue rate: list price x (1 - discount) x (1 + supply markup), from 'Conduit discount & supply markup', not rounded", kind: "pos", how: "synthetic", row: "BOQ-26-00183|Electrical Works|19", set: {"conduit_included": "Yes", "conduit_type": "PVC", "size_mm": 40}, fig: [260, 54], re: ["size_mm=40", "size_mm~50", "size_mm: The row states 40 — using 50, the next size stocked."] },
+  { id: "W11v", cat: "wiring_cabling", line: "The conduit is priced at its catalogue rate: list price x (1 - discount) x (1 + supply markup), from 'Conduit discount & supply markup', not rounded", kind: "neg", how: "synthetic", row: "BOQ-26-00183|Electrical Works|19", set: {"conduit_included": "Yes", "conduit_type": "PVC", "size_mm": 63}, fig: null, re: ["size_mm=63", "No cable rate row matches"], not: ["size_mm~"] },
   { id: "DB1+", cat: "db_switchgear", line: "The DB is split into its parts", kind: "pos", how: "model-read", row: "BOQ-26-00183|Electrical Works|68", fig: [5930, 1190], re: ["DB (shell): SPN DB 8WAY x 1 = 3,597", "MCB 1: 40A RCCB 30mA (DP) Switchgear x 1 = 4,670", "MCB 2: 10A SP MCB D CURVE Switchgear x 6 = 3,696"] },
   { id: "DB1-", cat: "db_switchgear", line: "The DB is split into its parts", kind: "neg", how: "model-read", row: "BOQ-26-00183|Electrical Works|68", set: {"mcb2_item": "None", "mcb2_qty": null}, fig: [4100, 820], re: ["mcb2_item=None"], not: ["MCB 2:"] },
   { id: "DB2+", cat: "db_switchgear", line: "Board size", kind: "pos", how: "model-read", row: "BOQ-26-00183|Electrical Works|68", fig: [5930, 1190], re: ["DB (shell): SPN DB 8WAY x 1 = 3,597"] },
@@ -273,7 +275,8 @@ export const ELECTRICAL_RULE_CASES: readonly ElectricalRuleCase[] = [
   { id: "DB6-", cat: "db_switchgear", line: "Outgoings per phase", kind: "neg", how: "model-read", row: "BOQ-26-00183|Electrical Works|77", set: {"mcb3_qty": 12}, fig: [34610, 6930], re: ["mcb3_qty=12"], not: ["x 36 ="] },
   { id: "DB7+", cat: "db_switchgear", line: "Quantities and missing parts", kind: "pos", how: "stored", row: "BOQ-26-00183|Electrical Works|68", fig: [5930, 1190], re: ["db_shell_qty:default", "mcb3_item=None"], not: ["MCB 3:"] },
   { id: "DB7-", cat: "db_switchgear", line: "Quantities and missing parts", kind: "neg", how: "stored", row: "BOQ-26-00183|Electrical Works|68", set: {"mcb3_item": null}, fig: null, re: ["Missing to price: MCB 3, MCB 3 qty"] },
-  { id: "DB7z", cat: "db_switchgear", line: "Quantities and missing parts", kind: "pos", how: "stored", row: "BOQ-26-00174|Electrical |104", fig: [0, 0], re: ["[DB and Switchgear — Supply] "], not: ["DB (shell):"] },
+  // ELR-4d (owner R-DB-MANUAL) INVERTED: WAS fig [0, 0] (a row with no part matched priced at 0)
+  { id: "DB7z", cat: "db_switchgear", line: "Quantities and missing parts", kind: "pos", how: "stored", row: "BOQ-26-00174|Electrical |104", fig: null, re: ["No part of this DB matched the catalogue - price it by hand."], not: ["DB (shell):"] },
   { id: "DB8+", cat: "db_switchgear", line: "Supply", kind: "pos", how: "stored", row: "BOQ-26-00183|Electrical Works|68", fig: [5930, 1190], re: ["Switchgear discount = 70%", "Switchgear supply markup = 65%"] },
   { id: "DB8-", cat: "db_switchgear", line: "Supply", kind: "neg", how: "stored", row: "BOQ-26-00183|Electrical Works|68", set: {"mcb2_qty": 8}, fig: [6540, 1310], re: ["MCB 2: 10A SP MCB D CURVE Switchgear x 8 = 4,928"] },
   { id: "DB9+", cat: "db_switchgear", line: "Install", kind: "pos", how: "stored", row: "BOQ-26-00183|Electrical Works|68", fig: [5930, 1190], re: ["DB installation share = 20%"] },
