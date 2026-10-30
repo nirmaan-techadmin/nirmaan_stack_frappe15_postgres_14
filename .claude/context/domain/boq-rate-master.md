@@ -2361,9 +2361,34 @@ sentence once.
 
 **ELR-4c: THE "*" FOLLOWS THE FIELD THE PRICER MUST FILL (P6 "Q4 a" / "Q5 a").** A target the pipeline fills from a field
 that is ON SCREEN and blank carries no "*" - the source does (TS-15: the calculator's "Circuit wiring stretch" while
-"Circuit wiring included" is blank); the gate is unchanged, so the refusal sentence still names both. A needed target a
+"Circuit wiring included" is blank); the gate is unchanged, and since ELR-4d (R-TS15) the refusal sentence names the source
+only. A needed target a
 HIDDEN field can also fill (the tray thickness from the BoQ's gauge) carries `eitherWords` - on the BoQ panel "* this, or a
 thickness the BoQ gives another way", no hidden field named (R-SWG); the calculator keeps the plain "*".
+
+**ELR-4d: THE CONDUCTOR FLOOR APPLIES ON EVERY SCREEN (owner R-3C; R-3C-CALC 2026-10-29 "1 option ii"; P6 "Q2 a", "Q7 b").**
+`rate-helper/conductorFloor.ts` is the TS twin of `extraction.apply_conductor_floor`; `compute` applies it to the effective
+values, so the BoQ panel and the calculator share one arithmetic and a typed count below three is raised too. Change a rule in
+one language and `__fixtures__/conductorFloorCases.json` must change with it: `conductorFloor.test.ts` and
+`test_conductor_floor_parity.py` both read that table. The raised field shows `derivedValue` + `substituted` ("(computed)") and
+a `landed` note, "Raised to three conductors.", and claims no confidence or default mark. A number box the floor raises keeps
+what is typed while it has focus and selects its text on focus (`floorBoxValue`, `isFloorRaised`), since re-showing 3 under the
+caret turned "12" into "32" and "1" into "31". A stored row is inert: the extraction already raised it.
+
+**ELR-4d: A `hop_only` FIT FITS WIRING'S CONDUIT (owner R-W6 2026-10-29 "3 fix"; v71).** `cable_boq`'s `catalog_fit` carries
+`hop_only: true`: it acts only on a stated number the catalogue does not stock at the row's `where` (the next size up, the
+Conduit category's `fit_up` note; above the largest the row does not price) and otherwise leaves no trace and binds nothing,
+so a stocked, None or blank size reads exactly as before. Three readers must keep ignoring such a step: `selfFitBinds` (a plain
+self-fit makes a blank size a needed input: 4,030 stored rows refused on scratch), `varyingAttrLine` (its kind would add
+conduit facts to a cable no-match sentence) and `fitLabels` (a `component_ref` matches the NUMBER strictly, so a hop goes
+through `fit_into` alone). The fit is dormant on screen today: wiring's size is a closed list on the dropdown and for the model,
+and no stored row has an unstocked size; a typed entry would need `extract_as` and so a change to the model's question.
+
+**ELR-4d: A DB ROW WITH NO PART REFUSES (owner R-DB-MANUAL 2026-07-31; P6 "Q3 a"; v71).** `sum_components` may declare
+`none_refusal: "<sentence>"`: when EVERY component was zeroed by `none_skips`, the pipeline returns `no_match` and
+`noneRefusalOf` reads the sentence; the helper shows it as the basis and once in the first block. A part named at quantity 0
+is not absent and still sums to 0. Only `db_buildup_supply` / `db_buildup_install` declare it: `db_buildup_bcs` and the
+Switches & Sockets rows that also price at 0 are untouched, because the ruling names neither.
 
 **AFTER EVERY ASSET MINT, THE PIN SEARCH RUNS BEFORE ANY SUITE (TOOL-1, owner R-SPEED point 6).**
 `python3 scripts/asset_pin_search.py --discipline <HVAC|Electrical> --new-version <N>` (from the app root; stdlib; reads the

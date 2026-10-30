@@ -50159,3 +50159,79 @@ Commit 2 `f7ff7385b` (feat):
   - ELR-4d: the floor, the wiring conduit fit, the 38 DB rows at Rs 0.
   - Earthing's own fix.
   - The green-light pack (Desktop) awaits the owner.
+
+## Slice ELR-4d - Electrical retrofit build 4d: the price changes the owner ruled: the shared conductor floor, the wiring conduit fit, the DB rows at Rs 0, the TS-15 wording (Electrical v71) - as built 2026-10-30 / 31
+
+Desktop session, delegated by the laptop. No dev2-lane session ran beside it.
+
+**Recon:** ELR-R2 G7 (a) and W6, ELR-4b P2 (DB7, the 38 rows), the ELR-4c report (TS-15's residual, the R-39 guard).
+
+**Owner rulings carried:** R-3C, R-3C-CALC, R-W6, R-DB-MANUAL, R-TS15, R-ALIAS-WORDS, R-39. Risk tier 2, tier 3 for v71. Price changes declared, not
+paid; no model call.
+
+**The P6 answer (verbatim, relayed 2026-10-30 23:43 IST):**
+> "Q1 a, Q2 a, Q3 a, Q4 a, Q5 a, Q6 a, Q7 b"
+
+### 1. Phase A (scratch, the repo untouched)
+- **P1:** HEAD d0a107f42 = origin; tree = 4 noise. HVAC v54 31631135 / e9d3689a and Electrical v70 2c15c116 / 1bfa10cb, live == file. Replay
+  elr4dstart: 18,106 rows, ac7 `56fb5640...` / ac7v2 `62abb2f5...` = elr4cend.
+- **P2:** one TS function; 0 stored figures move, one input moves (BOQ-26-00211 "Electrical Est" r116, runs 2 -> 3, refuses before and after). The
+  calculator path over 8,582 stored rows: 0 floor moves. TS = Python on 15,750 grid cases.
+- **P3:** the Conduit category fits by a config `catalog_fit`; wiring's `component_ref` reads `@size_mm` strictly. 0 of 5,432 stored wiring rows carry an
+  unstocked size. A plain copy of the step broke 4,030 rows and reworded 136 sentences on scratch; `hop_only` leaves 0 differences. Premise corrected:
+  no screen can enter an unstocked size (a closed list on the dropdown and for the model).
+- **P4:** exactly the 38 stored rows, each 0 -> refuses. 12 Switches & Sockets rows also at 0 are not in the ruling and did not move.
+- **P5:** 0 stored rows' sentences change on the panel; the fresh calculator's does. It reads "Fill to price", not "Missing to price".
+- **P6:** the question at 23:40; the answer above. Corrections raised there: C1 / AC0's "nothing else" gives no figure; C4's 40 cannot be picked; v71 is needed.
+
+### 2. Built
+Commit 1 `5e1283b53` (feat): `conductorFloor.ts`; `pricingSheetHelper.ts` (the floor over the effective values, TS-15's sentence, `selfFitBinds` and
+`varyingAttrLine` ignoring a hop-only fit, the refusal said once); `RateHelperPanel.tsx` (Q7 b: the box keeps what is typed while focused);
+`ratePipelineInterpreter.ts` (`hop_only`, `none_refusal`, `noneRefusalOf`); `itemListRuleOrder.ts` (PW2; WC-f and DB7 from the config). Tests:
+`conductorFloor.test.ts`, `__fixtures__/conductorFloorCases.json`, `elr4dPriceChanges.test.ts`, `elr4dFloorBox.dom.test.tsx`,
+`test_conductor_floor_parity.py` (measured into the plan). Inverted, WAS kept: PW1-, PW2-, elr4cDisplay's TS-15 sentence; PW2t added.
+
+Commit 2 `e964a949f` (feat): Electrical v71 = v70 + the `hop_only` fit on `cable_boq` + `none_refusal` on `db_buildup_supply` / `db_buildup_install`;
+gates PASS; loaded on dev rmbulk-8a25fc8b123a (pre-load snapshot BRMS-26-00708), live == file. `elr4dConduitDb.test.ts`. Inverted, WAS kept: W11u, DB7z;
+W11v added; test_rate_master's constant and two literals, `_without_elr4d_steps`, test_img_07, test_v63_02.
+
+Commit 3 `eb5941288` (test): `structuredClone` in place of an inline JSON.parse. Residence F2 had printed 214 in the step that made commit 2, so the check
+did not gate that commit; a separate commit, because commit 2 was already reported for sync.
+
+Commit 4 `980bb11c5` (fix): a box showing a raised value selects it on focus. Found on the page: with the thickness picked first and runs blank, the
+box already shows 3 (computed), and a click and "1" made "31", which stood.
+
+### 3. Proofs and counts
+- **Replay elr4dend (HEAD 980bb11c5, v71 live):** ac7 `2177b5e9...`, ac7v2 `dde97fb7...`. By key vs the start: exactly the 38 DB rows move, each 0 -> refuses;
+  the other 18,068 are byte-equal. The model's question is byte-equal before and after the load; capture 258 -> 258.
+- **Vacuity** (`2026-10-30_ELR-4d_vacuity.log`, every break on a source or fixture, restored sha-equal, never live data): V1-V27 all red, plus V5's Python half.
+  V12 did not go red the first time, because my negative case never reached a real component; strengthened, then 1 red.
+- **Suites** (after = HEAD 980bb11c5):
+  - vitest related (the changed product files + `electricalRuleCases.ts` + the 2 latest-asset readers): 84 files / 4,386 passed. Before: 70 / 3,616 (ELR-4c's
+    after json); 0 dropped; every per-file count equal except the two guard files (+2 each); the new files are the 4 of this slice and 10 that the related
+    graph now reaches.
+  - Scope before commit 2: the pricing and rate-helper folders, 99 files / 4,720 passed.
+  - tsc FULL: 0 new (3,050).
+  - Python through the runner: test_rate_master 739, test_elr3a 29, test_spec_reader 35, test_extraction_coercion 216, test_conductor_floor_parity 3,
+    test_piping_v34 60, all OK. Before: ELR-4c's log 739 / 29 / 35; ELR-4a's scoped log 216 / 60; the new module is new.
+  - Residence 11 / 11.
+- **Browser cert** (17 screenshots; de-stale 1-6 twice, since a defect was fixed mid-cert; PROOF 1 + PROOF 2 both times; read-only):
+  - C1: 1-core 1.5 x 1 run -> 3 (computed) + the note; "1" kept while focused; "12" stands; with r251's answers 1,775 / 358.
+  - C2: a 2-core wire adds wire 2 (computed), 1,970 / 718; 4 runs stays 4, 2,396 / 685.
+  - C3: 00174 r251 typed 1 run -> the same as C1, 2,133. C4: the dropdown offers 20 / 25 / 32 / 50; 40 by a temporary option -> 50 + the note, 180 / 50 / 230; 63 does not price.
+  - C5: 00174 r104 refuses in the approved words, no Rs 0; 00183 r68 5,930 / 1,190. C6: no stretch in the fresh sentence. C7: PW2, WC-f, DB7 as approved.
+  - C8: earthing 00183 r88 216.05 / 29 / 245.05; HVAC 00325 r178 9,750.
+- **Disclosed:** Version 479,510 -> 479,513: two content-neutral re-saves of the live tray_discount by the existing test_ng_02 (00:40, 02:09; live == file proves it) and
+  one fcm_token Version from cert step 6 (01:22, R-FCM). Not repaired. The v71 load is the slice's only other write.
+
+### 4. Deploy note and open items
+- **Deploy:** v71 reaches production by Deployment Mode, a wholesale load. The pack must count production's own rows: the DB rows with every part None (dev: 38, each Rs 0 ->
+  refuses). The floor moves no stored figure on dev, but any typed entry below three conductors re-prices up on production. The conduit fit moves nothing (dormant).
+- **Open items:**
+  - The conduit fit is dormant until a screen or the model can supply an unstocked size.
+  - 12 Switches & Sockets rows price at Rs 0 (not ruled).
+  - The DB's BCS pipeline still sums to 0 on an all-None row (not ruled).
+  - On the 320 px panel the header truncates the refusal; the full sentence is in the block below.
+  - DB7's reason reads "reason not recorded".
+  - Wiring line 7 still reads "the size the BoQ states" beside WC-f's fit: its text was not in the approved rewording.
+  - The raised box's selection on focus (commit 4) goes beyond the words of "Q7 b"; for the owner to confirm.
