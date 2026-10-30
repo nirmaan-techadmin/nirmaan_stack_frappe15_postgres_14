@@ -19,7 +19,7 @@
  *               asserts it prices on it and shows it; its partner gives the other answer. The reading itself stays tied to
  *               its config rule by the ELR-4a / 4b tie tests and to the Python extraction tests. Nothing is excluded.
  *
- * The figures were measured on the live v70 asset (Electrical); a mint that moves one fails here by name.
+ * The figures were measured on the live asset (Electrical, v70); a mint that moves one fails here by name.
  */
 import type { RateCategoryConfig, RateMasterItem } from "./rate-master/rateMasterTypes";
 import { attributeRuleOrder } from "./rate-master/itemListRuleOrder";
@@ -37,7 +37,7 @@ export interface ElectricalAsset {
   items: Array<Omit<RateMasterItem, "discipline">>;
   category_configs: RateCategoryConfig[];
 }
-/** The live Electrical asset (v70; live == file at the start of ELR-4c). */
+/** The live Electrical asset (v70; live == file at the start of ELR-4d). */
 export const ELECTRICAL_ASSET = readJson<ElectricalAsset>("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_electrical_all_v70.json");
 export const ELECTRICAL_CONFIGS = new Map<string, RateCategoryConfig>(ELECTRICAL_ASSET.category_configs.map((c) => [c.category_id, c]));
 export const ELECTRICAL_ITEMS: RateMasterItem[] = ELECTRICAL_ASSET.items.map((it) => ({ ...it, discipline: ELECTRICAL_ASSET.discipline } as RateMasterItem));
@@ -161,9 +161,12 @@ export const MODEL_READ_LINES: Readonly<Record<string, readonly string[]>> = {
 // prettier-ignore
 export const ELECTRICAL_RULE_CASES: readonly ElectricalRuleCase[] = [
   { id: "PW1+", cat: "point_wiring", line: "The wires", kind: "pos", how: "model-read", row: "BOQ-26-00174|Electrical |251", fig: [1775, 358], re: ["wire1_runs=3", "[Point Wiring — Supply] Wire 1: COPPER UNARMOURED 1 1.5 x 15 = 1,500"] },
-  { id: "PW1-", cat: "point_wiring", line: "The wires", kind: "neg", how: "model-read", row: "BOQ-26-00174|Electrical |251", set: {"wire1_runs": 1}, fig: [659, 331], re: ["wire1_runs=1", "[Point Wiring — Supply] Wire 1: COPPER UNARMOURED 1 1.5 x 15 = 510"] },
+  // ELR-4d (owner R-3C-CALC) INVERTED: WAS set wire1_runs 1, fig [659, 331], "wire1_runs=1", "Wire 1: ... x 15 = 510" -- a typed count below three is now raised
+  { id: "PW1-", cat: "point_wiring", line: "The wires", kind: "neg", how: "model-read", row: "BOQ-26-00174|Electrical |251", set: {"wire1_runs": 4}, fig: [2396, 685], re: ["wire1_runs=4", "[Point Wiring — Supply] Wire 1: COPPER UNARMOURED 1 1.5 x 15 = 1,995"] },
   { id: "PW2+", cat: "point_wiring", line: "Three conductors", kind: "pos", how: "model-read", row: "BOQ-26-00174|Electrical |251", fig: [1775, 358], re: ["wire1_runs=3", "wire1_core=1", "Wire 1: COPPER UNARMOURED 1 1.5 x 15 = 1,500"] },
-  { id: "PW2-", cat: "point_wiring", line: "Three conductors", kind: "neg", how: "model-read", row: "BOQ-26-00174|Electrical |251", set: {"wire1_runs": 1, "wire1_core": 1}, fig: [659, 331], re: ["wire1_runs=1", "wire1_core=1", "Wire 1: COPPER UNARMOURED 1 1.5 x 15 = 510"] },
+  // ELR-4d (owner R-3C-CALC) INVERTED: WAS set wire1_runs 1 + wire1_core 1, fig [659, 331] priced as typed; that entry is now PW2t, and the excluded case is a count stating more
+  { id: "PW2-", cat: "point_wiring", line: "Three conductors", kind: "neg", how: "model-read", row: "BOQ-26-00174|Electrical |251", set: {"wire1_runs": 4, "wire1_core": 1}, fig: [2396, 685], re: ["wire1_runs=4", "wire1_core=1"], not: ["wire1_runs: Raised to three conductors.", "wire1_runs~4"] },
+  { id: "PW2t", cat: "point_wiring", line: "Three conductors", kind: "pos", how: "synthetic", row: "BOQ-26-00174|Electrical |251", set: {"wire1_runs": 1, "wire1_core": 1}, fig: [1775, 358], re: ["wire1_runs=3", "wire1_runs~3", "wire1_runs: Raised to three conductors.", "Wire 1: COPPER UNARMOURED 1 1.5 x 15 = 1,500"] },
   { id: "PW3+", cat: "point_wiring", line: "Points covered", kind: "pos", how: "model-read", row: "BOQ-26-00174|Electrical |251", fig: [1775, 358], re: ["points=1", "circuit_length_m: Worked out: 15 + (1 - 1) x 5 = 15 m"] },
   { id: "PW3-", cat: "point_wiring", line: "Points covered", kind: "neg", how: "model-read", row: "BOQ-26-00174|Electrical |251", set: {"points": 3}, fig: [2943, 594], re: ["points=3", "circuit_length_m: Worked out: 15 + (3 - 1) x 5 = 25 m"] },
   { id: "PW4+", cat: "point_wiring", line: "Switch", kind: "pos", how: "model-read", row: "BOQ-26-00190|Sheet1|170", fig: [4877, 629.8], re: ["[Point Wiring — Supply] Switch: Switch 10A 1 WAY SWITCH - With Indicator White x 1 = 124"] },

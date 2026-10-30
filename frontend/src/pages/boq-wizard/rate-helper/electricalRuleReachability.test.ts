@@ -3,7 +3,7 @@
  * FIRES FROM THE PANEL'S ENTRY POINT. The Electrical twin of `ruleReachability.test.ts` (HVAC T1), pinned the same way.
  *
  *   THE GUARD: the lines the cases in `electricalRuleCases.ts` name must EQUAL the lines `attributeRuleOrder` (the Derivation
- *   tab's builder) generates from the LIVE v70 configs -- 77 over 12 categories. A new line with no case fails the suite;
+ *   tab's builder) generates from the LIVE configs (v70 at ELR-4c, v71 at ELR-4d) -- 77 over 12 categories. A new line with no case fails the suite;
  *   a case naming a line that no longer exists fails it too. Nothing is excluded (owner Q6 a): the 17 lines that describe
  *   the AI's READ have model-read cases.
  *
@@ -20,7 +20,7 @@ import {
 const GENERATED = electricalGeneratedLines();
 
 describe("THE GUARD -- the Electrical lines the cases name EQUAL the lines the live config generates", () => {
-  it("77 lines over 12 categories, generated from the live v70 configs by the tab's own builder", () => {
+  it("77 lines over 12 categories, generated from the live configs by the tab's own builder", () => {
     expect(Object.fromEntries(Object.entries(GENERATED).map(([cat, ls]) => [cat, ls.length]))).toEqual({
       wiring_cabling: 15, point_wiring: 14, switches_sockets: 7, popup_boxes: 6, db_switchgear: 9, industrial_sockets: 8,
       earthing: 3, conduit_piping: 3, cabletray_raceway: 6, junction_box_raceway: 2, lighting_mgmt_system: 2, miscellaneous: 2,
@@ -79,7 +79,7 @@ describe("THE GUARD -- the Electrical lines the cases name EQUAL the lines the l
   });
 });
 
-describe("every Electrical case through the panel's entry point (live v70)", () => {
+describe("every Electrical case through the panel's entry point (the live asset)", () => {
   it.each(ELECTRICAL_RULE_CASES.map((c) => [`${c.id} ${c.cat} / ${c.line} (${c.kind}, ${c.how})`, c] as const))("%s", (_name, c) => {
     const r = panelResult(c);
     expect(figuresOf(r)).toEqual(c.fig);

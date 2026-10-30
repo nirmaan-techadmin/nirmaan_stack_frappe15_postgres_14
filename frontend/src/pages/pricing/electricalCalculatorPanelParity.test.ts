@@ -24,9 +24,10 @@ const RUNS = ELECTRICAL_RULE_CASES.map((c) => {
   return { c, pc, run, cause: run.divergences.length ? classifyDivergence(run, pc) : null };
 });
 
-describe("calculator = panel, one case per Electrical Derivation line (live v70)", () => {
-  it("169 cases, and every one of the 77 generated lines has at least one", () => {
-    expect(RUNS).toHaveLength(169);
+describe("calculator = panel, one case per Electrical Derivation line (the live asset)", () => {
+  // ELR-4d: WAS 169 cases; NOW 170 (PW2t)
+  it("170 cases, and every one of the 77 generated lines has at least one", () => {
+    expect(RUNS).toHaveLength(170);
     const generated = Object.entries(electricalGeneratedLines()).flatMap(([cat, ls]) => ls.map((l) => `${cat} / ${l}`));
     expect(generated).toHaveLength(77);
     const covered = new Set(ELECTRICAL_RULE_CASES.map((c) => `${c.cat} / ${c.line}`));

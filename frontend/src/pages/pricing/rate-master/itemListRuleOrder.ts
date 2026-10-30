@@ -1302,12 +1302,12 @@ export function attributeRuleOrder(config: unknown, items: ReadonlyArray<RuleOrd
         const [gate, gv] = Object.entries(st.qty.if_attr)[0] ?? ["", ""];
         const what = String(st.name ?? "component");
         const bound = Object.keys(st.ref ?? {}).filter((k) => k !== "kind").map((k) => label(k).toLowerCase());
-        // ELR-4b (owner P6, WC-f; R-W6): today the component is read at the STATED size -- this pipeline carries no
-        // catalog_fit on it -- so the line says so; ELR-4d adds the fit and changes this line with it
+        // ELR-4b (owner P6, WC-f; R-W6): the line says how the component's size is read, from the pipeline's own catalog_fit
+        // on its bind; ELR-4d added that fit (WAS: "at the size the BoQ states (it is not moved ...) -- a size not stocked ...")
         const refBinds = Object.values(st.ref ?? {}).filter((v): v is string => typeof v === "string" && v.startsWith("@"));
         const fitted = steps.some((s) => s.step === "catalog_fit" && refBinds.includes(`@${String((s.params as { bind?: unknown } | undefined)?.bind ?? "")}`));
         add("conduit_price", `The ${what} is priced at its catalogue rate: ${how}`,
-            `one ${what} per row whatever the runs; only when ${label(gate)} is ${String(gv)}${st.none_skips && bound.length ? ` and a ${bound[0]} is named` : ""}${refBinds.length && !fitted ? `; at the size the BoQ states (it is not moved to the next stocked size, as the Conduit category does) -- a size not stocked for that type does not price` : ""}`);
+            `one ${what} per row whatever the runs; only when ${label(gate)} is ${String(gv)}${st.none_skips && bound.length ? ` and a ${bound[0]} is named` : ""}${refBinds.length && !fitted ? `; at the size the BoQ states (it is not moved to the next stocked size, as the Conduit category does) -- a size not stocked for that type does not price` : ""}${fitted ? `; at the stated size, else the next larger size stocked for that type, with a note on the field, as the Conduit category does; above the largest stocked size the row does not price` : ""}`);
       } else if (st.step === "scale" && p.install_ratio_from_ctx) {
         add("conduit_install", `The ${String(st.target ?? "").replace(/_supply$/, "")} install = its supply x ${input(p.install_ratio_from_ctx)}${after(steps, i)}`, "");
       } else if (st.step === "scale" && p.conduit_from_ctx && /supply/.test(String(st.target))) {
@@ -1524,7 +1524,7 @@ const ASSEMBLY_TEXT: AsmText = {
   wires: () => ["The wires",
     "Read as the BoQ states them: '3R x 1.5' or '3 x 1.5' is 3 runs of a 1-core 1.5 sqmm wire; a bare size is 1 run; a separately named earth is wire 2; with two sizes and no counts, the larger is wire 1, one run each; more than 1 core only when stated."],
   floor: (f) => ["Three conductors",
-    `On the AI's read, the point wires${f.circuit ? ", and the circuit wires as well," : ""} are raised to three conductors: a single-core wire gets more runs (the bigger one when there are two); when every wire is multi-core, a 1-core wire of the same size is added; a BoQ stating more is never reduced. A value you type on the panel or the calculator is priced as typed.`],
+    `On the AI's read, the point wires${f.circuit ? ", and the circuit wires as well," : ""} are raised to three conductors: a single-core wire gets more runs (the bigger one when there are two); when every wire is multi-core, a 1-core wire of the same size is added; a BoQ stating more is never reduced. A value you type on the panel or the calculator is raised the same way, shown '(computed)' with the note 'Raised to three conductors.'; a typed value stating three or more stands.`],
   points: (f) => ["Points covered", `The number the BoQ states; where none is stated, ${f.n}.`],
   switch: (f) => ["Switch", `As stated, with ${countWord(f.clauses.length)} catalogue rule${f.clauses.length > 1 ? "s" : ""}: ${f.clauses.join("; ")}.`],
   bare_box: (f) => ["Back box size (a bare box)",
@@ -1643,6 +1643,18 @@ type ElcCfg = {
 const POLE_WORDS: Record<string, string> = { SP: "single pole", DP: "double pole", TP: "three pole", FP: "four pole" };
 
 /** The facts one config gives the eight categories' lines, or null where a line's source is absent. */
+/** ELR-4d (owner R-DB-MANUAL): the sentence a primary pipeline's `sum_components` declares for a row with no part at all. */
+function noneRefusal(c: ElcCfg): string | undefined {
+  for (const [pid, pl] of Object.entries(c.pipelines ?? {})) {
+    if (/bcs/i.test(pid)) continue;
+    for (const st of pl.steps ?? []) {
+      const r = (st as unknown as { step?: string; none_refusal?: unknown });
+      if (r.step === "sum_components" && typeof r.none_refusal === "string") return r.none_refusal;
+    }
+  }
+  return undefined;
+}
+
 function electricalFacts(c: ElcCfg, items: ReadonlyArray<RuleOrderItem>) {
   const pls = Object.entries(c.pipelines ?? {}).filter(([id]) => !/bcs/i.test(id));
   const steps = pls.flatMap(([, pl]) => pl.steps ?? []);
@@ -1707,7 +1719,7 @@ function electricalFacts(c: ElcCfg, items: ReadonlyArray<RuleOrderItem>) {
     db_pole: composite && rep?.values_from ? {} : null,
     db_rccb: rule("R3") || rule("R4") ? { r3: rule("R3"), r4: rule("R4") } : null,
     db_phase: rule("R8") ? {} : null,
-    db_quantities: composite && qtyDefault !== undefined ? { q: num(qtyDefault) } : null,
+    db_quantities: composite && qtyDefault !== undefined ? { q: num(qtyDefault), noneRefusal: noneRefusal(c) } : null,
     db_supply: composite && steps.some((s) => s.step === "sum_components" && s.result === "supply") && scaleTo("supply", "m_from_ctx")
       ? { input: input(pv(scaleTo("supply", "m_from_ctx"), "m_from_ctx")), round: rounded("supply") } : null,
     db_install: composite && steps.find((s) => s.step === "scale" && s.target === "supply" && s.result === "install" && pv(s, "m_from_ctx"))
@@ -1786,7 +1798,7 @@ const ELECTRICAL_TEXT: { [K in ElcKey]: (f: NonNullable<ElcFacts[K]>) => [string
   ].join("; ")],
   db_phase: () => ["Outgoings per phase", "A quantity stated per phase is multiplied by 3 on a TPN or VTPN board and by 1 on an SPN board"],
   db_quantities: (f) => ["Quantities and missing parts",
-    `A part named with no quantity counts ${f.q}; a part the BoQ says is absent (None) is not priced; every part must be answered, a part or None, or the row does not price. A row where no part is matched at all prices at 0 today`],
+    `A part named with no quantity counts ${f.q}; a part the BoQ says is absent (None) is not priced; every part must be answered, a part or None, or the row does not price. ${f.noneRefusal ? `A row where no part is matched at all does not price; it says: '${f.noneRefusal}'` : "A row where no part is matched at all prices at 0 today"}`],
   db_supply: (f) => ["Supply", `The parts' list prices x their quantities, added, x (1 - discount) x (1 + supply markup) from '${f.input}', ${f.round}`],
   db_install: (f) => ["Install", `The rounded supply x '${f.input}', ${f.round} -- the share is of the whole board with its breakers, not the shell alone`],
   is_mcb: (f) => ["Paired MCB",

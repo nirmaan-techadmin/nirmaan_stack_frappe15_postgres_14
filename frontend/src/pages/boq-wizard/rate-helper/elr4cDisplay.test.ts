@@ -123,9 +123,12 @@ describe("TS-15 -- the calculator does not star the stretch while 'Circuit wirin
     expect(attr(r, "circuit_wire_included")?.required).toBe(true);
     expect(attr(r, "circuit_wire_length_m")?.required).toBeUndefined();
   });
-  it("NEGATIVE: the gate is unchanged -- the fresh calculator's refusal sentence still names both (no refusal changes)", () => {
+  // ELR-4d (owner R-TS15, "1 ... ok") INVERTED: WAS the sentence names both, matched /^Fill to price: .*Circuit wiring included.*Circuit wiring stretch \(m\)/
+  it("NEGATIVE: the gate is unchanged -- the fresh calculator still refuses, naming 'included' and no longer the stretch", () => {
     const r = calc();
-    expect(isSuggestion(r) && r.workings.derivation[0]).toMatch(/^Fill to price: .*Circuit wiring included.*Circuit wiring stretch \(m\)/);
+    expect(isSuggestion(r) && r.workings.derivation[0]).toMatch(/^Fill to price: .*Circuit wiring included/);
+    expect(isSuggestion(r) && r.workings.derivation[0]).not.toContain("Circuit wiring stretch");
+    expect(isSuggestion(r) && Object.keys(r.values)).toEqual([]);
   });
   it("NEGATIVE: a blank source the panel does NOT show keeps the target's star (tray thickness with no gauge)", () => {
     const r = panelResult(withSet("CT1+", { thickness_mm: null, thickness_swg: null }));

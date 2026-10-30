@@ -28,6 +28,7 @@ import {
   type ShownAttribute,
 } from "./pricingSheetHelper";
 import { moneyValue } from "./attributeWorkingLines";
+import { floorBoxValue } from "./conductorFloor";
 import {
   attrDisplayValue,
   attrNoteText,
@@ -409,6 +410,8 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
   // `excelRow` changes but before the effect runs would still compute with the old row's edits, and
   // a click in that window would bank it. Carrying the row makes a mismatch impossible to observe.
   const [attrOverrideState, setAttrOverrideState] = useState<RowScoped<Record<string, Record<string, string>>>>(EMPTY_ATTR_STATE);
+  // ELR-4d (owner P6 "Q7 b"): the text of the number box being typed in, so a box the conductor floor raises keeps it until blur
+  const [boxTyping, setBoxTyping] = useState<{ id: string; text: string } | null>(null);
   // Calculator slice 2: the calculator has ONE card and no header to click through, so it opens
   // expanded; the two BoQ variants keep their collapsed default.
   const isCalculator = variant === "calculator";
@@ -915,13 +918,14 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                                 id={`${fieldUid}-attr-${a.id}`}
                                 aria-required={a.required || undefined}
                                 className={cn(isCalculator ? "h-7 w-full text-xs disabled:opacity-50" : "h-7 w-28 text-xs disabled:opacity-50", fieldTone)}
-                                value={shown === "None" ? "" : shown}
+                                value={floorBoxValue(a, shown, boxTyping)}
                                 // READ-ONLY, not disabled: the value is real and worth reading (and
                                 // copying) -- greying it out would read as "positively absent", which
                                 // is a DIFFERENT state this panel already renders that way.
                                 readOnly={a.readOnly}
                                 disabled={a.disabled || shown === "None"}
-                                onChange={(e) => setAttr(helper.id, a.id, e.target.value)}
+                                onChange={(e) => { setBoxTyping({ id: a.id, text: e.target.value }); setAttr(helper.id, a.id, e.target.value); }}
+                                onBlur={() => setBoxTyping(null)}
                               />
                             </span>
                           )}
