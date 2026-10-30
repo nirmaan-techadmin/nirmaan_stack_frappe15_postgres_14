@@ -28,7 +28,7 @@ import {
   type ShownAttribute,
 } from "./pricingSheetHelper";
 import { moneyValue } from "./attributeWorkingLines";
-import { floorBoxValue } from "./conductorFloor";
+import { floorBoxValue, isFloorRaised } from "./conductorFloor";
 import {
   attrDisplayValue,
   attrNoteText,
@@ -925,6 +925,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                                 readOnly={a.readOnly}
                                 disabled={a.disabled || shown === "None"}
                                 onChange={(e) => { setBoxTyping({ id: a.id, text: e.target.value }); setAttr(helper.id, a.id, e.target.value); }}
+                                onFocus={(e) => { if (isFloorRaised(a)) e.target.select(); }}
                                 onBlur={() => setBoxTyping(null)}
                               />
                             </span>

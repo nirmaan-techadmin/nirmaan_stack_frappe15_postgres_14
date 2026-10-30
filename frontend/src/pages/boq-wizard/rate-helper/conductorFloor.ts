@@ -22,6 +22,12 @@ const NONE_SENTINEL = "None";
 /** The note on a raised field (owner R-3C-CALC: "raised to three conductors"). */
 export const CONDUCTOR_FLOOR_NOTE = "Raised to three conductors.";
 
+/** Does this field show a value the floor raised? (The panel selects such a box's text on focus: its value is not one the
+ *  pricer typed, so typing replaces it -- a click and "1" on a computed 3 must not make "31".) */
+export function isFloorRaised(a: { notes?: ReadonlyArray<{ kind: string; how?: string }> }): boolean {
+  return (a.notes ?? []).some((n) => n.kind === "landed" && n.how === CONDUCTOR_FLOOR_NOTE);
+}
+
 /**
  * ELR-4d (owner P6 "Q7 b"): what a number box shows. A box the floor has raised keeps what the pricer is typing while it has
  * focus ("1" on the way to "12" must not turn into "3" and then "32"); the raised value shows once focus leaves. Any other
@@ -32,8 +38,7 @@ export function floorBoxValue(
   shown: string,
   typing: { id: string; text: string } | null,
 ): string {
-  const raised = (a.notes ?? []).some((n) => n.kind === "landed" && n.how === CONDUCTOR_FLOOR_NOTE);
-  if (raised && typing?.id === a.id) return typing.text;
+  if (isFloorRaised(a) && typing?.id === a.id) return typing.text;
   return shown === NONE_SENTINEL ? "" : shown;
 }
 

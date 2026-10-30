@@ -69,6 +69,21 @@ describe("the runs box while it is being typed in", () => {
     expect(label.parentElement!.textContent).toContain("(computed)");
   });
 
+  it("a box showing a raised value selects it on focus, so typing replaces it; a box the floor did not raise does not", () => {
+    const el = calculator();
+    wireOne(el); // runs blank: the box shows the raised 3
+    const box = field<HTMLInputElement>(el, "wire1_runs");
+    expect(box.value).toBe("3");
+    act(() => { box.focus(); });
+    expect([box.selectionStart, box.selectionEnd]).toEqual([0, 1]);
+    blur(box);
+    const points = field<HTMLInputElement>(el, "points");
+    setNative(points, "2");
+    points.setSelectionRange(1, 1);
+    act(() => { points.focus(); });
+    expect([points.selectionStart, points.selectionEnd]).toEqual([1, 1]);
+  });
+
   it("emptying the box stays empty while focused, and shows the raised 3 on leaving", () => {
     const el = calculator();
     wireOne(el);
