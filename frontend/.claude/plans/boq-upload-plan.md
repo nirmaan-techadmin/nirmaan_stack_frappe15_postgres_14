@@ -50215,7 +50215,7 @@ box already shows 3 (computed), and a click and "1" made "31", which stood.
   - Python through the runner: test_rate_master 739, test_elr3a 29, test_spec_reader 35, test_extraction_coercion 216, test_conductor_floor_parity 3,
     test_piping_v34 60, all OK. Before: ELR-4c's log 739 / 29 / 35; ELR-4a's scoped log 216 / 60; the new module is new.
   - Residence 11 / 11.
-- **Browser cert** (17 screenshots; de-stale 1-6 twice, since a defect was fixed mid-cert; PROOF 1 + PROOF 2 both times; read-only):
+- **Browser cert** (20 screenshots, one of them the defect; de-stale 1-6 twice, since a defect was fixed mid-cert; PROOF 1 + PROOF 2 both times; read-only):
   - C1: 1-core 1.5 x 1 run -> 3 (computed) + the note; "1" kept while focused; "12" stands; with r251's answers 1,775 / 358.
   - C2: a 2-core wire adds wire 2 (computed), 1,970 / 718; 4 runs stays 4, 2,396 / 685.
   - C3: 00174 r251 typed 1 run -> the same as C1, 2,133. C4: the dropdown offers 20 / 25 / 32 / 50; 40 by a temporary option -> 50 + the note, 180 / 50 / 230; 63 does not price.
