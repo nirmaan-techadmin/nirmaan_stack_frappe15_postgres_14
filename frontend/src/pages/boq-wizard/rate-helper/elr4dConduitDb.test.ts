@@ -128,7 +128,7 @@ describe("R-DB-MANUAL: a DB row with no part matched refuses", () => {
     const pl = cfg.pipelines!;
     expect(noneRefusalOf(runPipeline("db_buildup_supply", pl.db_buildup_supply as never, ELECTRICAL_ITEMS, none))).toBe(REFUSAL);
     expect(noneRefusalOf(runPipeline("db_buildup_bcs", pl.db_buildup_bcs as never, ELECTRICAL_ITEMS, none))).toBeUndefined();
-    const stripped = JSON.parse(JSON.stringify(pl.db_buildup_supply)) as { steps: Array<{ none_refusal?: string }> };
+    const stripped = structuredClone(pl.db_buildup_supply) as unknown as { steps: Array<{ none_refusal?: string }> };
     for (const s of stripped.steps) delete s.none_refusal;
     const res = runPipeline("db_buildup_supply", stripped as never, ELECTRICAL_ITEMS, none);
     expect(res.status).toBe("ok");
