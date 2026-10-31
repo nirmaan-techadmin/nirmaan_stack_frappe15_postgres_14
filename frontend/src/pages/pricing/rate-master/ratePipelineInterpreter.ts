@@ -897,7 +897,8 @@ export function runPipeline(
   const steps: StepTrace[] = [];
   let matchedItem: RateMasterItem | undefined;
   const components: Record<string, number> = {};
-  // ELR-4d (owner R-DB-MANUAL): the components a `none_skips` zeroed, for `sum_components`' `none_refusal`
+  // ELR-4d (owner R-DB-MANUAL): the components a `none_skips` zeroed, for `sum_components`' `none_refusal`;
+  // ELR-5 (owner "Q1 a, Q2 c"): and the ones their own `if_attr` switched off (Back box = No)
   const noneSkipped = new Set<string>();
   // SLICE 2: STRING-valued bindings produced by module_fit (a ladder's fitted LABEL, e.g. "12M").
   // `ctx` is numbers-only, and a plate/box size is a catalog label, so it needs its own scope. A
@@ -2401,6 +2402,9 @@ export function runPipeline(
         }
         const value = rate * qty;
         components[s.name] = value;
+        // ELR-5: a part its own Yes/No switched off is absent, for `none_refusal` only: nothing else reads this set, and a
+        // part named at quantity 0 (`from_attr` / `from_fit`) stays a part
+        if (s.none_skips && qty === 0 && typeof s.qty === "object" && "if_attr" in s.qty) noneSkipped.add(s.name);
         steps.push({
           step: stepType,
           label: s.explain || `component: ${s.name}`,
@@ -2611,7 +2615,8 @@ export function runPipeline(
     } else if (stepType === "sum_components") {
       const s = raw as import("./rateMasterTypes").SumComponentsStep;
       // ELR-4d (owner R-DB-MANUAL 2026-07-31: "a WHOLE-row no-match returns all slots null (fully manual)"): a pipeline that
-      // declares `none_refusal` refuses, in those words, when EVERY component is positively absent -- never Rs 0. A part named
+      // declares `none_refusal` refuses, in those words, when EVERY component is positively absent (ELR-5: a None, or its
+      // own Yes/No switched off) -- never Rs 0. A part named
       // at quantity 0 is not absent. Read through `unknown`: not on the SumComponentsStep type.
       const noneRefusal = (s as unknown as { none_refusal?: unknown }).none_refusal;
       const componentNames = Object.keys(components);

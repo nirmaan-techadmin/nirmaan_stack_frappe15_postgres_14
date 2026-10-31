@@ -1270,7 +1270,8 @@ export function attributeRuleOrder(config: unknown, items: ReadonlyArray<RuleOrd
         const table = p.table && typeof p.table === "object" ? Object.entries(p.table as Record<string, unknown>) : [];
         if (table.length && typeof p.from_attr === "string") {
           const vals = [...new Set(table.map(([, v]) => String(v)))];
-          add("conduit_size", `${field}: the size the BoQ states`,
+          // ELR-5 (owner R-W7, "Q4 a"): the title alone; WAS `${field}: the size the BoQ states`, which WC-f's fit made untrue
+          add("conduit_size", field,
               `where a ${label(p.from_attr).toLowerCase()} is named and no size, ${vals.length === 1 ? `${vals[0]} mm` : table.map(([k, v]) => `${k} ${String(v)} mm`).join(", ")}`);
         } else if (p.default === "None") {
           add("conduit_type", `${field}: the BoQ's answer, never assumed`,
@@ -1480,6 +1481,7 @@ function assemblyFacts(c: AsmCfg, items: ReadonlyArray<RuleOrderItem>) {
       ? {
         terms: (mf.params?.terms ?? []).map((t) => ({ what: label(t.none_when).toLowerCase().replace(/\s+\d+$/, ""), weight: num(t.weight), own: !!t.weight_from })),
         box: !!boxLadder, pick: !!boxLadder?.pick_from, zero: boxLadder?.on_zero_modules !== undefined && !boxLadder?.on_zero_from ? num(boxLadder.on_zero_modules) : null,
+        noneRefusal: noneRefusal(c as ElcCfg), // ELR-5 (owner "Q3 b"): line 5's last sentence, from the config
         blanker: blanks?.item_when_positive ? String(blanks.item_when_positive) : null, blankQty: blanks?.qty_attr ? label(blanks.qty_attr) : null,
       }
       : null,
@@ -1571,7 +1573,7 @@ const ASSEMBLY_TEXT: AsmText = {
     }
     const bare = at("bare_box");
     return ["Plate, back box and blanks",
-      `Fitted to what the board holds: ${counts}; ${larger}; the back box is the plate's size, or the computed size with no plate${f.pick ? "; a back box size you pick is used if it holds the contents, else raised to fit" : ""}${bare ? `; with nothing on the board, see line ${bare}` : ""}; spare modules get '${f.blanker}'s ("${f.blankQty}" can lower that count, never raise it).`];
+      `Fitted to what the board holds: ${counts}; ${larger}; the back box is the plate's size, or the computed size with no plate${f.pick ? "; a back box size you pick is used if it holds the contents, else raised to fit" : ""}${bare ? `; with nothing on the board, see line ${bare}` : ""}; spare modules get '${f.blanker}'s ("${f.blankQty}" can lower that count, never raise it).${f.noneRefusal ? ` With nothing on the board and no back box, the row does not price; it says: '${f.noneRefusal}'` : ""}`];
   },
   supply: (f) => ["Supply", f.assembly
     ? `Each part at its own discount and supply markup, rounded up to the rupee per metre or per piece, x its quantity, then added up and not rounded again: each wire x its runs, from '${f.wire}'${f.wastage ? " (the wastage is not applied)" : ""}, x the circuit length; the circuit wires x the circuit stretch; the conduit from '${f.conduit}', x its fitted length; switch, socket, blanks, plate and back box from '${f.swsock}'.`

@@ -276,7 +276,8 @@ const WIRING_WAS = [
   "The cable and the termination are each matched in the catalogue -- on Material, Insulation, Core and Thickness (sqmm), exactly as the catalogue writes them",
   "Conduit included: the BoQ's answer -- where it cannot be judged, No",
   "Conduit type: the BoQ's answer, never assumed -- a row naming none prices no conduit",
-  "Conduit size (mm): the size the BoQ states -- where a conduit type is named and no size, 25 mm",
+  // ELR-5 (owner R-W7, "Q4 a"); WAS "Conduit size (mm): the size the BoQ states -- where a conduit type is named and no size, 25 mm"
+  "Conduit size (mm) -- where a conduit type is named and no size, 25 mm",
   "Cable supply per metre = list price x (1 - discount) x (1 + supply markup), rounded up to the next 10 -- the discount and the markup from 'Armoured cable discount, supply markup & wastage' when Insulation is ARMOURED; 'Unarmoured cable discount, supply markup & wastage' when Insulation is UNARMOURED",
   "Parallel runs multiply the rounded supply -- Runs x the rounded supply rate",
   "Cable install per metre = install base x (1 + 'Cable installation markup'), rounded up to the rupee -- then x one install unit per 3 runs (1 to 3 runs = 1, 4 to 6 = 2, and so on)",

@@ -34,7 +34,7 @@ describe("ELR-1 AC6: wiring & cabling's rules list", () => {
       "Runs and cores: as the BoQ states them",
       "Conduit included: the BoQ's answer",
       "Conduit type: the BoQ's answer, never assumed",
-      "Conduit size (mm): the size the BoQ states",
+      "Conduit size (mm)", // ELR-5 (owner R-W7, "Q4 a"); WAS "Conduit size (mm): the size the BoQ states"
       "Cable supply per metre = list price x (1 - discount) x (1 + supply markup), rounded up to the next 10",
       "Parallel runs multiply the rounded supply",
       "Cable install per metre = install base x (1 + 'Cable installation markup'), rounded up to the rupee",
