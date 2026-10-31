@@ -341,7 +341,8 @@ PIPELINE_KEYS = {"cable_boq", "termination_boq", "cable_bcs", "termination_bcs"}
 # R-PW-BLANK); no item, rate or step moved.
 # ELR-4d (2026-10-30): v70 -> v71 (owner R-W6, R-DB-MANUAL; P6 "Q5 a"): the hop-only conduit fit on wiring's cable_boq and
 # `none_refusal` on the DB's two pricing pipelines; no item, rate or other step moved.
-CURRENT_EALL_ASSET = "rate_master_electrical_all_v71.json"
+# ELR-5 (2026-10-31): v71 -> v72 (owner "Q1 a, Q2 c"): `none_refusal` on Switches & Sockets' swsock_boq; no item, rate or other step moved.
+CURRENT_EALL_ASSET = "rate_master_electrical_all_v72.json"
 
 # SLICE 12b(A): the two counts the slice MOVED, named so every assertion says WHY it is what it is.
 #
@@ -636,13 +637,26 @@ def _without_elr1_runs_note(cfg):
     against an older one; this is the only thing v67 changed, so it is the only thing they forgive.
     ELR-2 (v68): plus v68's declared additions (`_without_elr2_notes_and_labels`) -- again the only things v68 changed.
     ELR-4a (v70): plus v70's declared wording and Blank plate flag (`_without_elr4a_wording`) -- the only things v70 changed.
-    ELR-4d (v71): plus v71's conduit fit and DB refusal (`_without_elr4d_steps`) -- the only things v71 changed."""
+    ELR-4d (v71): plus v71's conduit fit and DB refusal (`_without_elr4d_steps`) -- the only things v71 changed.
+    ELR-5 (v72): plus v72's Switches & Sockets refusal (`_without_elr5_refusal`) -- the only thing v72 changed."""
     c = json.loads(json.dumps(cfg))
     if c.get("category_id") == "wiring_cabling":
         for d in c.get("attribute_definitions") or []:
             if d.get("id") == "runs":
                 d.pop("note", None)
-    return _without_elr4d_steps(_without_elr4a_wording(_without_elr3a_assembly_inputs(_without_elr2_notes_and_labels(c))))
+    return _without_elr5_refusal(_without_elr4d_steps(_without_elr4a_wording(_without_elr3a_assembly_inputs(_without_elr2_notes_and_labels(c)))))
+
+
+def _without_elr5_refusal(cfg):
+    """ELR-5 (owner "Q1 a, Q2 c"; v72): `none_refusal` on Switches & Sockets' swsock_boq normalised away. Any OTHER difference still
+    fails the pin that uses this."""
+    if cfg.get("category_id") != "switches_sockets":
+        return cfg
+    c = json.loads(json.dumps(cfg))
+    for s in ((c.get("pipelines") or {}).get("swsock_boq") or {}).get("steps") or []:
+        if s.get("step") == "sum_components":
+            s.pop("none_refusal", None)
+    return c
 
 
 def _without_elr4d_steps(cfg):
@@ -8055,7 +8069,8 @@ class TestSpnPoleVocabulary(FrappeTestCase):
             # the key-by-key ladder comparison. The three-key strip below is unchanged, so a FOURTH ladder
             # key -- or a change to any other step -- still fails.
             # ELR-2 (v68, mechanical authority): forgive exactly v68's declared additions on the current side
-            pa_c, pb_c = _strip_12b_migration(_without_elr2_notes_and_labels(now["switches_sockets"]), before["switches_sockets"])
+            # ELR-5 (v72, mechanical authority): + v72's refusal; WAS _without_elr2_notes_and_labels(now["switches_sockets"])
+            pa_c, pb_c = _strip_12b_migration(_without_elr5_refusal(_without_elr2_notes_and_labels(now["switches_sockets"])), before["switches_sockets"])
             pa, pb = pa_c["pipelines"][pname], pb_c["pipelines"][pname]
             self.assertEqual(pa["output"], pb["output"], pname)
             self.assertEqual(pa["steps"][1:], pb["steps"][1:], pname)
@@ -10788,7 +10803,8 @@ class TestF25Slice3PickFrom(FrappeTestCase):
         # is dropped and only the rewritten steps' arithmetic is excused, so a FOURTH ladder key, or a
         # change to any other step, still fails.
         # ELR-2 (v68): + v68's declared additions forgiven on the current side (WAS: the raw current config)
-        n2, w2 = _strip_12b_migration(_without_elr2_notes_and_labels(self.ss_now), self.ss_was)
+        # ELR-5 (v72, mechanical authority): + v72's refusal; WAS _without_elr2_notes_and_labels(self.ss_now)
+        n2, w2 = _strip_12b_migration(_without_elr5_refusal(_without_elr2_notes_and_labels(self.ss_now)), self.ss_was)
         now = copy.deepcopy(n2)
         for pid in ("swsock_boq", "swsock_bcs"):
             del now["pipelines"][pid]["steps"][0]["params"]["ladders"][1]["pick_from"]
@@ -11267,7 +11283,8 @@ class TestIncludesModulesGate(FrappeTestCase):
         # ELR-3a (v69, the assembly-step inputs): bumped. WAS "rate_master_electrical_all_v68.json"; the gate is unchanged.
         # ELR-4a (v70, wording + the Blank plate flag): bumped. WAS "rate_master_electrical_all_v69.json"; the gate is unchanged.
         # ELR-4d (v71, the conduit fit + the DB refusal): bumped. WAS "rate_master_electrical_all_v70.json"; the gate is unchanged.
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v71.json")
+        # ELR-5 (v72, the Switches & Sockets refusal): bumped. WAS "rate_master_electrical_all_v71.json"; the gate is unchanged.
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v72.json")
         fits = {}
         goldens = asset.get("goldens") or {}
         for c in asset["category_configs"]:
@@ -12369,7 +12386,8 @@ class TestHvacAssetSlice1b(FrappeTestCase):
         # ELR-3a (v69, the assembly-step inputs): bumped. WAS "rate_master_electrical_all_v68.json".
         # ELR-4a (v70, wording + the Blank plate flag): bumped. WAS "rate_master_electrical_all_v69.json".
         # ELR-4d (v71, the conduit fit + the DB refusal): bumped. WAS "rate_master_electrical_all_v70.json".
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v71.json")
+        # ELR-5 (v72, the Switches & Sockets refusal): bumped. WAS "rate_master_electrical_all_v71.json".
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v72.json")
         data_dir = os.path.dirname(_asset_path(CURRENT_EALL_ASSET))
         names = sorted(os.listdir(data_dir))
         # each series resolved on its own (owner ruling, slice 1c, INVERTING the 1b first-version pin): the HVAC

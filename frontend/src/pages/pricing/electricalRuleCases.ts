@@ -19,7 +19,7 @@
  *               asserts it prices on it and shows it; its partner gives the other answer. The reading itself stays tied to
  *               its config rule by the ELR-4a / 4b tie tests and to the Python extraction tests. Nothing is excluded.
  *
- * The figures were measured on the live asset (Electrical, v70 at ELR-4c, v71 at ELR-4d); a mint that moves one fails here by name.
+ * The figures were measured on the live asset (Electrical, v70 at ELR-4c, v71 at ELR-4d, v72 at ELR-5); a mint that moves one fails here by name.
  */
 import type { RateCategoryConfig, RateMasterItem } from "./rate-master/rateMasterTypes";
 import { attributeRuleOrder } from "./rate-master/itemListRuleOrder";
@@ -37,8 +37,8 @@ export interface ElectricalAsset {
   items: Array<Omit<RateMasterItem, "discipline">>;
   category_configs: RateCategoryConfig[];
 }
-/** The live Electrical asset (v71, ELR-4d; v70 at ELR-4c). */
-export const ELECTRICAL_ASSET = readJson<ElectricalAsset>("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_electrical_all_v71.json");
+/** The live Electrical asset (v72, ELR-5; v71 at ELR-4d; v70 at ELR-4c). */
+export const ELECTRICAL_ASSET = readJson<ElectricalAsset>("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_electrical_all_v72.json");
 export const ELECTRICAL_CONFIGS = new Map<string, RateCategoryConfig>(ELECTRICAL_ASSET.category_configs.map((c) => [c.category_id, c]));
 export const ELECTRICAL_ITEMS: RateMasterItem[] = ELECTRICAL_ASSET.items.map((it) => ({ ...it, discipline: ELECTRICAL_ASSET.discipline } as RateMasterItem));
 
@@ -208,6 +208,10 @@ export const ELECTRICAL_RULE_CASES: readonly ElectricalRuleCase[] = [
   { id: "SS4-", cat: "switches_sockets", line: "Back box and colour", kind: "neg", how: "model-read", row: "BOQ-26-00183|Electrical Works|12", set: {"back_box": "No"}, fig: [130, 30], re: ["back_box=No", "Back box: Back Box 1M x 0 = 0"] },
   { id: "SS5+", cat: "switches_sockets", line: "Plate, back box and blanks", kind: "pos", how: "stored", row: "BOQ-26-00183|Electrical Works|28", fig: [580, 120], re: ["Blank plate: Switch 1M Blanker White x 1 = 70", "plate_item: The smallest that holds the contents (5 modules)"] },
   { id: "SS5-", cat: "switches_sockets", line: "Plate, back box and blanks", kind: "neg", how: "stored", row: "BOQ-26-00183|Electrical Works|12", fig: [170, 40], re: ["blank_qty: No spare modules on this plate; 1 will not fit — pricing 0."], not: ["Blank plate: Switch"] },
+  // ELR-5 (owner "Q1 a, Q2 c, Q3 b"): line 5's refusal. SS5z WAS Rs 0 on v71; SS5y, a blanker named alone, WAS Rs 0 too; SS5x, the box on, keeps its figure
+  { id: "SS5z", cat: "switches_sockets", line: "Plate, back box and blanks", kind: "pos", how: "stored", row: "BOQ-26-00298|ELECTRICAL BOQ |603", fig: null, re: ["No part of this row matched the catalogue - price it by hand."], not: ["Back box: Back Box"] },
+  { id: "SS5y", cat: "switches_sockets", line: "Plate, back box and blanks", kind: "pos", how: "stored", row: "BOQ-26-00102|Electrical|112", fig: null, re: ["No part of this row matched the catalogue - price it by hand.", "blank_item=1M Blanker"] },
+  { id: "SS5x", cat: "switches_sockets", line: "Plate, back box and blanks", kind: "neg", how: "stored", row: "BOQ-26-00298|ELECTRICAL BOQ |603", set: {"back_box": "Yes"}, fig: [70, 20], re: ["Back box: Back Box 3M x 1 = 178"], not: ["No part of this row matched"] },
   { id: "SS6+", cat: "switches_sockets", line: "Supply", kind: "pos", how: "stored", row: "BOQ-26-00183|Electrical Works|12", fig: [170, 40], re: ["Switch: Switch 10A 1 WAY SWITCH White x 1 = 162", "Frame/Face plate: Grid and Face Plates 1M White x 1 = 182", "Back box: Back Box 1M x 1 = 121"] },
   { id: "SS6-", cat: "switches_sockets", line: "Supply", kind: "neg", how: "stored", row: "BOQ-26-00183|Electrical Works|12", set: {"switch_qty": 2}, fig: [230, 50], re: ["Switch: Switch 10A 1 WAY SWITCH White x 2 = 324"] },
   { id: "SS7+", cat: "switches_sockets", line: "Install", kind: "pos", how: "stored", row: "BOQ-26-00183|Electrical Works|12", fig: [170, 40], re: ["Switch & socket installation share = 20%"] },

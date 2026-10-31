@@ -25,9 +25,9 @@ const RUNS = ELECTRICAL_RULE_CASES.map((c) => {
 });
 
 describe("calculator = panel, one case per Electrical Derivation line (the live asset)", () => {
-  // ELR-4d: WAS 169 cases; NOW 171 (PW2t, W11v)
-  it("171 cases, and every one of the 77 generated lines has at least one", () => {
-    expect(RUNS).toHaveLength(171);
+  // ELR-4d: WAS 169 cases; NOW 171 (PW2t, W11v). ELR-5: WAS 171; NOW 174 (SS5z, SS5y, SS5x)
+  it("174 cases, and every one of the 77 generated lines has at least one", () => {
+    expect(RUNS).toHaveLength(174);
     const generated = Object.entries(electricalGeneratedLines()).flatMap(([cat, ls]) => ls.map((l) => `${cat} / ${l}`));
     expect(generated).toHaveLength(77);
     const covered = new Set(ELECTRICAL_RULE_CASES.map((c) => `${c.cat} / ${c.line}`));
