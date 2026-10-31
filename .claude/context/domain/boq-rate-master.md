@@ -2387,8 +2387,16 @@ and no stored row has an unstocked size; a typed entry would need `extract_as` a
 **ELR-4d: A DB ROW WITH NO PART REFUSES (owner R-DB-MANUAL 2026-07-31; P6 "Q3 a"; v71).** `sum_components` may declare
 `none_refusal: "<sentence>"`: when EVERY component was zeroed by `none_skips`, the pipeline returns `no_match` and
 `noneRefusalOf` reads the sentence; the helper shows it as the basis and once in the first block. A part named at quantity 0
-is not absent and still sums to 0. Only `db_buildup_supply` / `db_buildup_install` declare it: `db_buildup_bcs` and the
-Switches & Sockets rows that also price at 0 are untouched, because the ruling names neither.
+is not absent and still sums to 0. `db_buildup_bcs` does not declare it, because the ruling does not name it.
+
+**ELR-5: AN EMPTY SWITCHES & SOCKETS ROW REFUSES TOO (owner R-SS0; P4 "Q1 a, Q2 c, Q3 b", 2026-10-31; v72).** `swsock_boq` declares
+`none_refusal: "No part of this row matched the catalogue - price it by hand."`. A `none_skips` part whose own `qty.if_attr` switched it
+off (Back box = No) now counts as absent for that check; without this the back box reads "3M x 0" and the refusal never fires. Only
+`none_refusal` reads that set, so a pipeline that declares nothing is unchanged. A part named at quantity 0 (`from_attr`, `from_fit`) is
+still a part. Back box = Yes on an empty board still prices the 3M box. A blank plate with no quantity still asks for "Plate qty"
+(R-V1). A blanker named alone refuses as well: the blanker comes from the fit, and with no plate there is no spare module; pricing it
+alone is logged for a later slice. `swsock_bcs` does not declare the sentence (deferred to the BCS build, with R-BCS). Line 5 of the
+tab, "Plate, back box and blanks", shows the sentence from the config.
 
 **AFTER EVERY ASSET MINT, THE PIN SEARCH RUNS BEFORE ANY SUITE (TOOL-1, owner R-SPEED point 6).**
 `python3 scripts/asset_pin_search.py --discipline <HVAC|Electrical> --new-version <N>` (from the app root; stdlib; reads the

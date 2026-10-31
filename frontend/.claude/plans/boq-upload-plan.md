@@ -50235,3 +50235,43 @@ box already shows 3 (computed), and a click and "1" made "31", which stood.
   - DB7's reason reads "reason not recorded".
   - Wiring line 7 still reads "the size the BoQ states" beside WC-f's fit: its text was not in the approved rewording.
   - The raised box's selection on focus (commit 4) goes beyond the words of "Q7 b"; for the owner to confirm.
+
+## Slice ELR-5 - Electrical retrofit build 5: the 12 Switches & Sockets rows at Rs 0, wiring line 7's title (Electrical v72) - as built 2026-10-31
+
+Desktop session, delegated by the laptop. The dev2 lane ran beside it (devs1, then devs2, no browser).
+
+**Recon:** ELR-4d's report (P4: "12 switches_sockets rows at 0 are not touched") and its `none_refusal` mechanism.
+
+**Owner rulings carried:** R-SS0, R-V1, R-W7, R-BCS, R-FCM, R-39. Risk tier 3 (v72). No paid run, no model call.
+
+**The P4 answer (verbatim, relayed 2026-10-31 18:26 IST):**
+> "Q1 a, Q2 c, Q3 b, Q4 a. Log, don't fix: lone-blanker pricing for a later slice; the "assumed 3M" note on refused rows. Group-A misclassification and the 152 ADP install-0 rows: no action (owner). Swsock BCS: no action, deferred to the BCS build."
+
+### 1. Phase A (scratch, the repo untouched)
+- **P1:** HEAD 992af2ac6 = origin; tree = 4 noise. HVAC v54 31631135 / e9d3689a and Electrical v71 2c15c116 / 7352c6f7, live == file. Replay elr5start: 18,106 rows, ac7 `2177b5e9...` / ac7v2 `dde97fb7...`, byte-equal to elr4dend.
+- **P2, the cause:** every part is None and Back box is No, so the sum is 0, and the panel offers it with "Use this value" enabled (read on the page, 00298 r603). All 18,106 stored rows searched: all-zero figures only on these 12; no other Electrical category; pop-up boxes 0 of 129 (the box itself is always charged); HVAC ADP has 152 rows with install 0 and a real supply. 6 of the 12 already hold rates a pricer typed.
+- **P3:** line 7's source is `itemListRuleOrder.ts` `add("conduit_size", ...)`, cases W7+ / W7-.
+- **P4, premise corrected:** the DB's `none_refusal` alone moves 0 of the 12, because the back box is "3M x 0", not None. One interpreter line plus the declaration moves exactly the 12, on the panel and the calculator; the line alone moves 0 of 18,106; the model's question is unchanged in all 23 groups.
+
+### 2. The declared set (each Rs 0 / 0 / 0 -> refuses, "No part of this row matched the catalogue - price it by hand.")
+- Group A, nothing named (10): BOQ-26-00298 "ELECTRICAL BOQ " r603, r605, r607, r609, r611; BOQ-26-00305 "Cost Sheet" r75; BOQ-26-00306 "EXTERNAL ELECTRICAL WORKS" r414, r415, r416; BOQ-26-00328 "BOQ" r177.
+- Group B, a blanker alone (2): BOQ-26-00102 "Electrical" r112; BOQ-26-00364 "Internal Electrical Works" r212.
+- Typed rates on these rows are not touched (r75 520, r414 300, r415 250, r416 450, r112 30 / 10, r212 20 / 5).
+
+### 3. Built
+Commit 1 `33f7c3ea7` (feat): `ratePipelineInterpreter.ts`: a `none_skips` part whose own `if_attr` switched it off joins `noneSkipped`; only `none_refusal` reads that set; a part named at quantity 0 stays a part. `itemListRuleOrder.ts`: line 7's title is the field alone (WAS "Conduit size (mm): the size the BoQ states"); line 5 of the Switches & Sockets tab ends with the refusal sentence, read from the config (U3, approved by "Q3 b"). W7+ / W7- renamed; `attributeRuleOrder.test.ts` and `.elr4b.test.ts` inverted, WAS kept. `elr5SwitchesRefusal.test.ts` (13).
+
+Commit 2 `3e7d89b31` (feat): Electrical v72 = v71 + `none_refusal` on `swsock_boq`; gates PASS; loaded on dev rmbulk-ff8c8e64f284 (pre-load snapshot BRMS-26-00779), live == file: items 2c15c116, configs 6ddf58a9. SS5z, SS5y, SS5x (174 parity cases). `elr5SwitchesLive.test.ts` (33), `__fixtures__/elr5ZeroRows.json`. Inverted, WAS kept: test_rate_master's constant and two literals, `_without_elr5_refusal`, test_f25s3_03, test_r12.
+
+### 4. Proofs and counts
+- **Replay elr5end (HEAD 3e7d89b31, v72 live):** ac7 `25cb3eb9...`, ac7v2 `9aaf20bf...`. By key vs the start: exactly the 12 rows, each 0 -> refuses; the other 18,094 byte-equal. The model's question is byte-equal; capture 258 -> 258.
+- **Vacuity** (`2026-10-31_ELR-5_vacuity.log`, every break on a source or fixture, restored sha-equal, never live data): V1-V7, V20-V24 all red.
+- **Suites** (after = HEAD 3e7d89b31): vitest related 86 files / 4,438 passed, before 84 / 4,386 (ELR-4d's after json), 0 dropped; +2 new files (46 tests) and the two guard files +3 each. tsc FULL 0 new (3,050). Python through the runner: test_rate_master 739, test_elr3a 29, test_spec_reader 35, test_extraction_coercion 216, test_conductor_floor_parity 3, test_piping_v34 60, all OK; the same counts as ELR-4d's log.
+- **Disclosed:** Version 479,513 -> 479,515: two re-saves of the live tray_discount by the existing test_ng_02 (19:09, 20:10; live == file proves them content-neutral). Not repaired. No login, so no fcm_token Version. The v72 load is the slice's only other write.
+- **Browser cert** (11 screenshots + one before shot; de-stale 1-6, PROOF 1 + PROOF 2; read-only): C1 00298 r603 refuses, no Rs 0, "Use this value" disabled; 00102 r112 refuses with its typed 30 kept. C2 the calculator says the same; Back box Yes 70 / 20. C3 00183 r12 170 / 40; pop-up 00298 r778 9,450 / 1,090. C4 line 7's title; line 5's sentence. C5 HVAC 00325 r178 9,750; DB 00183 r68 5,930 / 1,190.
+
+### 5. Deploy note and open items
+- **Deploy:** v72 reaches production by Deployment Mode, a wholesale load, with the interpreter line. The pack must count production's own rows with every part None and Back box No (dev: 12, each Rs 0 -> refuses).
+- **Logged, not fixed (owner):** lone-blanker pricing, for a later slice (White 1M Blanker would be 30 / 10); the "assumed 3M. Check it." note on refused rows.
+- **No action (owner):** the group-A misclassification (non-switch items classified as switches & sockets); the 152 ADP rows with install 0; the Switches & Sockets BCS sum of 0, deferred to the BCS build with R-BCS.
+- **Open:** the sentence is a little loose on the 2 blanker rows, where the panel shows "Blank plate: 1M Blanker". Line 5's "why" quotes the module-width ruling; it does not cover the refusal.
