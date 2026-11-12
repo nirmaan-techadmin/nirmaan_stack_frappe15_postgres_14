@@ -17,6 +17,13 @@ export interface RateMasterCategoryEntry {
    * page -- `rateMasterPageEntry` filters it out there. Absent => today: an item category.
    */
   holds_items?: false;
+  /**
+   * VP-1 (N6, owner QR-2 Q2 (a) 2026-11-12 "2a is fine for now. when we build misc category we will build properly"): `true`
+   * marks a BORROW-ONLY category -- FETCHED (another category's panel prices its items under its own rules through
+   * `list_spec.sections`) but listed NEITHER in the calculator's category list (`calculatorEntry`) NOR on the Rate Master page
+   * (`rateMasterPageEntry`). Absent => listed as before.
+   */
+  fetch_only?: true;
 }
 
 export interface RateMasterDisciplineEntry {
@@ -34,7 +41,17 @@ export const RATE_MASTER_ROUTE = "/rate-master";
  */
 export function rateMasterPageEntry<T extends RateMasterDisciplineEntry | undefined>(entry: T): T {
   if (!entry) return entry;
-  const kept = entry.categories.filter((c) => c.holds_items !== false);
+  const kept = entry.categories.filter((c) => c.holds_items !== false && c.fetch_only !== true);
+  return (kept.length === entry.categories.length ? entry : { ...entry, categories: kept }) as T;
+}
+
+/**
+ * VP-1 (N6). The discipline entry AS THE CALCULATOR LISTS IT: every category except a borrow-only one (`fetch_only`). PURE.
+ * Returns the SAME object when nothing is filtered, so every entry without one is reference-identical.
+ */
+export function calculatorEntry<T extends RateMasterDisciplineEntry | undefined>(entry: T): T {
+  if (!entry) return entry;
+  const kept = entry.categories.filter((c) => c.fetch_only !== true);
   return (kept.length === entry.categories.length ? entry : { ...entry, categories: kept }) as T;
 }
 

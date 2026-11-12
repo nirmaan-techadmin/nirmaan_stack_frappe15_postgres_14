@@ -90,6 +90,8 @@ export interface NumberReader {
    * line into the full read ("You typed 5/8\" -> 15.875 mm -> ..."); Piping's line comes from its other keys.
    */
   typed_entry?: "one_size";
+  /** VP-1 (G7): a typed "DN 50" on this axis is 50 mm (a DN number is mm, as an NB number is). ABSENT => a typed DN refuses. */
+  typed_dn?: true;
   /**
    * SLICE 12e-4b (owner F-1, 2026-10-13: "insulation should get the original pipe size read by BoQ and then will
    * match/ ladder independently based on insulation logic" + "option B"): on THIS axis the nearest stocked size
@@ -411,6 +413,31 @@ export interface UnstockedMaterials {
   words: string[];
   from_attr?: string;
   rule: string;
+  /** VP-1 (owner 2026-11-12 23:59 "the no sku note should only mention the SKU the row is about and not the others"): on a row of
+   *  SEVERAL items, an unstocked word found in the row's OWN text refuses only the item whose own copied words (`from_attr`) carry
+   *  it -- every other item is priced, or refused for its own reason. A word no item carries still refuses each item, naming the
+   *  WORD (the unstocked thing the model did not list). ABSENT => every item is checked against the whole row text, as before. */
+  per_item?: true;
+}
+
+/** VP-1 (per_item). PURE. The row's own text as ONE item of a several-item row reads it for the unstocked-word rule: where ANOTHER
+ *  item's own copied words carry an unstocked word (that item refuses the row by name), an item carrying none reads the row text
+ *  WITHOUT the unstocked words (it is priced, or refused for its own reason). Where no item carries one, the row text stands for
+ *  every item -- the unstocked thing the model did not list still stops the row. Every other case => `ownText`. */
+export function ownTextForItem(spec: ItemListPricingSpec, extracted: readonly ExtractedListItem[], index: number, ownText: string): string {
+  const um = spec.unstocked_materials;
+  if (!um?.per_item || !um.from_attr || extracted.length < 2 || !ownText) return ownText;
+  const carries = (it: ExtractedListItem) => {
+    const v = rawValue(it, um.from_attr!);
+    return v !== null && v !== "None" && wordStartHit(String(v), um.words) !== null;
+  };
+  if (carries(extracted[index]) || !extracted.some((it, j) => j !== index && carries(it))) return ownText;
+  let t = ownText;
+  for (const w of um.words) {
+    const parts = w.trim().split(/[\s-]+/).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    t = t.replace(new RegExp(parts.join("[\\s-]*"), "gi"), " ");
+  }
+  return t;
 }
 
 /**
@@ -458,6 +485,8 @@ export interface ReadNote {
   pattern: string;
   unless?: string;
   line: string;
+  /** VP-1 (G4): the Derivation tab's words for this line (what it says and why); ABSENT => the generic "stating its own figure". */
+  rule_line?: string;
 }
 
 /**
@@ -593,6 +622,14 @@ export interface ItemListPricingSpec {
   read_notes?: ReadNote[];
   /** ADP-5d (owner R9 / R13): a working line generated from the row's text. ABSENT => no line. See `TextNote`. */
   text_notes?: TextNote[];
+  /** VP-1 (N5): a display line from the row's headings AND the sheet's row categories. ABSENT => no line. See `SheetHeadingNote`. */
+  sheet_heading_notes?: SheetHeadingNote[];
+  /** VP-1 (N1): the row's scope pick on a category WITHOUT `extras` (VRF keeps `extras.scope`; both are read as
+   *  `extras?.scope ?? scope`). ABSENT => byte-identical. */
+  scope?: ScopeSpec;
+  /** VP-1 (N2, owner UNIT ruling 2026-11-11, all categories): a row with NO unit refuses ("no unit on this row") instead of being
+   *  priced in the item's own unit -- the rule VRF already has through `vrf10On`. ABSENT => the 12c-U default unit, as before. */
+  blank_unit_refuses?: boolean;
   /** ADP-5d (owner R6b): the default replaces an answer the row's stream cannot decide. ABSENT => every answer stands. */
   stream_heading_default?: StreamHeadingDefault[];
   /** ADP-5d (owner R4): an item code adds beside a named one. ABSENT => nothing is added. See `CompanionItem`. */
@@ -975,6 +1012,23 @@ export interface ScopeSpec {
    *  only) defaulting to the helper's own scope; a pick re-prices the row by the calculator's rules, and `note` ({helper} = the
    *  helper's scope, {because} = its reason) says the user changed it. ABSENT => the panel shows the scope as a note only. */
   panel_pick?: { note: string };
+  /** VP-1 (N1, owner VR9 2026-11-11 09:09 / QR-2 Q1 (a)): on a PRICING-LEVEL `scope` (a category without `extras`), the model
+   *  attribute that carries the row's scope answer -- VRF reads its own from `extras.from_model.scope`. */
+  model_attr?: string;
+}
+
+/** VP-1 (N5, owner VR1 2026-11-12 23:59 / 11-13 00:09 / 00:33). A DISPLAY-ONLY line on every row of this category whose
+ *  headings (the row's headings and the notes of the heading directly above, as `text_notes` "headings" reads them) match
+ *  `pattern`: `with_rows` when the SHEET (the page's own row categories) has rows of `category` -- {rows} = the first `cap` of
+ *  their excel rows, then "and N more" -- else `none`. A context without the sheet's categories (the calculator, a harness that
+ *  does not build them) shows nothing. Never a figure, never a refusal. */
+export interface SheetHeadingNote {
+  pattern: string;
+  category: string;
+  with_rows: string;
+  none: string;
+  cap?: number;
+  rule: string;
 }
 
 /** VRF-5: one accessory line (see `ExtrasSpec.accessories`). */
@@ -2073,6 +2127,11 @@ export type NumberRead = { value: number; note?: string; alt?: number; raw?: str
  * Everything else -- "40/50", "two inch", "40-50", "as per spec" -- refuses with `ONE_SIZE_MESSAGE`.
  */
 export const ONE_SIZE_MESSAGE = "Type one pipe size, in mm or inches";
+/** VP-1 (G7): the one-size refusal naming the reader's own axis ("Type one valve size, ..."); a reader named "pipe size" (Piping,
+ *  Insulation) or unnamed reads `ONE_SIZE_MESSAGE` byte for byte. PURE. */
+export function oneSizeMessage(name: string | undefined): string {
+  return name && name.trim() ? `Type one ${name.trim()}, in mm or inches` : ONE_SIZE_MESSAGE;
+}
 const INCH_UNIT = String.raw`(?:"|”|''|\s*(?:in|inch|inches))`;
 const ONE_SIZE_FORMS: RegExp[] = [
   /^\s*\d+(?:\.\d+)?\s*(?:mm|nb|dia|od|mm\s*dia|mm\s*od)?\s*$/i,
@@ -3659,8 +3718,16 @@ export interface MaterialText {
   map: Array<{
     /** Every group must have at least one whole-word hit in the as-written text. */
     all_of: string[][];
+    /** VP-1 (N4, owner ANSWER 3 2026-11-12 13:46 / VR3 "40 and below is ball valve"): the as-written may hold NOTHING but
+     *  these words (and numbers, units, punctuation) -- any other word (a type the catalogue does not stock, "globe") keeps
+     *  the refusal by name. ABSENT => any text hitting `all_of` maps. */
+    only_words?: string[];
     /** The family priced, by the row's unit class. */
     to_by_unit_class: Record<string, string>;
+    /** VP-1 (N4): the family by the item's SIZE instead -- `attr` read by the config's own number reader: at most `at_most`
+     *  -> `small`, above -> `large`; no readable size -> `small`, whose own needs then refuse for the missing size. Wins over
+     *  `to_by_unit_class` where present. */
+    to_by_size?: { attr: string; at_most: number; small: string; large: string };
     /** The amber family line: "{to}" = the family priced. */
     line: string;
     rule: string;
@@ -3673,6 +3740,18 @@ function wholeWordHit(text: string, words: readonly string[]): boolean {
     const ww = w.toLowerCase().replace(/[^a-z0-9.-]+/g, " ").trim();
     return ww !== "" && t.includes(` ${ww} `);
   });
+}
+/** VP-1 (N4). PURE. Whether `text` holds nothing but `words` (whole words, case-insensitive), numbers and unit marks
+ *  (mm, nb, dn, dia, inch, ", /, -) -- "Isolation valve 40 mm" yes, "Globe valve" no. */
+export function onlyTheseWords(text: string, words: readonly string[]): boolean {
+  let t = ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ")} `;
+  const all = [...words, "mm", "nb", "dn", "dia", "diameter", "inch", "inches", "in", "size", "of", "nos", "no"];
+  for (const w of [...all].sort((a, b) => b.length - a.length)) {
+    const ww = ` ${w.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+    if (ww.trim() === "") continue;
+    while (t.includes(ww)) t = t.replace(ww, " ");
+  }
+  return t.replace(/\b\d+\b/g, " ").trim() === "";
 }
 /**
  * SLICE 12e-5b (owner R2, 2026-10-15: "should read as 26G GI cladding and mapped to aluminium as we dont have gi
@@ -3717,6 +3796,16 @@ export function materialTextFor(
   if (said.trim() === "") return null;
   for (const e of mt.map) {
     if (!e.all_of.every((group) => wholeWordHit(said, group))) continue;
+    if (e.only_words && !onlyTheseWords(said, e.only_words)) continue;
+    // VP-1 (N4): the family by the item's size (the config's own reader); no readable size -> the small family, which refuses
+    if (e.to_by_size) {
+      const rd = spec.numbers[e.to_by_size.attr];
+      const sz = rawValue(item, e.to_by_size.attr);
+      const r = rd && sz !== null && sz !== "None" ? readNumber(sz, rd) : null;
+      const mm = r && typeof (r as { value?: unknown }).value === "number" ? (r as { value: number }).value : null;
+      const to = mm !== null && mm > e.to_by_size.at_most ? e.to_by_size.large : e.to_by_size.small;
+      return { family: to, line: e.line.replace("{to}", to), rule: e.rule };
+    }
     const to = rowUnitClass === null ? Object.values(e.to_by_unit_class)[0] : e.to_by_unit_class[rowUnitClass];
     if (!to) return null;
     return { family: to, line: e.line.replace("{to}", to), rule: e.rule };
@@ -3742,6 +3831,8 @@ export function namedMaterialRefusal(spec: ItemListPricingSpec, item: ExtractedL
     // SLICE 12e-6 (owner R1): an unstocked word offered as an ALTERNATIVE to a stocked one ("nitrile rubber/XLPE")
     // is not a refusal -- the stocked one prices (`alternativeMaterials`); only the text outside such a clause counts
     const hit = wordStartHit(`${withoutStockedAlternatives(ownText, um.words)} | ${withoutStockedAlternatives(copiedText, um.words)}`, um.words);
+    // VP-1 (per_item): a word only the row text carries (the item's own words do not) is named as the word, never as the item
+    if (hit !== null && um.per_item && wordStartHit(copiedText, um.words) === null) return `No SKU in the catalogue for ${hit} - price this row by hand`;
     if (hit !== null) return `No SKU in the catalogue for ${namedText ?? hit.toUpperCase()} - price this row by hand`;
   }
   return null;
@@ -3836,6 +3927,9 @@ export function alternativeMaterials(
 /** R8 / R5 (owner "correct" / "this is XLPE"): an XLPE alias in the row's own text or a copied value -> its refusal. PURE. */
 export function xlpeAliasRefusal(spec: ItemListPricingSpec, item: ExtractedListItem, ownText: string): string | null {
   if (!spec.unstocked_materials) return null;
+  // VP-1 (G2): an insulation rule -- only where the unstocked words are insulation materials (XLPE among them); a valve row
+  // naming its insulation in XLPE is not refused by it
+  if (!spec.unstocked_materials.words.some((w) => /\bxlpe\b/i.test(String(w)))) return null;
   const unstocked = spec.unstocked_materials.words;
   const copiedAttrs = [spec.no_sku_named_by, ...(spec.choice_text ?? []).map((c) => c.from_attr)].filter((a): a is string => !!a);
   for (const a of copiedAttrs) {
@@ -4481,9 +4575,11 @@ function priceOneItem(
           const cell = item.attributes?.[src];
           // SLICE 12e-5b (owner R6): a typed `1/2" (12.7mm)` is one size too -- its agreeing bracket is dropped
           const typedEcho = cell ? inchWithMmEcho(cell.value) : null;
-          const typedText = typedEcho && "head" in typedEcho ? typedEcho.head : cell?.value;
+          const typedText0 = typedEcho && "head" in typedEcho ? typedEcho.head : cell?.value;
+          // VP-1 (G7, owner VR2 "NB should be read as mm as we do in pipes"): on a reader declaring `typed_dn` a typed "DN 50" is 50 mm
+          const typedText = reader.typed_dn && typeof typedText0 === "string" ? typedText0.replace(/^\s*dn\s*(?=\d)/i, "") : typedText0;
           if (cell && cell.typed === true && cell.value !== null && cell.value !== "" && !isOneSizeEntry(typedText)) {
-            got = { blank: ONE_SIZE_MESSAGE };
+            got = { blank: oneSizeMessage(reader.name) };
             break;
           }
         }
@@ -5930,7 +6026,8 @@ export function priceItemList(
    * category that declared a unit spelled like one would keep it.
    */
   // VRF-10 (F1): a blank unit is never priced by assuming one -- refused before the 12c-U default unit below
-  if (cls === null && unit.trim() === "" && vrf10On(spec)) {
+  // VP-1 (N2): the same refusal on a config declaring `blank_unit_refuses` (Valve Package)
+  if (cls === null && unit.trim() === "" && (vrf10On(spec) || spec.blank_unit_refuses === true)) {
     return { unit, unitClass: null, priced: false, reason: VRF10_NO_UNIT_REFUSAL, items: [] };
   }
   if (cls === null && (unit.trim() === "" || isRateOnlyUnit(unit))) {
@@ -5989,7 +6086,8 @@ export function priceItemList(
   const projected = projectUnitClass(spec, items);
   // SLICE 11: computed ONCE from the row's unit TEXT (the class alone cannot say which unit of it this is).
   const unitFactor = unitFactorOf(spec, unit);
-  let priced = extracted.map((it, i) => priceOneItemOrCheaper(spec, projected, cls, it, i, unitFactor, rowText, ownText, odHint, headingNoteText, headings));
+  // VP-1 (per_item): on a several-item row each item reads the row text without the unstocked words another item carries
+  let priced = extracted.map((it, i) => priceOneItemOrCheaper(spec, projected, cls, it, i, unitFactor, rowText, ownTextForItem(spec, extracted, i, ownText), odHint, headingNoteText, headings));
   // ADP-5a (SCOPE-5a-1): an item `applyFamilyMerge` priced as another family says so on the item, with the size it is
   // priced at where `at` resolved one ("... priced as one Butterfly Damper With Spigot, 200 mm")
   priced = priced.map((p, i) => {

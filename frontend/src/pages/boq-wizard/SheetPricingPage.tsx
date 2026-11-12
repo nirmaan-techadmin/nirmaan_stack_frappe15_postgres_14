@@ -3413,7 +3413,7 @@ const SheetPricingPage = () => {
     // SLICE 6: the row's UNIT rides the context -- an item-list row prices per its unit (R12); every other
     // helper ignores it.
     // SLICE 12d-1a (owner R2): `rows` rides along so the context carries the row's section headings.
-    return { ...buildRowContext(row, rateKinds, liveCategoriesByExcelRow.get(helperPanel.excelRow), rows), unit: row.unit ?? "" };
+    return { ...buildRowContext(row, rateKinds, liveCategoriesByExcelRow.get(helperPanel.excelRow), rows, liveCategoriesByExcelRow), unit: row.unit ?? "" };
   }, [helperPanel, rows, columnDescriptors, liveCategoriesByExcelRow]);
   // DEV2-B5 S4 (G14 (a)): `?row=<excel_row>` -- the "Open this row" link of the Previously priced card. Once the rows are
   // loaded and the row exists: clear the view filters (a filtered-out row could not be shown) and scroll to it through

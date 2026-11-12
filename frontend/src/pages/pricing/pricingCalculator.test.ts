@@ -545,11 +545,13 @@ describe("SLICE 2 / HVAC calculator: ADP coming soon, the four vendor-quote cate
     expect(electrical.categories.some((c) => c.holds_items === false)).toBe(false);
     expect(rateMasterPageEntry(undefined)).toBeUndefined();
   });
-  it("(source) the Rate Master page reads the registry ONLY through rateMasterPageEntry; the calculator picker reads the full list", () => {
+  it("(source) the Rate Master page reads the registry ONLY through rateMasterPageEntry; the calculator picker reads the full list but a borrow-only entry (VP-1 N6)", () => {
     const page = strip(readFileSync(join(__dirname, "rate-master", "RateMasterPage.tsx"), "utf8"));
     expect(page).toContain("rateMasterPageEntry(RATE_MASTER_DISCIPLINES.find((d) => d.discipline === disciplineId) ?? RATE_MASTER_DISCIPLINES[0])");
     expect(page.match(/RATE_MASTER_DISCIPLINES\.find\(/g) ?? []).toHaveLength(1);
-    expect(strip(CALC_SRC)).toContain("(entry?.categories ?? []).map((c) => {");
+    // VP-1 (N6, owner QR-2 Q2 (a)): the list drops a `fetch_only` (borrow-only) entry -- Misc is fetched, never listed.
+    // BEFORE: toContain("(entry?.categories ?? []).map((c) => {")
+    expect(strip(CALC_SRC)).toContain("(calculatorEntry(entry)?.categories ?? []).map((c) => {");
     expect(strip(CALC_SRC)).not.toContain("rateMasterPageEntry");
   });
   it("the HVAC calculator: each vendor-quote category declines with ITS CONFIG's helper_message; ADP declines coming soon", () => {

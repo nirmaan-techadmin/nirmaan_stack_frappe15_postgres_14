@@ -658,6 +658,12 @@ export interface RateHelperRowContext {
     preamble?: boolean; category?: string | null; scope1?: string;
     /** VRF-8 (D10): item 1's capacity and the make answers an installation-only row follows (only with `prepare.install_follows`) */
     cap1?: string; attrs1?: Record<string, string> }>;
+  /**
+   * VP-1 (N5, QR-1 Q1): the category of every row of this sheet, by excel row, as the PAGE shows it (the grid's own category
+   * map, not the run's) -- read ONLY by a config's `sheet_heading_notes` ("this sheet prices valves on their own rows ...").
+   * OPTIONAL: the calculator and any context built without the page's categories omit it, and the line is then not shown.
+   */
+  sheetCategories?: Readonly<Record<number, string>>;
 }
 
 /** A registered rate helper. `compute` is PURE + synchronous.

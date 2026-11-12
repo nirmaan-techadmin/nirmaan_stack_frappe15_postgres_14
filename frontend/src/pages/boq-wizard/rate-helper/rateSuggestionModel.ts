@@ -70,6 +70,8 @@ export function buildRowContext(
   /** SLICE 12d-1a (owner R2): the sheet's priced rows, so the context can carry the row's headings.
    * OPTIONAL -- every caller that omits it gets the context it always got. */
   rows?: readonly PricedRow[],
+  /** VP-1 (N5, QR-1 Q1): the page's category of every row of the sheet, by excel row. OPTIONAL -- omitted, nothing changes. */
+  sheetCategories?: ReadonlyMap<number, SheetCategoryRow>,
 ): RateHelperRowContext {
   const cat = (category?.effective_category_id ?? "").trim();
   return {
@@ -93,7 +95,22 @@ export function buildRowContext(
     // VRF-4 (q2): every row's quantity, for a refnet's unit counts read from the sheet (one map per rows array)
     ...(rows ? { rowQuantities: rowQuantitiesOf(rows) } : {}),
     ...(rows ? { sheetLines: sheetLinesOf(rows) } : {}),
+    ...(sheetCategories ? { sheetCategories: sheetCategoriesOf(sheetCategories) } : {}),
   };
+}
+
+/** VP-1 (N5). PURE, memoised per map: every categorised row of the sheet -> its effective category id. */
+const SHEET_CATS_CACHE = new WeakMap<ReadonlyMap<number, SheetCategoryRow>, Readonly<Record<number, string>>>();
+export function sheetCategoriesOf(m: ReadonlyMap<number, SheetCategoryRow>): Readonly<Record<number, string>> {
+  const hit = SHEET_CATS_CACHE.get(m);
+  if (hit) return hit;
+  const out: Record<number, string> = {};
+  for (const [row, c] of m) {
+    const id = (c?.effective_category_id ?? "").trim();
+    if (id) out[row] = id;
+  }
+  SHEET_CATS_CACHE.set(m, out);
+  return out;
 }
 
 /**

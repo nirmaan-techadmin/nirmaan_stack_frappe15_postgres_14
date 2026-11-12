@@ -13326,7 +13326,11 @@ class TestHvacAdpPricingSlice5(FrappeTestCase):
                             # INVERTED at VRF-4 (owner R-WS / D-5 "option D", 2026-11-06) by mechanical authority: BEFORE the
                             # set ended at "extras". `working_standby` is read only by VRF from v60 on; v7 predates it, ADP
                             # declares it nowhere
-                            "working_standby"})
+                            "working_standby",
+                            # INVERTED at VP-1 (owner VR9 / UNIT / VR1, 2026-11-13) by mechanical authority: BEFORE the set
+                            # ended at "working_standby". The three keys are read only by Valve Package / Piping from v66 on;
+                            # v7 predates them, ADP declares none
+                            "scope", "blank_unit_refuses", "sheet_heading_notes"})
         self.assertNotIn("extras", pr)
         self.assertNotIn("split", pr)
         self.assertNotIn("per_set", pr)

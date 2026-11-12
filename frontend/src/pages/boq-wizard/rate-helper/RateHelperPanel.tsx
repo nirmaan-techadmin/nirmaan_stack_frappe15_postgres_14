@@ -2152,6 +2152,9 @@ function ItemListBlocks({
       ))}
       {/* SLICE 12e-3a (owner 13:42): the sections that belong to no item, after the items */}
       {(view.sections?.independent ?? []).map(drawSection)}
+      {/* VP-1 (N5, owner VR1; mockup boards 12a / 12b): the sheet-heading note -- an amber box after the items, on every state of
+          the row (with or without an item); display only */}
+      {!section && (view.sheetHeadingNotes ?? []).map((n) => <UnitNoteBox key={n} note={n} testId="item-sheet-heading-note" />)}
       {!section && (picker?.mode === "add" ? (
         familyPicker(view.sections ? view.sections.addLabel : "Add an item")
       ) : picker?.mode === "add_section" ? (

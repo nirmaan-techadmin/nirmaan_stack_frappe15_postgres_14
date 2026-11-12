@@ -296,7 +296,7 @@ export const DERIVATION_RULINGS: Readonly<Record<string, Readonly<Record<string,
  * 12d-4c caller and pin stands; do not copy either back here.
  */
 import { plainSentence, pricingInputLabel } from "./plainEnglish";
-import { GI_FRAMEWORK_CLADDING, PIECE_LENGTH_MIN_MM, familyDisplayName, itemListPricingSpec, plainBoxSurface, plainItemListWording, stockedUnitsWords, waysLabel } from "../../boq-wizard/rate-helper/itemListPricing";
+import { GI_FRAMEWORK_CLADDING, PIECE_LENGTH_MIN_MM, familyDisplayName, itemListPricingSpec, oneSizeMessage, plainBoxSurface, plainItemListWording, stockedUnitsWords, waysLabel } from "../../boq-wizard/rate-helper/itemListPricing";
 export { plainSentence };
 
 /**
@@ -333,11 +333,20 @@ export function extractionRulesCardShown(config: unknown): boolean {
 const famWordRaw = (f: string) => String(f).trim();
 
 /** VRF-2b (QR-3 A): the unit the line-1 refusal example quotes -- "nos", unless the category prices "nos". PURE. */
+/** VP-1 (G2). PURE. Whether a category's unstocked words are INSULATION materials (XLPE among them) -- the XLPE alias refusal
+ *  and the stocked-alternative rule are insulation rules and run only then. */
+export function insulationMaterialWords(words: unknown): boolean {
+  return Array.isArray(words) && words.some((w) => /\bxlpe\b/i.test(String(w)));
+}
+
 function refusalExampleUnit(pr: any): string {
   // VRF-3a K2: a whole-lot spelling has its own refusal, so it is never this sentence's example; "Mtr" follows the three
   // only where all three are known or lot units (VRF from v58) -- every earlier pick is unchanged
   const known = new Set([...Object.values<any>(pr?.unit_classes ?? {}).flat(), ...(pr?.lot_units?.units ?? [])].map((x) => String(x).trim().toLowerCase()));
-  return ["nos", "Set", "Lot", ...(pr?.lot_units ? ["Mtr"] : [])].find((u) => !known.has(u.toLowerCase())) ?? "nos";
+  // VP-1 (G3): where the category knows all four (Valve Package prices Nos and Set, refuses Lot / Mtr with its own bar), the
+  // example is a unit it does not know ('Sqm', 'Kg') -- never a spelling it prices; every earlier pick is unchanged
+  return ["nos", "Set", "Lot", ...(pr?.lot_units ? ["Mtr"] : [])].find((u) => !known.has(u.toLowerCase()))
+    ?? ["Sqm", "Kg"].find((u) => !known.has(u.toLowerCase())) ?? "nos";
 }
 
 /** VRF-2b (QR-3 A): the line-13 examples of a unit the catalogue does not know -- 'Lot', 'Nos/Ro', with a known one
@@ -425,7 +434,8 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
       [classes.length ? `the units it knows: ${list(plain || oneClassPerKind(pr) ? classes.map((c) => String(pr.unit_words?.[c] ?? c)) : classes)}` : "",
        factors.length ? `${list(factors, 4)} convert to the catalogue's own unit` : "",
        // VRF-10 (F1; the rules ride v65's `scope.panel_pick`): on that config a row with NO unit refuses instead
-       classes.length ? ((pr.extras as { scope?: { panel_pick?: unknown } } | undefined)?.scope?.panel_pick
+       // VP-1 (N2): the same on a config declaring `blank_unit_refuses` (Valve Package)
+       classes.length ? ((pr.extras as { scope?: { panel_pick?: unknown } } | undefined)?.scope?.panel_pick || pr.blank_unit_refuses === true
          ? "a row with no unit is refused 'no unit on this row' -- never priced by assuming a unit; a rate-only unit (R/O, QRO) is priced in the item's own unit and says so; a row stating several units refuses, naming them"
          : "a row with no unit, or a rate-only unit (R/O, QRO), is priced in the item's own unit and says so; a row stating several units refuses, naming them") : "",
        // SLICE 12e-2 (owner Q19 / C2): the configured refusal for any other unit, in its own words
@@ -516,17 +526,27 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
           `no ${famWord(pufFam)} is stocked per ${list(unpriced.map((cls) => String(pr.unit_words?.[cls] ?? cls)))}: 'No SKU in the catalogue for RPUF - price this row by hand', where no material was answered; an answered material stands`);
     }
   }
+  // VP-1 (N4, owner ANSWER 3 2026-11-12 13:46 / VR3): a material-text entry deciding the kind BY SIZE (only such entries: the
+  // other material-text maps keep the lines they have)
+  for (const e of (((pr.material_text?.map ?? []) as any[]).filter((x) => x?.to_by_size))) {
+    const z = e.to_by_size;
+    add(`A ${quoteList((e.all_of ?? []).flat().map(String), 4)} with no type the catalogue stocks is priced by its size`,
+        `${name(String(z.attr))} ${String(z.at_most)} ${pr.numbers?.[z.attr]?.unit ?? "mm"} and below -> ${famWord(String(z.small))}, above -> ${famWord(String(z.large))}, with an amber line saying so; any other word in the ${name(String(pr.material_text.from_attr ?? ""))} keeps the refusal by name; no size stated -> refused for the missing size; a type the model answered always wins`);
+  }
   const um = pr.unstocked_materials;
   if (um && Array.isArray(um.words) && um.words.length) {
     add("A material the catalogue does not stock refuses by name, whatever kind was picked",
         `${quoteList(um.words, 12)} in the row's own text${um.from_attr ? ` or in the ${name(String(um.from_attr))}` : ""}`);
-    // SLICE 12e-6 (owner R1 / R3 / R5 / R8; U9): ADDED
-    if (pr.no_sku_named_by) {
-      add("A material written with an alternative prices the stocked one",
-          "an unstocked material beside a stocked one ('nitrile rubber/XLPE', 'rockwool/glasswool') prices the stocked one; two stocked ones ('open-cell acoustic foam / fiberglass board') price the lower cost -- with a line saying so");
+    // SLICE 12e-6 (owner R1 / R3 / R5 / R8; U9): ADDED. VP-1 (G2): the insulation-material lines only where the category's
+    // unstocked words are insulation materials (XLPE among them) -- the code they describe is gated the same way
+    if (insulationMaterialWords(um.words)) {
+      if (pr.no_sku_named_by) {
+        add("A material written with an alternative prices the stocked one",
+            "an unstocked material beside a stocked one ('nitrile rubber/XLPE', 'rockwool/glasswool') prices the stocked one; two stocked ones ('open-cell acoustic foam / fiberglass board') price the lower cost -- with a line saying so");
+      }
+      add("Cross-linked polyethylene, XPE, FR-XPE and a co-extruded jacket or covering are XLPE and refuse by name",
+          "before closed cell polyethylene could be read as nitrile: 'No SKU in the catalogue for <the words as written> - price this row by hand'");
     }
-    add("Cross-linked polyethylene, XPE, FR-XPE and a co-extruded jacket or covering are XLPE and refuse by name",
-        "before closed cell polyethylene could be read as nitrile: 'No SKU in the catalogue for <the words as written> - price this row by hand'");
   }
 
   // ── 3. the rule for the unit, the facts it needs ──────────────────────────────────────────────────
@@ -716,7 +736,8 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
     if (rd?.typed_entry === "one_size") {
       add(`A typed ${name(attr)} is one size, in ${rd.unit ?? "mm"} or inches`,
           // SLICE 12e-3b (owner 2026-10-11): two or more sizes price the higher / highest (REPLACES "refuses naming the two sizes")
-          "a number (an NB number is mm) or an inch size (5/8\", 1-1/4\", 2 inch); 'two inch' and '40-50' refuse: Type one pipe size, in mm or inches; two or more sizes written with a slash take the higher ('25/32' prices 32, '25/32/40' prices 40, 1\"/2\" prices 2\"), typed or read from the BoQ, with a line saying so; a slash is an inch fraction only when its top number is 16 or less and its bottom is 2, 4, 8, 16, 32 or 64");
+          // VP-1 (G7): the refusal names the reader's own axis ("Type one valve size"); a reader declaring `typed_dn` takes "DN 50"
+          `a number (an NB number is mm${rd.typed_dn ? "; a DN number is mm" : ""}) or an inch size (5/8\", 1-1/4\", 2 inch); 'two inch' and '40-50' refuse: ${oneSizeMessage(rd.name)}; two or more sizes written with a slash take the higher ('25/32' prices 32, '25/32/40' prices 40, 1\"/2\" prices 2\"), typed or read from the BoQ, with a line saying so; a slash is an inch fraction only when its top number is 16 or less and its bottom is 2, 4, 8, 16, 32 or 64`);
     }
   }
 
@@ -891,7 +912,9 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
   }
   for (const r of (pr.read_notes ?? []) as any[]) {
     if (!r?.line) continue;
-    add(`A ${list((r.families ?? []).map(famWord), 2)} row stating its own figure in the ${name(String(r.from_attr ?? ""))} carries a line saying what was priced`,
+    // VP-1 (G4): an entry carrying its own `rule_line` (the config's words for what the line is) is shown by it
+    add(typeof r.rule_line === "string" && r.rule_line.trim() ? plainSentence(r.rule_line)
+      : `A ${list((r.families ?? []).map(famWord), 2)} row stating its own figure in the ${name(String(r.from_attr ?? ""))} carries a line saying what was priced`,
         `'${String(r.line).replace("{match}", "<the stated figure>").replace("{family}", (r.families ?? []).map(famWord).join(" / "))}'${r.unless ? ` (not when the figure is ${String(r.unless)})` : ""}`);
   }
 
@@ -1232,7 +1255,8 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
   }
   if (pr.lot_units && Array.isArray(pr.lot_units.units)) {
     add("A row priced per Lot is not priced",
-        `${quoteList(pr.lot_units.units.map(String))} refuse with a red bar -- price the row by hand; ${pr.extras?.from_model ? "what the row says a Set or Lot holds is copied by the model for review only" : "what a Lot holds is read at VRF-4"}`);
+        // VP-1 (G6): the VRF-4 clause is VRF's own (a config with `extras`); every other category ends at "by hand"
+        `${quoteList(pr.lot_units.units.map(String))} refuse with a red bar -- price the row by hand${pr.extras?.from_model ? "; what the row says a Set or Lot holds is copied by the model for review only" : pr.extras ? "; what a Lot holds is read at VRF-4" : ""}`);
   }
   // ── 13e. VRF-3b (owner O-5 / O-6 / B / SHEETS; 2026-11-05 11:30-14:56, boards 12-15): the extras a unit's price includes
   // -- ADDED LAST (a config without `extras` adds nothing)
@@ -1344,6 +1368,13 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
       add("A built-in drain pump is still added, with a review point",
           "when the BoQ says the unit has a built-in drain pump and its price includes a drain pump, the pump line is added and the row asks to check it");
     }
+  }
+  // ── VP-1 (N1, owner VR9 / QR-2 Q1 (a)): a PRICING-LEVEL scope (a category without `extras`: Valve Package) -- its own lines,
+  // naming its own uplift input (VRF's lines above are VRF's, unchanged)
+  const ps1 = !ex5 && pr.scope && typeof pr.scope === "object" ? pr.scope : null;
+  if (ps1) {
+    add("The BoQ scope: supply + installation unless the row says otherwise",
+        `the row is priced supply + installation unless the BoQ says supply only or installation only; the panel's scope pick (${list((ps1.options ?? []).map((o: unknown) => `'${String(o)}'`))}) re-prices the row and the note says the user changed it; supply only -> install 0 on every line; installation only -> supply 0 and each line's final install x (1 + the Pricing Input '${pricingInputLabel(String(ps1.uplift_input ?? ""), items)}'), rounded up to the rupee once -- only when the sheet quotes no supply row of the same item; with one, the normal installation rate, naming those rows; the calculator's 'BoQ scope' choice does the same`);
   }
   if (ex5?.scope?.conflict || ex5?.scope?.supply_row) {
     add("Supply / installation settled by the sheet's own rows",

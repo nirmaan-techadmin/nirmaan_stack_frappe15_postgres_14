@@ -129,6 +129,8 @@ import {
   type ItemPriceResult,
   type LadderHop,
   type CoverChoice,
+  type ScopeSpec,
+  headingTexts,
   vrf10On,
 } from "./itemListPricing";
 import type {
@@ -1513,7 +1515,17 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
         return !cat || sameDiscipline(l.row);
       };
       const scopeQ = listSpec.extras?.from_model?.scope;
-      const withLines = listSpec.extras?.safeguard && onSheet.sheetLines
+      // VP-1 (N1 installation-only rule, owner VR9): a pricing-level `scope.supply_row` (Valve Package) reads, for each line item of
+      // the sheet filed in the SAME category by the run, its item 1 family and scope answer -- the rows the rule names
+      const ownScope = !listSpec.extras && listSpec.scope?.supply_row ? listSpec.scope : undefined;
+      const withLines = ownScope && onSheet.sheetLines
+        ? { ...onSheet, sheetLines: onSheet.sheetLines.filter((l) => l.sheet === undefined && !l.preamble && rowCats?.get(l.row) === category.category_id).map((l) => {
+            const it0 = (extractionByRow.get(l.row) as ExtractionRowWithItems | undefined)?.items?.[0];
+            const v = it0?.attributes?.[familyAttr(listSpec)]?.value;
+            const sc = ownScope.model_attr ? it0?.attributes?.[ownScope.model_attr]?.value : undefined;
+            return { ...l, family1: typeof v === "string" && v !== "" ? v : null, ...(typeof sc === "string" && sc.trim() !== "" && sc.trim() !== "None" ? { scope1: sc.trim() } : {}) };
+          }) }
+        : listSpec.extras?.safeguard && onSheet.sheetLines
         ? { ...onSheet, sheetLines: onSheet.sheetLines.filter(keepLine).map((l) => {
             const it0 = (extractionByRow.get(l.row) as ExtractionRowWithItems | undefined)?.items?.[0];
             const v = it0?.attributes?.[familyAttr(listSpec)]?.value;
@@ -2768,6 +2780,8 @@ export interface ItemListView {
   /** VRF-5 (owner R4-R8, U5): the row's scope -- supply only (install 0 on every line) / installation only (supply 0, install x
    *  (1 + the uplift)) -- with its note and, in the calculator, the "BoQ scope" choice. Absent on a supply + installation row. */
   scope?: { value: string; note?: string; picker?: { title: string; options: string[]; value: string } };
+  /** VP-1 (N5): the sheet-heading lines (`withSheetHeadingNotes`), drawn by the panel as an amber box after the items. */
+  sheetHeadingNotes?: string[];
   /**
    * SLICE 12e-3a (owner D5a / 13:42): present ONLY on a config that declares sections. `addLabel` names the
    * config's own items on the add button ("Add pipe"); `adds` is one button per delegated section ("Add
@@ -3873,7 +3887,7 @@ function computeItemListOwn(
   if (keepPick || keepLot) unitChoices.push(picked!);
   // VRF-10 (F1): on a VRF-10 config a unit typed as BLANK (a BoQ row with no unit, copied in as it is; the screen's picker never
   // sends "") stays blank -- the row then refuses with the panel's "no unit on this row" instead of pricing per the first unit
-  const blankKept = unitPickable && picked === "" && vrf10On(spec);
+  const blankKept = unitPickable && picked === "" && (vrf10On(spec) || spec.blank_unit_refuses === true);
   const unit = unitPickable
     ? (blankKept ? "" : ((picked !== undefined && unitChoices.includes(picked) ? picked : undefined) ?? unitChoices[0] ?? ""))
     : ctx.unit!;
@@ -5218,6 +5232,13 @@ function withExtras(
 /** VRF-5 (owner R4-R8): the row's scope override key in the calculator ("BoQ scope"); a BoQ row reads the model's answer. */
 export const SCOPE_OVERRIDE_KEY = "__scope__";
 
+/** VP-1 (N1, owner VR9 / QR-2 Q1 (a) "we will follow the same practice for all categories"). PURE. The row's scope spec: VRF's
+ *  `extras.scope` (unchanged), else a pricing-level `scope` on a category without `extras` (Valve Package). Every VRF-only rule
+ *  inside `withScopeCore` stays gated on its own keys / `vrf10On`, which read `extras` only -- VRF lines moved: 0. */
+export function scopeSpecOf(spec: ItemListPricingSpec): ScopeSpec | undefined {
+  return spec.extras?.scope ?? (spec.extras ? undefined : spec.scope);
+}
+
 /**
  * VRF-10 (owner rulings 2026-11-11 08:41-09:10 from the VRF-9 review; no mint, so the words and notes live here and switch on with
  * `vrf10On`). F2 / F3 / F6 scope rules, applied in `withScopeCore` on a BoQ row only (the calculator keeps the pricer's pick):
@@ -5278,7 +5299,7 @@ export function onOffAmongOthers(words: string, text: string): boolean {
  *  note says the user changed it, naming the helper's choice and why. No pick (or the helper's own) => the helper's result + the pick. */
 function withScope(spec: ItemListPricingSpec, items: RateMasterItem[], ctx: RowContextWithUnit, ext: ExtractionRowWithItems | undefined,
                    overrides: Record<string, string> | undefined, res: ItemListSuggestion, probe?: OwnPassProbe): ItemListSuggestion {
-  const sc = spec.extras?.scope;
+  const sc = scopeSpecOf(spec);
   const view = res.itemList;
   const calculator = !!view && (view.unitPickable || ctx.noRow === true);
   if (!sc || !view || calculator || !sc.panel_pick) return withScopeCore(spec, items, ctx, ext, overrides, res, probe);
@@ -5302,7 +5323,7 @@ function withScopeCore(spec: ItemListPricingSpec, items: RateMasterItem[], ctx: 
                        overrides: Record<string, string> | undefined, res: ItemListSuggestion, _probe?: OwnPassProbe,
                        /** VRF-9 (S11): the user's pick on a BoQ row -- priced as chosen; the reading rules that would decide it are skipped */
                        forced?: string): ItemListSuggestion {
-  const sc = spec.extras?.scope;
+  const sc = scopeSpecOf(spec);
   const view = res.itemList;
   if (!sc || !view) return res;
   const calculator = view.unitPickable || ctx.noRow === true;
@@ -5310,7 +5331,7 @@ function withScopeCore(spec: ItemListPricingSpec, items: RateMasterItem[], ctx: 
   if (forced !== undefined) value = forced;
   else if (calculator) value = String(overrides?.[SCOPE_OVERRIDE_KEY] ?? "").trim();
   else {
-    const id = spec.extras?.from_model?.scope;
+    const id = spec.extras?.from_model?.scope ?? (spec.extras ? undefined : spec.scope?.model_attr);
     for (const it of id ? (ext?.items ?? []) : []) {
       const v = it.attributes?.[id!]?.value;
       if (typeof v === "string" && v.trim() !== "" && v.trim() !== "None") { value = v.trim(); break; }
@@ -6177,8 +6198,9 @@ function withBlankBare(spec: ItemListPricingSpec, res: HelperResult): HelperResu
   return changed ? ({ ...r, itemList: { ...r.itemList, items } } as HelperResult) : res;
 }
 
-/** VRF-10 (F4): the reason an extra line under a unit that did not price shows instead of a figure. */
-export const VRF10_BLANK_LINE_REASON = "not priced - the unit it belongs to is not priced";
+/** VRF-10 (F4): the reason an extra line under a unit that did not price shows instead of a figure. VP-1 (A1, owner 11-13 00:33):
+ *  the panel already leads every refusal with "Not priced -", so the reason no longer repeats it ("Not priced - not priced - ..."). */
+export const VRF10_BLANK_LINE_REASON = "the unit it belongs to is not priced";
 
 /** VRF-9 (S1, owner R-D12; R4, owner "option C"). THE CALCULATOR (no heading tree): a unit whose TYPED item names two or more unit
  *  types (`prepare.unit_words`; the panel's "several unit types" case typed in) refuses with `several_types.refusal`; a typed item
@@ -6306,7 +6328,12 @@ function computeItemList(
       noType && vrf10On(spec)));
   }
   // a config that declares no section is priced exactly as it always was -- the one call, nothing around it
-  if (declared.length === 0) return computeItemListOwn(category, spec, items, ctx, ext, inRun, overrides);
+  // VP-1 (N1): a pricing-level `scope` adds the scope pick around it (ABSENT => the one call, byte-identical)
+  if (declared.length === 0) {
+    const own0 = computeItemListOwn(category, spec, items, ctx, ext, inRun, overrides);
+    const scoped0 = spec.scope && (own0 as ItemListSuggestion).itemList ? withScope(spec, items, ctx, ext, overrides, own0 as ItemListSuggestion) : own0;
+    return withSheetHeadingNotes(spec, items, ctx, scoped0);
+  }
 
   const hasOwn = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
   const resolved = declared.map((s) => {
@@ -6540,8 +6567,13 @@ function computeItemList(
   for (const r of resolved) {
     // the pricer's list once they have touched it; before that, the model's section items that no pipe of the
     // answer claimed (all of them when the answer carries no pipe)
+    // VP-1 (VR5 / QR-1 Q3, found by the VP-1 tests): "the k-th section item belongs to the k-th item" holds only for a section
+    // that ATTACHES to an item (`include_when` + `absent`: Piping's insulation under its pipe's toggle). A section that never
+    // attaches (Valve Package's Misc instruments) claims none of its model items by position -- a gauge read beside a valve
+    // was dropped. Piping (every section attachable) is byte-identical.
+    const attachable = !!(r.s.include_when && r.s.absent);
     const list: ItemEdit[] = edits.sections?.[r.s.id]
-      ?? (secModel[r.s.id] ?? []).map((_m, j) => j).filter((j) => j >= ownModel.length).map((j) => ({ base: j, family: null, attrs: {} }));
+      ?? (secModel[r.s.id] ?? []).map((_m, j) => j).filter((j) => !attachable || j >= ownModel.length).map((j) => ({ base: j, family: null, attrs: {} }));
     editsOut.sections![r.s.id] = list;
     const mirrorText = r.s.mirror ? firstReadable(r.s.mirror.from) : undefined;
     list.forEach((e, k) => independent.push(priceSection(r, e, null, k, mirrorText)));
@@ -6592,13 +6624,48 @@ function computeItemList(
       bad,
     },
   };
-  return {
+  const done: ItemListSuggestion = {
     ...ownRes,
     values,
     basis,
     workings: { ...ownRes.workings, derivation: derivation.map((l) => plainPricerText(l, items)), finalValues: { ...values } },
     itemList: view,
   } as ItemListSuggestion;
+  // VP-1 (N1): a pricing-level `scope` (Valve Package) re-prices the row's LINES -- its own items and its borrowed sections --
+  // by the scope pick; ABSENT => the row as it always was. VP-1 (N5): the sheet-heading note last (display only).
+  return withSheetHeadingNotes(spec, items, ctx, spec.scope && !spec.extras ? withScope(spec, items, ctx, ext, overrides, done) : done);
+}
+
+/**
+ * VP-1 (N5, owner VR1 2026-11-12 23:59 "for 12 we give the note with the reference of the rows which price valve seprately. if
+ * no rows price valve seprately, we give an appropriate note"; 11-13 00:09 no add-valves button; 00:33 first 10 rows then
+ * "and N more"). PURE. Each `sheet_heading_notes` entry whose pattern hits the row's headings (the `text_notes` "headings"
+ * text) adds ONE plain line to the row's view (`sheetHeadingNotes`): the sheet's rows of `category` named, or the warning. Needs the
+ * page's own row categories (`ctx.sheetCategories`); without them (the calculator, a harness) nothing is added. Never a figure.
+ */
+export function withSheetHeadingNotes(spec: ItemListPricingSpec, items: RateMasterItem[], ctx: RowContextWithUnit, res: HelperResult): HelperResult {
+  const notes = spec.sheet_heading_notes;
+  const view = (res as ItemListSuggestion).itemList;
+  if (!notes?.length || !view || ctx.noRow === true || !ctx.sheetCategories) return res;
+  const heads = headingTexts(ctx.headings ?? [], (ctx.headingNotes ?? []).join(" | "));
+  const lines: string[] = [];
+  for (const n of notes) {
+    let hit = false;
+    try { hit = new RegExp(n.pattern, "i").test(heads.all); } catch { hit = false; }
+    if (!hit) continue;
+    // the rows that PRICE such an item: the sheet's line items of that category (a heading filed there names no row); a context
+    // without the sheet's lines (a harness) takes every row of the category
+    const lineRows = ctx.sheetLines ? new Set(ctx.sheetLines.filter((l) => l.sheet === undefined && !l.preamble).map((l) => l.row)) : null;
+    const rows = Object.entries(ctx.sheetCategories).filter(([r, c]) => c === n.category && Number(r) !== ctx.excelRow && (!lineRows || lineRows.has(Number(r))))
+      .map(([r]) => Number(r)).sort((a, b) => a - b);
+    const cap = n.cap ?? 10;
+    const named = rows.slice(0, cap).join(", ") + (rows.length > cap ? ` and ${rows.length - cap} more` : "");
+    const line = plainPricerText(rows.length ? n.with_rows.replace("{rows}", named) : n.none, items);
+    if (!lines.includes(line)) lines.push(line);
+  }
+  if (!lines.length) return res;
+  // mockup boards 12a / 12b: one amber box on the panel after the items -- on every state of the row, an item read or not
+  return { ...res, itemList: { ...view, sheetHeadingNotes: lines } } as ItemListSuggestion;
 }
 
 /**
