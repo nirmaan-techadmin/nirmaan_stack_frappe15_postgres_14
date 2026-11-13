@@ -51917,3 +51917,38 @@ recount on the page before quoting. The note names line items only (27 on 00012;
 
 **Open:** VP-1 QR-1 / QR-2 / QR-3 unanswered at build (built to recommendation (a) each); VP-2 runs the paid read (first model answers on valve rows) and re-certs the four as-written lines (QR-3); the
 pre-existing residence A1 count (14 over baseline at 23c014fd9, from the develop merge); laptop sync + db-pull (laptop).
+
+## Slice VP-2 - the Valve Package paid read (all 1,493 reachable valve rows) + review pack + on-screen cert + K1 wording - as built 2026-11-13
+
+Desktop, from 3328da26b (vp1end data). Deliverables: `BoQ main lane\VP-2\` (Report, Ledger, QR-1, QR-2, run_list.tsv, Rows.xlsx,
+Piping_rows_heading_mentions_valves.xlsx, review_chunks\ (17), payload_archive\part1 + part2, cert screenshots .png).
+
+**Commits:** K1 34ae9a28d - the Valve Package Derivation scope line (line 23) names each screen's options: the panel's pick three, the
+calculator's 'BoQ scope' also 'Installation only (supply quoted on another row)' (normal install, no uplift) (+3 tests); K2 docs (this entry).
+
+**Run (owner QR-1 ANSWER 1 / 1b):** the selected-rows Suggest reached only 580 of 1,494 valve rows (it needs a completed run to carry;
+R8 adds never-read rows); the owner ruled every group read in two parts: A selected rows (580), B selected rows + R8 (128 valve + 72
+never-read Piping / Insulation / VRF first answers), C 'Override the check' + selected rows (44), D whole-sheet runs where no run existed
+(509 valve + 1,198 first answers), E amount formulas declared from each sheet's own columns (8 sheets, 19 formulas, each proven on 3 rows;
+'BMS BOQ.' left - nothing to prove on) + overrides + whole-sheet runs. Overrides set: 00029, 00298, 00009 LEED, 00012 Low side, 00071, 00104.
+PART 1 30 sheets / 824 rows / 63 calls / 1,053,210 tokens (cap 1,654,140); PART 2 34 sheets / 2,226 rows / 221 calls / 3,446,098 (cap
+5,640,016); + 21 credit check. Stub before each part: requests = declared rows, carried rows byte-identical, request sha = PAID-READY build.
+
+**Proofs:** controls - every run that existed before is byte-identical (only the 30 superseded active flags flipped), 2,199 carried rows
+equal; audit 3,050 / 3,050 payload blocks byte-equal to the logged items, every row replied, EA-7 PASS; replay vp2end: the 26,807 vp1end
+rows 0 figure / 0 display moves, the 3,050 new rows = run_list.tsv (ac7 25f27c09 / ac7v2 3e917d7b, 29,857 rows) = the new baseline.
+
+**Result (page-data pricing = the panel):** 1,133 priced / 360 refused of 1,493 valve rows; Rs 5.73 cr all revisions, Rs 4.01 cr latest;
+PIBCV 179 rows Rs 1.82 cr = 31.7%. Review finding (not fixed): 79 PIBCV / control-valve rows refused because the model lists the
+thermostat / controller / actuator panel as a second 'none of these' item (VR5) although VR12 prices every PIBCV row as the premium item
+(which includes them) - VP-3 with the owner's ruling. 12a / 12b on the PAGE's headings: 190 rows / 18 sheets and 32 / 5 (VP-1's 208 was
+the dump's notes). The replay harness differs from the page on 3 installation-only rows (00104 r52/54/56: no sheet rows in the harness).
+
+**Cert (C1-C10 PASS, 16 screenshots):** operator note, N4 size split, flow switch ('No SKU in the catalogue for WATER FLOW SWITCHES' - the
+row's own words), PIBCV note, no unit (00137 r107), valve + Misc list (00017 'Valves ' r26 19,787 / 1,100), smallest / above largest,
+12a / 12b, calculator = panel, Derivation line 23 (K1). **Lesson / standing (owner ANSWER 4, 13:06):** the de-stale's Clear site data
+made the SPA re-register Firebase and write fcm_token + push on for the logged-in user (dev_isolate verify FAIL) - after every browser cert
+run `dev_isolate --yes` then `--verify` before DONE (it also rotates every User api_secret, its standard step).
+
+**Tests:** K1 targeted vitest related 98 files / 5,165 passed (= VP-1's after counts + 3 new), tsc 0 new; vacuity 2 breaks red. No Python
+file changed (no Python suite).
