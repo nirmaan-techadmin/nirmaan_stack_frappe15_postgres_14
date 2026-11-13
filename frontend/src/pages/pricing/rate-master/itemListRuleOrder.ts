@@ -1373,8 +1373,12 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
   // naming its own uplift input (VRF's lines above are VRF's, unchanged)
   const ps1 = !ex5 && pr.scope && typeof pr.scope === "object" ? pr.scope : null;
   if (ps1) {
+    // VP-2 K1 (owner QR-1 Q1 (a), 2026-11-13 10:25): each screen's own options -- the panel's pick drops `install_only_normal`
+    // (pricingSheetHelper's scope picker filters it out); the calculator's 'BoQ scope' offers it as well
+    const ionN = typeof ps1.install_only_normal === "string" && ps1.install_only_normal ? ps1.install_only_normal : null;
+    const panelOpts = (ps1.options ?? []).map((o: unknown) => String(o)).filter((o: string) => o !== ionN);
     add("The BoQ scope: supply + installation unless the row says otherwise",
-        `the row is priced supply + installation unless the BoQ says supply only or installation only; the panel's scope pick (${list((ps1.options ?? []).map((o: unknown) => `'${String(o)}'`))}) re-prices the row and the note says the user changed it; supply only -> install 0 on every line; installation only -> supply 0 and each line's final install x (1 + the Pricing Input '${pricingInputLabel(String(ps1.uplift_input ?? ""), items)}'), rounded up to the rupee once -- only when the sheet quotes no supply row of the same item; with one, the normal installation rate, naming those rows; the calculator's 'BoQ scope' choice does the same`);
+        `the row is priced supply + installation unless the BoQ says supply only or installation only; the panel's scope pick (${list(panelOpts.map((o: string) => `'${o}'`))}) re-prices the row and the note says the user changed it; supply only -> install 0 on every line; installation only -> supply 0 and each line's final install x (1 + the Pricing Input '${pricingInputLabel(String(ps1.uplift_input ?? ""), items)}'), rounded up to the rupee once -- only when the sheet quotes no supply row of the same item; with one, the normal installation rate, naming those rows; the calculator's 'BoQ scope' choice does the same${ionN ? ` and also offers '${ionN}' (the normal installation rate, no uplift)` : ""}`);
   }
   if (ex5?.scope?.conflict || ex5?.scope?.supply_row) {
     add("Supply / installation settled by the sheet's own rows",
