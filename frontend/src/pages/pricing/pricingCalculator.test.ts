@@ -169,7 +169,10 @@ describe("Calculator slice 2 / the plumbing is defined ONCE and the BoQ page imp
     // items (on the page), is fetched like every other target, and is never priced (owner "(b) accept it", 2026-10-09).
     // ⚠️ VRF-1 (23 -> 24; mechanical authority, BEFORE `toBe(23)`): `hvac_vrf`, the VRF CATALOGUE with a data-only config --
     // it holds items (on the page), is fetched like every other target, and is never priced until VRF-2 / VRF-4.
-    expect(RATE_MASTER_CONFIG_TARGETS.length).toBe(24);
+    // ⚠️ VP-1 (24 -> 26; mechanical authority, BEFORE `toBe(24)`): `hvac_valve_package` (holds items, priced) and `hvac_misc`
+    // (fetch_only: fetched so the Valve Package borrows its SKUs, listed neither in the calculator nor on the page).
+    expect(RATE_MASTER_CONFIG_TARGETS.length).toBe(26);
+    expect(RATE_MASTER_CONFIG_TARGETS).toContainEqual({ discipline: "HVAC", categoryId: "hvac_misc" });
     for (const name of ["export const RATE_MASTER_CONFIG_TARGETS", "export function RateConfigFetcher", "export function useConfigsByCategory", "export function useRateMasterItems"]) {
       expect(PLUMBING_SRC).toContain(name);
     }
@@ -507,9 +510,13 @@ describe("SLICE 2 / HVAC calculator: ADP coming soon, the four vendor-quote cate
   // VRF-1 INVERTS THE COUNT AGAIN (ten -> eleven; mechanical authority, BEFORE the title "the registry lists ten HVAC
   // categories: ADP, Insulation, Piping and Pricing Inputs hold items, ..." and the list without "hvac_vrf"): `hvac_vrf` holds
   // the VRF catalogue (data-only config), listed after Piping; the six `holds_items: false` entries are untouched.
-  it("the registry lists eleven HVAC categories: ADP, Insulation, Piping, VRF and Pricing Inputs hold items, the four vendor-quote and the two alias ones do not", () => {
+  // VP-1 INVERTS THE COUNT AGAIN (eleven -> thirteen; mechanical authority, BEFORE the title "the registry lists eleven HVAC
+  // categories: ADP, Insulation, Piping, VRF and Pricing Inputs hold items, ..." and the list ending "hvac_pricing_inputs"):
+  // `hvac_valve_package` (holds items) and `hvac_misc` (fetch_only) APPENDED; the six `holds_items: false` entries are untouched.
+  it("the registry lists thirteen HVAC categories: ADP, Insulation, Piping, VRF, Pricing Inputs and the Valve Package hold items, Misc is fetch-only, the four vendor-quote and the two alias ones do not", () => {
     expect(hvacEntry.categories.map((c) => c.category_id))
-      .toEqual(["hvac_adp", ...noItems, "hvac_insulation", "hvac_piping", "hvac_vrf", "hvac_pricing_inputs"]);
+      .toEqual(["hvac_adp", ...noItems, "hvac_insulation", "hvac_piping", "hvac_vrf", "hvac_pricing_inputs", "hvac_valve_package", "hvac_misc"]);
+    expect(hvacEntry.categories.filter((c) => c.fetch_only).map((c) => c.category_id)).toEqual(["hvac_misc"]);
     expect(noItems).toHaveLength(6);
     expect(vendor).toHaveLength(4);
     // every vendor entry's CONFIG carries the two messages -- the registry names no message
@@ -531,8 +538,10 @@ describe("SLICE 2 / HVAC calculator: ADP coming soon, the four vendor-quote cate
     // SLICE 12c: Pricing Inputs holds items too, so the page keeps it as well. The NEGATIVE half --
     // that the filter drops exactly the six and nothing else -- is unchanged, and is the point.
     // VRF-1 (mechanical authority, BEFORE the list without "hvac_vrf"): + VRF (holds items)
+    // VP-1 (mechanical authority, BEFORE the list ending "hvac_pricing_inputs"): + the Valve Package (holds items); Misc is
+    // fetch_only, so the page drops it as well (N6)
     expect(pageHvac.categories.map((c) => c.category_id))
-      .toEqual(["hvac_adp", "hvac_insulation", "hvac_piping", "hvac_vrf", "hvac_pricing_inputs"]);   // 12e-1: + Piping (holds items)
+      .toEqual(["hvac_adp", "hvac_insulation", "hvac_piping", "hvac_vrf", "hvac_pricing_inputs", "hvac_valve_package"]);   // 12e-1: + Piping (holds items)
     const electrical = RATE_MASTER_DISCIPLINES[0];
     expect(electrical.discipline).toBe("Electrical");
     expect(rateMasterPageEntry(electrical)).toBe(electrical);        // reference-identical
@@ -612,7 +621,8 @@ describe("SLICE 3 / HVAC Cables and Raceway price EXACTLY as Electrical wiring a
     expect(rateMasterPageEntry(hvacEntry).categories.map((c) => c.category_id))
       // SLICE 12a: Insulation holds items. SLICE 12c: so does Pricing Inputs.
       // VRF-1 (mechanical authority, BEFORE the list without "hvac_vrf"): + VRF (holds items)
-      .toEqual(["hvac_adp", "hvac_insulation", "hvac_piping", "hvac_vrf", "hvac_pricing_inputs"]);   // 12e-1: + Piping (holds items)
+      // VP-1 (mechanical authority, BEFORE the list ending "hvac_pricing_inputs"): + the Valve Package; Misc (fetch_only) dropped
+      .toEqual(["hvac_adp", "hvac_insulation", "hvac_piping", "hvac_vrf", "hvac_pricing_inputs", "hvac_valve_package"]);   // 12e-1: + Piping (holds items)
   });
 
   for (const [own, target] of ALIASES) {

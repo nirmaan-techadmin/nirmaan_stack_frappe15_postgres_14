@@ -141,6 +141,14 @@ export const RATE_MASTER_DISCIPLINES: readonly RateMasterDisciplineEntry[] = [
       // Electrical's. Its config carries no pipelines and no attribute definitions, so it can never
       // price a BoQ row.
       { category_id: "hvac_pricing_inputs", label: "Pricing Inputs" },
+      // VP-1 (2026-11-13, HVAC v66; owner VR1-VR12, QR-1 / QR-2 / ANSWER 3): the Valve Package -- 124 SKUs of the owner's ruled
+      // valve sheet, priced on the panel and in the calculator. It holds items, so the Rate Master page lists it (VP-1 QR-2:
+      // recommendation (a), the owner's answer pending at build). APPENDED, so every earlier category keeps its calculator sentinel row.
+      { category_id: "hvac_valve_package", label: "Valve Package" },
+      // VP-1 (N6, owner QR-1 Q5 (a) / QR-2 Q2 (a) "2a is fine for now. when we build misc category we will build properly"): Misc
+      // is BORROW-ONLY -- fetched so the Valve Package panel and calculator price its 4 instruments under Misc's own rules, listed
+      // neither in the calculator nor on the Rate Master page.
+      { category_id: "hvac_misc", label: "Misc", fetch_only: true },
     ],
   },
 ];

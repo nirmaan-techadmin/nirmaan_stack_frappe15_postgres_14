@@ -213,6 +213,15 @@
     "tabWorkflow"
    ]
   },
+  "nirmaan_stack.api.boq.test_valve_v66": {
+   "seconds": 14.1,
+   "series": [],
+   "writes": [],
+   "reads": [
+    "tabBoQ Rate Category Config",
+    "tabBoQ Rate Master Item"
+   ]
+  },
   "nirmaan_stack.api.boq.test_vrf_v55": {
    "seconds": 15.9,
    "series": [],

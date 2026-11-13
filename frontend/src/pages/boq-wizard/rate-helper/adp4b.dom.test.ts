@@ -32,6 +32,10 @@ const V66 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_el
 // VRF-1 (HVAC v55; mechanical authority): the `hvac_vrf` category the registry now lists exists only from v55 on, so the sweep
 // reads ITS config from v55; every other category is still read from v50 / v66 exactly as before.
 const V55 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v55.json")));
+// VP-1 (HVAC v66; mechanical authority): the `hvac_valve_package` category the registry now lists exists only from v66 on, so
+// the sweep reads ITS config and items from v66 (the VRF-1 idiom); `hvac_misc` is fetch_only, never on the page.
+const H66 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v66.json")));
+const H66_ITEMS: RateMasterItem[] = mergeItemsByName(H66.items.map((it) => ({ ...it, discipline: H66.discipline } as RateMasterItem)));
 const ADP = "hvac_adp", INS = "hvac_insulation", PIP = "hvac_piping";
 const cfgOf = (a: Asset, id: string) => a.category_configs.find((c) => c.category_id === id)!;
 const ITEMS: RateMasterItem[] = mergeItemsByName(V50.items.map((it) => ({ ...it, discipline: V50.discipline } as RateMasterItem)));
@@ -53,8 +57,11 @@ describe("AC1 -- the Derivation tab is the rules listing on every category (owne
   const itemsOf = (disc: string) => (disc === "HVAC" ? ITEMS : E_ITEMS);
 
   // INVERTED at VRF-1 (mechanical authority): BEFORE the title "13 Electrical + 4 HVAC categories" and `["HVAC", 4]` -- + VRF
-  it("the sweep names what it covers: 13 Electrical + 5 HVAC categories, every one rendered", () => {
-    expect(pages.map((p) => [p.discipline, p.categories.length])).toEqual([["Electrical", 13], ["HVAC", 5]]);
+  // INVERTED at VP-1 (HVAC v66; mechanical authority): BEFORE the title "13 Electrical + 5 HVAC categories" and `["HVAC", 5]` --
+  // + the Valve Package (VP-1 QR-2 recommendation (a)); Misc is fetch_only and stays off the page
+  it("the sweep names what it covers: 13 Electrical + 6 HVAC categories, every one rendered", () => {
+    expect(pages.map((p) => [p.discipline, p.categories.length])).toEqual([["Electrical", 13], ["HVAC", 6]]);
+    expect(pages.flatMap((p) => p.categories.map((c) => c.category_id))).not.toContain("hvac_misc");
   });
 
   it("POSITIVE: the pointer names the real pricing page and its tab", () => {
@@ -73,8 +80,10 @@ describe("AC1 -- the Derivation tab is the rules listing on every category (owne
     for (const p of pages) {
       for (const c of p.categories) {
         // VRF-1: BEFORE `cfgOf(assetOf(p.discipline), c.category_id)` for every category
-        const config = c.category_id === "hvac_vrf" ? cfgOf(V55, c.category_id) : cfgOf(assetOf(p.discipline), c.category_id);
-        const { host, cleanup } = renderDerivation(config, itemsOf(p.discipline), p.discipline);
+        // VP-1: the Valve Package from v66, config and items (BEFORE: the two-way VRF-1 choice below for every category)
+        const valve = c.category_id === "hvac_valve_package";
+        const config = valve ? cfgOf(H66, c.category_id) : c.category_id === "hvac_vrf" ? cfgOf(V55, c.category_id) : cfgOf(assetOf(p.discipline), c.category_id);
+        const { host, cleanup } = renderDerivation(config, valve ? H66_ITEMS : itemsOf(p.discipline), p.discipline);
         try {
           const list = host.querySelectorAll('[data-testid="rate-master-item-list-order"] li').length;
           const notice = host.querySelector('[data-testid="rate-master-derivation-notice"]')?.textContent ?? null;
@@ -138,6 +147,8 @@ describe("AC1 -- the Derivation tab is the rules listing on every category (owne
       // VRF-1: the data-only VRF category has no rules list, so its tab is the one generic line -- no rules card, no inputs
       "HVAC/hvac_vrf": "This category's rules are not listed yet. To see how a row is priced, open HVAC Pricing -> Calculator.",
       "HVAC/hvac_pricing_inputs": PRICING_INPUTS_DERIVATION_LINE,
+      // VP-1: the Valve Package's rules list (the 23 lines vp1RuleReachability pins one by one)
+      "HVAC/hvac_valve_package": "list 23",
     });
   });
 

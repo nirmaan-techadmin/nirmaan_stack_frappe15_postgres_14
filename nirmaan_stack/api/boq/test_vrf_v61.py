@@ -189,8 +189,8 @@ class TestVrf5AssetV61(FrappeTestCase):
     def test_06_v61_is_the_newest_and_the_series_has_no_gap(self):
         data = os.path.dirname(_asset_path(V61))
         nums = sorted(int(m.group(1)) for f in os.listdir(data) for m in [re.match(r"^rate_master_hvac_all_v(\d+)\.json$", f)] if m)
-        self.assertEqual(nums[-1], 65)  # VRF-9 (HVAC v65 minted + loaded; mechanical authority): BEFORE nums[-1] == 64
-        self.assertEqual(nums, list(range(1, 66)))  # VRF-9 (HVAC v65 minted + loaded; mechanical authority): BEFORE list(range(1, 65))
+        self.assertEqual(nums[-1], 66)  # VP-1 (HVAC v66 minted + loaded; mechanical authority): BEFORE nums[-1] == 65
+        self.assertEqual(nums, list(range(1, 67)))  # VP-1 (HVAC v66 minted + loaded; mechanical authority): BEFORE list(range(1, 66))
         self.assertTrue(os.path.exists(_asset_path(V60)))
 
     def test_07_live_catalogue_is_v61(self):
@@ -210,7 +210,7 @@ class TestVrf5AssetV61(FrappeTestCase):
         # `assertIs(live["list_spec"]["second_opinion"], True)`
         self.assertIs(live["list_spec"]["second_opinion"], False)
         n = frappe.db.sql('select count(*) from "tabBoQ Rate Master Item" where active=1 and discipline=%s', ("HVAC",))[0][0]
-        self.assertEqual(n, 585)  # VRF-6 (HVAC v62 minted + loaded; mechanical authority): BEFORE n == 579
+        self.assertEqual(n, 722)   # VP-1 (HVAC v66 minted + loaded; mechanical authority): + 124 valve SKUs, 12 Misc SKUs, 1 valve input. BEFORE 585 (VRF-6 (HVAC v62 minted + loaded; mechanical authority): BEFORE n == 579)
         ids = {r[0] for r in frappe.db.sql("""select attributes::json->>'item' from "tabBoQ Rate Master Item" where active=1 and discipline='HVAC' and kind='hvac_pricing_input'""")}
         kept = {"vrf_install_only_uplift", "vrf_acc_drain_pump_per_indoor", "vrf_acc_remote_per_indoor", "vrf_acc_refnet_per_indoor"}
         self.assertEqual(kept - ids, set())

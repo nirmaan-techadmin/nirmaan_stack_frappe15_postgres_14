@@ -262,8 +262,8 @@ class TestVrf9AssetV65(FrappeTestCase):
     def test_06_v65_is_the_newest_and_the_series_has_no_gap(self):
         data = os.path.dirname(_asset_path(V65))
         nums = sorted(int(m.group(1)) for f in os.listdir(data) for m in [re.match(r"^rate_master_hvac_all_v(\d+)\.json$", f)] if m)
-        self.assertEqual(nums[-1], 65)
-        self.assertEqual(nums, list(range(1, 66)))
+        self.assertEqual(nums[-1], 66)  # VP-1 (HVAC v66 minted + loaded; mechanical authority): BEFORE nums[-1] == 65
+        self.assertEqual(nums, list(range(1, 67)))  # VP-1 (HVAC v66 minted + loaded; mechanical authority): BEFORE list(range(1, 66))
         self.assertTrue(os.path.exists(_asset_path(V64)))
 
     def test_07_live_catalogue_is_v65(self):
@@ -272,4 +272,4 @@ class TestVrf9AssetV65(FrappeTestCase):
         live = json.loads(row[0][0]) if isinstance(row[0][0], str) else row[0][0]
         self.assertEqual(_norm(live), _norm(self.cfg))
         n = frappe.db.sql('select count(*) from "tabBoQ Rate Master Item" where active=1 and discipline=%s', ("HVAC",))[0][0]
-        self.assertEqual(n, 585)
+        self.assertEqual(n, 722)   # VP-1 (HVAC v66 minted + loaded; mechanical authority): + 124 valve SKUs, 12 Misc SKUs, 1 valve input. BEFORE 585
