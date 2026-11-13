@@ -51841,3 +51841,79 @@ files 4,479 / 4,479); tsc 0 new; vacuity 24 breaks red, sources sha-equal.
 - the next mint (v66) can give the VRF-10 rules their own keys and move the note texts into the config;
 - second_opinion stays OFF;
 - the push, the laptop realign / sync and the db-pull are the owner's / laptop's (PENDING-LAPTOP).
+
+## Slice VP-D0 - read-only design for the Valve Package (HVAC) (2026-11-12) - DELIVERED
+
+Desktop, HEAD 935216e76, no commit, no data write, no model call. Deliverables: `BoQ main lane\VP-D0\` (Report, Design.xlsx 20
+sheets, payloads). The valve config (13 families, 124 SKUs from the owner's ruled valve sheet) and a borrow-only Misc config (4
+families, 12 SKUs) were PROJECTED in scratch and passed the product validator; identity 136 / 136. D5 priced the 1,295 rows of
+that data on the projection with VP-R0's reading: 1,103 priced / 192 refused. It named five new pieces (N1 scope pick, N2 blank
+unit, N4 size split, N5 Piping note, N6 registry fetch-only) and wording gaps G1-G12. Owner answers: QR-1 / QR-2 all (a); ANSWER 3
+(type stated nowhere -> by size); STANDING: every category its own installation-only uplift input; QR-3 (a) the reminders job's
+writes are a standing exception. VP-1 builds from it.
+
+## Slice CATCHUP-1 - both machines to origin 23c014fd9, migrate, fresh baseline (2026-11-12) - DONE
+
+Desktop fast-forward 935216e76 -> 23c014fd9 (551 commits; Abhishek's develop merge; the tree is byte-equal to production main
+b9cab0c30), migrate (8 v3_0 patches, 6 new doctypes; one duplicate index dropped, owner QR-2 Q1 a), the reminders job stopped in dev
+(20 stopped jobs). No commit. Replay cu1end = vrf10end. New "before": Python 120 modules / 4,981 tests, vitest 180 / 7,359, tsc 0
+new. The 13:25 reminders run sent no notification.
+
+## Slice DATA-1 - dev refreshed from production's 2026-11-12 00:30 backup; our runs carried; valve preview (2026-11-12) - DONE
+
+Dev's database now holds production's nightly backup (the old dev DB kept as `_ca586342014827d9_pre_data1`). 433 dev-only Suggest
+runs and 20 VRF-5 formulas carried byte-equal; 20 older runs retired (Q2 b / Q14 b). Guards: dev_isolate VERIFY PASS, 20 stopped
+jobs, matching OFF. Replay baseline **da1end** = 26,807 rows (ac7 af5853e7 / ac7v2 e6356049). Valve preview on VP-D0's projection:
+1,494 rate-editable valve rows, 1,265 priced / 226 refused + 3 flow-switch rows held out (Q12: no SKU). Ducting facts for DU-R0.
+Lesson: production's encryption key differs -- copy dev's `__Auth` rows back after a refresh.
+
+## Slice VP-1 - the Valve Package build: HVAC v66 (valve catalogue + borrow-only Misc), N1 / N2 / N4 / N5 / N6, wording fixes (no paid run) - as built 2026-11-13
+
+Desktop, from 23c014fd9 (da1end data). Rules: boq-rate-master.md, Load-bearing invariants, "VP-1". Deliverables:
+`BoQ main lane\VP-1\` (Report, Ledger, QR-1..QR-3, Checks.xlsx, Piping_rows_heading_mentions_valves.xlsx, logs, screenshots).
+
+**Commits:** C1 618defc79 code + tests; C2 57af2335a HVAC v66 + registry lines + pin moves; C3 docs (this entry, boq-rate-master.md VP-1 section, environments.md A2).
+
+**Built:**
+- HVAC v66 = v65 + `hvac_valve_package` (124 SKUs of the ruled valve sheet, brand null) + `hvac_misc` (12 SKUs, borrow-only:
+  no top-level attribute definitions, never eligible on its own) + "Valve - installation-only uplift" 50%. Piping gains
+  `sheet_heading_notes` only; every other v65 item / config byte-identical. 722 items / 13 configs. VRF's uplift input was already
+  named "VRF - installation-only uplift" in v65 (P0 correction: no change).
+- N1 pricing-level scope pick; N2 blank unit refuses (valve and Misc); N4 size split; N5 the Piping note from the PAGE's
+  categories (QR-1 Q1); N6 registry fetch_only; the sections fix (a Misc item beside a valve was dropped by position); G2-G7, A1.
+- One fixture `frontend/src/pages/pricing/__fixtures__/valveModel.json` (from VP-D0's projection) feeds the tests and the mint.
+
+**Proofs:** identity 136 / 136; replay vp1end vs da1end 0 figure / 0 display differences (byte-identical ac7 af5853e7 / ac7v2 e6356049, 26,807 rows); parity calculator = panel 136 cases + scope options, vacuity
+proved; coverage map 36 rules covered, 0 GAP; ruleReachability valve 23 + Misc 13 rules (positive + negative), guard = generated;
+field table (no typed mandatory field without a note); D5 on live v66: 1,264 priced / 230 refused of 1,494 (DATA-1's preview
+reproduced 1,265 / 229; 55 differences, all explained: N2 25, N4 +20 priced / 9 refused, 1 per_item wording); 12b Excel: 208 rows (12a, 18 sheets) / 32 rows (12b, 5 sheets).
+
+**Tests:** before (23c014fd9): Python 32 / 1,413 OK; vitest related 116 / 5,659; tsc 0 new. After C1: Python 33 / 1,422 OK; vitest related 118 / 5,790; tsc 0 new. After C2 (v66 loaded): Python 36 / 1,555 OK (the 33 +
+test_valve_v66 + test_routing_policy + test_runner_hvac); vitest 95 files / 4,693 (registry-related + every asset / registry reader);
+tsc 0 new. Vacuity 16 frontend + 6 Python breaks red on scratch copies, controls green.
+
+**Pin moves (lesson):** asset_pin_search.py flagged 33 MUST (moved) but MISSED the series pins (`range(1, 66)` / `nums[-1] == 65`
+in test_piping_v34 and test_vrf_v55-v65) and the live-count pins (585, 11 sites); the after run found them, in three layers
+(each test's next assert surfaced only after the first moved). Cross-version pins take `_without_vp1_items` /
+`_without_vp1_configs` (test_rate_master) and `withoutVp1` (servedVsStoredPricing). The pin search runs in the container: the host
+Python cannot stat the `nirmaan_stack/public/node_modules` symlink. test_valve_v66 test_03 had a wrong expectation in my own test
+(BTU sizes); the data matched the ruled sheet.
+
+**Cert (desktop Chrome, :8080, page state only):** PASS C1 (Butterfly 150 5,708 / 1,000 / 6,708), C2 (Motorised 250 On-Off
+default 178,009 -> Modulating 202,033), C3 (Strainer 25 -> Y-Type default, smallest 50 mm, 3,141 / 1,000), C4 (Ball 40 1,470 /
+1,000), C5 (Air Vent + Ball 20 1,571 / 2,000), C6 (Misc thermometer by Misc's rules + thermowell note), C7 (400 above 300 refuses),
+C9 (PIBCV 32 28,093), C10a (installation only 0 / 1,500 + the uplift note), C11 (calculator: Valve Package listed, Misc not;
+Butterfly 140 next size up = panel; + Pressure Gauge 7,883 / 1,500 / 9,383), C12 (12a on 00012 r176 / r180, figures 2,123 / 588 /
+2,711 unchanged), C13 (12b on 00267 r29), C14 (VRF 00051 r48 27,120 / 2,520 / 29,640; A1 'Not priced' once on 00197 r315; Rate
+Master HVAC lists Valve Package, not Misc; both uplift inputs 50%; Derivation 23 rules, no XLPE / VRF-4 lines), C15 (counts,
+live v66 re-verified, dev_isolate VERIFY PASS). C2 / C4 / C5 ran on 00009 HVAC CRITICAL ROOM rows (their planned sheets have no
+Suggest run, so no Pricing sheet card). C8 / C9 note / C4 N4 line need model text (QR-3, VP-2). C10b (N2) NOT on screen: every
+no-unit valve row sits on a sheet with no run or with rate entry locked by undeclared formulas; N2 stands on tests + D5.
+
+**Finding (N5):** the 12a / 12b counts came from the dump's heading notes; the panel reads the PAGE's headings -- 00012 r122 shows
+no note (its valve words sit in Item row 118's text). 124 of the 208 / 29 of the 32 rows name valves in the heading chain itself;
+recount on the page before quoting. The note names line items only (27 on 00012; the Excel listed 33 incl. preambles).
+**Observation:** Derivation line 23 lists four panel scope options; the sheet panels showed three (the calculator four). Wording only.
+
+**Open:** VP-1 QR-1 / QR-2 / QR-3 unanswered at build (built to recommendation (a) each); VP-2 runs the paid read (first model answers on valve rows) and re-certs the four as-written lines (QR-3); the
+pre-existing residence A1 count (14 over baseline at 23c014fd9, from the develop merge); laptop sync + db-pull (laptop).

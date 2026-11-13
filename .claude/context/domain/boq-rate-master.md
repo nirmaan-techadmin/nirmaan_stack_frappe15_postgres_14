@@ -3295,7 +3295,7 @@ constants (`VRF10_SCOPE`, `VRF10_ONOFF`, `VRF10_NO_UNIT_REFUSAL`); the next mint
   The S11 pick defaults to the result.
 - **F4:** a unit refused for several unit types / as a Fan Coil Unit carries only the refusal: no SKU line, working, fields, extras
   or review notes. On an unpriced row an extra line under a blank item stays (its review note and the row's item count still name it)
-  but carries no figure: "not priced - the unit it belongs to is not priced" (`withBlankBare`, `VRF10_BLANK_LINE_REASON`; panel and
+  but carries no figure: "the unit it belongs to is not priced" (A1; `withBlankBare`, `VRF10_BLANK_LINE_REASON`; panel and
   calculator). Dropping the line instead left its "- added" note pointing at nothing (cert finding).
 - **F5:**
   - (a) the "ON / OFF controller" review note only where ON / OFF is the controller's only function (`onOffAmongOthers`); the family
@@ -3310,6 +3310,85 @@ constants (`VRF10_SCOPE`, `VRF10_ONOFF`, `VRF10_NO_UNIT_REFUSAL`); the next mint
   than the page: no sheet scope answers, fewer chain notes. A scope rule that reads those can move a row in the replay that the page
   does not move (VRF-10: 41 rows, F6 in the harness only). Declare scope moves from the faithful row pricer (the page's own endpoints
   and context) and explain the replay's extra rows.
+- **A1 (VP-1, owner 2026-11-13 00:33):** the blank extra line's reason is now "the unit it belongs to is not priced" -- the panel
+  already leads every refusal with "Not priced -", so the old reason read "Not priced - not priced - ...". Wording only.
+
+**VP-1: THE VALVE PACKAGE (HVAC v66) -- 124 SKUs OF THE RULED VALVE SHEET; MISC IS BORROW-ONLY AND PRICES INSIDE IT UNDER ITS OWN RULES; THE SCOPE PICK AND THE INSTALLATION-ONLY UPLIFT FOR EVERY CATEGORY; NO UNIT REFUSES; THE SIZE SPLIT; THE PIPING VALVE-HEADING NOTE (owner VR1-VR12 2026-11-11 / 12, QR-1 / QR-2 (a), ANSWER 3, 11-12 23:59, 11-13 00:07-00:33; HVAC v66).**
+The data lives in ONE fixture, `frontend/src/pages/pricing/__fixtures__/valveModel.json` (built from VP-D0's validated projection),
+read by the frontend tests (`vp1.harness.ts` = v65 + the fixture), by `scripts/_instruments/mint_hvac_v66_valve.py` and by
+`test_valve_v66.py` (the asset equals it). Every v65 item and config is byte-identical except Piping, which gains
+`pricing.sheet_heading_notes` only.
+- **The catalogue (owner V1 rulings 11-11 16:10-16:15; 12:27 "yes"):** `hvac_valve_package`, kind `hvac_valve_item`, 124 SKUs from
+  `Valve_Package_after_V1_rulings_2026-11-11.xlsx` (NOT the Valve Package tab of the HVAC workbook): attributes `group`,
+  `valve_type` (13 families), `item_name` verbatim, `size_mm` (the air vent has none) and the choice the sheet varies on (actuation,
+  nrv_type, spindle, strainer_type, operation). Brand null on every SKU, never matched. BoQ supply = ROUNDUP(BCS x 1.4), install =
+  ROUNDUP(BCS install x 2), as the sheet; duplicates merged at the higher price, BTU 50 / 80 swapped, sluice non-rising 125 / 300
+  ESTIMATES, steel lever 25 mm kept, one air-vent price for any size, 2-way modulating 20-32 mm only. The item-list shape is
+  Piping's: size ladder with next size up, below the smallest -> the smallest with a note, above the largest refuses naming it
+  ("valve size 400 is above the largest size on the sheet (300)"); NB = mm, inches converted (VR2).
+- **Misc is borrow-only (owner 11-12 12:14-12:27 "option a", QR-1 Q5 (a), QR-2 Q2 (a)):** `hvac_misc` (kind `hvac_misc_item`, 12
+  SKUs: thermometer, pressure gauge, rubber bellows 50-300 mm x 9, test plug / thermowell; the empty "Flow" row not loaded) has NO
+  top-level attribute_definitions, so `config_is_eligible` is false: Misc rows keep "coming soon" and never reach Suggest. Valve
+  Package prices them through `list_spec.sections` {category_id hvac_misc} -- Misc's own families, ladder (bellows ladder up),
+  refusals and notes, never a copy (block 70). The registry lists Misc with `fetch_only: true` (N6): fetched for the panel, listed
+  neither in the calculator (`calculatorEntry`) nor on the Rate Master page (`rateMasterPageEntry`). The Valve Package itself IS
+  listed on the Rate Master page (it holds items; VP-1's own QR-2: built to recommendation (a), the owner's answer pending at
+  build -- if the owner rules it off the page, it takes `fetch_only`-style filtering for the page only). v65's five `hvac_misc_item`
+  rows (VRF's) carry other item names, so VRF prices exactly as before. An instrument's own accessories (thermowell with a
+  thermometer; syphon / gauge cock / needle valve with a gauge) are part of it: one item + a note (QR-1 Q3, G12); a row naming only a
+  thermowell = Test Plug / Thermowell (QR-1 Q2).
+- **Types not on the sheet (VR3, VR10):** drain valve -> the Ball Valve of the same size (`material_text`); 2-way unstated ->
+  modulating (default); flow meter, pot strainer, 3-way valve, gauge cock, flow switch -> refused "No SKU in the catalogue for <the
+  row's own item> - price this row by hand" naming ONLY that item (`no_sku_named_by` valve_type_as_written; 11-12 23:59). On a row
+  of several items `unstocked_materials.per_item` (valve + Misc only; Insulation unchanged): where an item's own copied words carry
+  an unstocked word, that item refuses the row by name and every other item reads the row text without the unstocked words (it is
+  priced, or refused for its own reason); where no item carries one, the row text refuses every item naming the WORD (the
+  unstocked thing the model did not list still stops the row). Spelling variants ('3 way' / '3-way') count as one. Found on 00017 "AHU" r51, where every item was refused under its own name. Only rows
+  FILED Valve Package price; misfiled rows are the team's to re-categorise.
+- **N4 the size split (ANSWER 3 13:46; "40 and below is ball valve"):** an isolation valve, or a valve whose type is stated nowhere,
+  prices as the Ball Valve at 40 mm and below, the manual Butterfly Valve above, with an amber line. Mechanism: a `material_text`
+  map entry with `only_words` (the as-written holds nothing but generic valve / isolation words, numbers and units -- "Globe valve"
+  keeps the refusal by name) and `to_by_size` (attr, at_most, small, large; read with the config's own number reader). No readable
+  size -> the small family, which refuses for the missing size. A stated type always wins (the map runs only over "none of these").
+- **VR4 / VR7 / VR8 / VR11 / VR12 / Q4:** a type-unstated flanged NRV -> Flanged NRV (`derive_when_none`); flanges on any other valve
+  -> a fitting note; amber defaults On-Off / Y-Type / Dual Plate / Non-rising, switchable; the butterfly's size decides the sheet item
+  (steel lever 25 / hand lever 50-150 / gear box 200-250 / plain 300), the operator words are a note, never a refusal; a bare Set with
+  nothing read refuses ("no items were read on this row"), a kit prices its items per Set; every PIBCV row prices the one premium item
+  with a note naming it; a valve to be insulated is priced with the amber note that valve insulation is not in the price.
+- **N1 the scope pick, every category (VR9 standing 11-11 09:09; QR-2 Q1 (a) "we will follow the same practice for all
+  categories"):** a category without `extras` declares `list_spec.pricing.scope` (the VRF `extras.scope` shape + `model_attr`,
+  the question carrying the row's scope answer). `scopeSpecOf(spec)` = `extras?.scope ?? scope`; `withScope` wraps the no-section
+  and the section returns of `computeItemList` only when that key is present. Every VRF-only scope rule stays gated on its own keys /
+  `vrf10On` (extras only) -> VRF lines moved: 0. Installation only = each line's final install x (1 + the category's OWN uplift
+  input) only when the sheet quotes no supply row of the same item (item 1 family + scope answer of the same sheet's rows of the
+  same category, from the run -- `sheetLines` is built for a pricing-level `scope.supply_row` too); with one, the normal install
+  naming those rows. Each category has its OWN uplift Pricing Input (STANDING, owner 11-12 13:49): "Valve - installation-only
+  uplift" (`valve_install_only_uplift`, 50%); VRF's was already named "VRF - installation-only uplift" in v65 (no change).
+  `extras_input_ids` / `scopeUses` count the valve input as read by Valve Package (every valve SKU).
+- **N2 no unit (UNIT ruling 11-11, all categories):** `blank_unit_refuses: true` -> a row with no unit refuses "no unit on this row"
+  (VRF's rule through `vrf10On`, now a key any category can declare; the calculator's typed-blank unit keeps parity). Lot / LS / Job /
+  Rmt / Mtr refuse with the red bar; Set prices per Set.
+- **N5 the Piping valve-heading note (VR1 11-11 21:52 "option b" -> 11-12 23:59; 11-13 00:09 no add-valves button; 00:33 the first 10
+  rows then "and N more"):** `sheet_heading_notes` on Piping: a DISPLAY line on every Piping row whose headings (the `text_notes`
+  "headings" text) mention valves -- 12a, the sheet has Valve Package rows: "This row's heading mentions valves. This sheet prices
+  valves on their own rows (rows <n, ...>), so valves are not included in this pipe price."; 12b, none: the warning to add them on
+  their own rows. The rows named are the sheet's valve LINE ITEMS (a heading filed Valve Package names no row; alone it gives
+  12b). An amber box after the items, on every state of the row (boards 12a / 12b), no add-valves button. Piping never adds a
+  valve; 0 Piping figure moves. THE SHEET'S CATEGORIES COME FROM THE PAGE
+  (`buildRowContext(..., sheetCategories)` = the grid's `liveCategoriesByExcelRow`), NOT the run's ROW_CATEGORIES: no run has ever
+  read a Valve Package row (QR-1 Q1 (a)). A context without them (the calculator, the replay harness) shows no line.
+  THE HEADINGS ARE THE PAGE'S TOO (`ctx.headings` + `ctx.headingNotes`): a row whose valve wording sits only in the dump's
+  `text_notes` (e.g. a long Item row the payload reads as a heading note) shows NO note on screen. VP-1's 12a / 12b counts
+  (208 / 32) were measured on the dump's heading notes; 124 / 29 of them carry "valve" in the heading chain itself (certified on
+  screen); the rest depend on heading-note text that differs page vs payload. Recount on the page's headings before quoting a
+  12a / 12b figure. The note names LINE ITEMS only (`sheetLines`, preambles left out).
+- **Wording (G2-G7):** the XLPE alias refusal and the "stocked alternative" / XLPE Derivation lines run only where the category's
+  unstocked words are insulation materials (XLPE among them) -- a valve row naming XLPE insulation is not refused by them;
+  the unit line's example is a unit the category does not know ('Sqm' on valves); a `read_notes` entry may carry its own
+  `rule_line` for the Derivation tab; the Lot line's "read at VRF-4" is VRF's only; a one-size typed refusal names the reader's axis
+  ("Type one valve size, in mm or inches"; "pipe size" readers unchanged) and a reader declaring `typed_dn` takes a typed "DN 50".
+- **A later borrower (QR-2 Q5 (a)):** fire fighting, sprinklers, CHW Units borrow valve items through the same `sections` mechanism
+  (`category_id: hvac_valve_package`); nothing built now. Second opinion is OFF on both new configs (owner 2026-11-09 18:52).
 
 **AFTER EVERY ASSET MINT, THE PIN SEARCH RUNS BEFORE ANY SUITE (TOOL-1, owner R-SPEED point 6).**
 `python3 scripts/asset_pin_search.py --discipline <HVAC|Electrical> --new-version <N>` (from the app root; stdlib; reads the

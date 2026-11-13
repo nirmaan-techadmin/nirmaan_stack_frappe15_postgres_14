@@ -39,7 +39,8 @@ desktop's SSH server (scp + git bundles). Nothing in it talks to GitHub.
    residence check first.
 5. **Pull back.** `from-desktop` fast-forwards the laptop and destales it. It refuses while the desktop has
    uncommitted changes, because they would stay behind. `reports` copies the desktop's run reports to the laptop's Desktop.
-   If the work wrote live data, run `db-pull --yes`.
+   The code comes back after EVERY commit; if the work wrote live data, run `db-pull --yes` ONCE, after the slice's last
+   commit -- never after each commit (owner 2026-10-31; see Sync cadence below).
 6. **Push.** The owner pushes to GitHub from the laptop, by hand.
 
 ## Rules
