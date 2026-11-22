@@ -499,7 +499,9 @@ def verify(candidate, site):
     L = {r["item_uid"]: {"kind": r["kind"], "brand": r["brand"] or None, "unit": r["unit"] or None, "attributes": J(r["attributes"]), "rates": J(r["rates"])} for r in li}
     LC = {r["category_id"]: J(r["config"]) for r in lc}
     A = {r["item_uid"]: {"kind": r["kind"], "brand": r.get("brand") or None, "unit": r.get("unit") or None, "attributes": r["attributes"], "rates": r["rates"]} for r in asset["items"]}
-    AC = {c["category_id"]: dict(c, discipline="Electrical", goldens=asset["goldens"].get(c["category_id"], c.get("goldens"))) for c in asset["category_configs"]}
+    AC = {c["category_id"]: dict(c, discipline="Electrical") for c in asset["category_configs"]}
+    for cat, goldens in asset["goldens"].items():       # the loader writes no `goldens` key on a sheet without examples
+        AC[cat]["goldens"] = goldens
     LC = {k: v for k, v in LC.items()}
     out = {"items_live": len(L), "items_file": len(A), "configs_live": len(LC), "configs_file": len(AC),
            "items_missing": sorted(set(A) - set(L)), "items_extra": sorted(set(L) - set(A)),
