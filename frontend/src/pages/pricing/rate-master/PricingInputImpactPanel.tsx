@@ -419,6 +419,9 @@ export function PricingInputImpactPanel({
                   </details>
                 )}
               </>
+            ) : impact.shape === "summary_only" ? (
+              // BCS-2: only the BoQ summary reads it, so nothing it names is a SKU's rate; shown before and after a typed value
+              <p data-testid="impact-summary-only">{impact.notMovedNote}</p>
             ) : impact.changed ? (
               <>
                 <p>

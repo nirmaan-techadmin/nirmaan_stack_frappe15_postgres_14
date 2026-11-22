@@ -37,8 +37,8 @@ export interface ElectricalAsset {
   items: Array<Omit<RateMasterItem, "discipline">>;
   category_configs: RateCategoryConfig[];
 }
-/** The live Electrical asset (v72, ELR-5; v71 at ELR-4d; v70 at ELR-4c). */
-export const ELECTRICAL_ASSET = readJson<ElectricalAsset>("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_electrical_all_v72.json");
+/** The live Electrical asset (v73, BCS-2; v72 at ELR-5; v71 at ELR-4d). */
+export const ELECTRICAL_ASSET = readJson<ElectricalAsset>("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_electrical_all_v73.json");
 export const ELECTRICAL_CONFIGS = new Map<string, RateCategoryConfig>(ELECTRICAL_ASSET.category_configs.map((c) => [c.category_id, c]));
 export const ELECTRICAL_ITEMS: RateMasterItem[] = ELECTRICAL_ASSET.items.map((it) => ({ ...it, discipline: ELECTRICAL_ASSET.discipline } as RateMasterItem));
 

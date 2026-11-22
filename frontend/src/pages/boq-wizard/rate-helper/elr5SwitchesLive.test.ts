@@ -99,11 +99,13 @@ describe("what does not move", () => {
     expect(box?.derivedValue).toBe("3M");
   });
 
-  it("only swsock_boq declares the sentence; swsock_bcs does not (owner: deferred to the BCS build)", () => {
+  // INVERTED at BCS-2 (Electrical v73, owner R1: the cost refuses where the price refuses, never 0) by mechanical authority.
+  // BEFORE: "only swsock_boq declares the sentence; swsock_bcs does not (owner: deferred to the BCS build)", toBeUndefined()
+  it("swsock_boq declares the sentence and, since the BCS build (v73), swsock_bcs declares the SAME one", () => {
     const pl = ELECTRICAL_CONFIGS.get("switches_sockets")!.pipelines as unknown as Record<string, { steps: Array<{ step?: string; none_refusal?: string }> }>;
     const sum = (id: string) => pl[id].steps.find((s) => s.step === "sum_components")!;
     expect(sum("swsock_boq").none_refusal).toBe(REFUSAL);
-    expect(sum("swsock_bcs").none_refusal).toBeUndefined();
+    expect(sum("swsock_bcs").none_refusal).toBe(REFUSAL);
   });
 
   it("no other category gained a sentence: the DB's two pipelines keep their own, and nothing else declares one", () => {
@@ -113,6 +115,8 @@ describe("what does not move", () => {
         if (pl.steps.some((s) => s.step === "sum_components" && s.none_refusal)) declared.push(`${cat}/${pid}`);
       }
     }
-    expect(declared.sort()).toEqual(["db_switchgear/db_buildup_install", "db_switchgear/db_buildup_supply", "switches_sockets/swsock_boq"]);
+    // BCS-2 (v73, mechanical authority): + the two cost sums. BEFORE: the three price pipelines only
+    expect(declared.sort()).toEqual(["db_switchgear/db_buildup_bcs", "db_switchgear/db_buildup_install", "db_switchgear/db_buildup_supply",
+      "switches_sockets/swsock_bcs", "switches_sockets/swsock_boq"]);
   });
 });

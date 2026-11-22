@@ -51,7 +51,7 @@ import {
  */
 const NO_GEOMETRY_NOTE = "priced per girth -- edit a value above to see sample sizes";
 
-export type PanelShape = "pair" | "installation_share" | "installation_markup" | "bcs_only" | "flat_adder" | "assembly_only";
+export type PanelShape = "pair" | "installation_share" | "installation_markup" | "bcs_only" | "flat_adder" | "assembly_only" | "summary_only";
 
 /** Which leg of the price this input moves -- the list's column header (owner item 10). */
 export type MovedLeg = "boq_supply" | "boq_install" | "bcs";
@@ -72,6 +72,8 @@ export const NOT_MOVED_NOTE: Record<PanelShape, string> = {
   flat_adder: "This is added to the row — no SKU's own rate is scaled.",
   // ELR-3a (owner Q7): the panel says the whole sentence, naming the category -- `assemblyOnlySentence`
   assembly_only: "This number moves no SKU's own rate.",
+  // BCS-2 (owner 2026-11-22): an input only the BoQ summary reads (the Rs 42 per sq ft)
+  summary_only: "The BoQ rate is not impacted; used by the BoQ summary's installation cost.",
 };
 
 /**
@@ -123,6 +125,15 @@ export function exampleLegChange(before: number, after: number): ExampleLegChang
 
 const PERCENT_KEYS = ["discount", "supply_markup", "installation_markup", "bcs_markup", "wastage", "ratio", "share"] as const;
 
+/** BCS-2: does any config name this input in `summary_inputs` (the BoQ summary's own inputs)? PURE. */
+export function isSummaryInput(configs: ExactContext["configs"] | null | undefined, inputId: string | null | undefined): boolean {
+  if (!inputId) return false;
+  return Object.values(configs ?? {}).some((c) => {
+    const ids = (c as { summary_inputs?: unknown } | undefined)?.summary_inputs;
+    return Array.isArray(ids) && ids.includes(inputId);
+  });
+}
+
 /**
  * The shape of one input, from its stored RATE KEYS plus whether its reach is a flat adder.
  *
@@ -131,8 +142,12 @@ const PERCENT_KEYS = ["discount", "supply_markup", "installation_markup", "bcs_m
  * installation-markup panel would open an empty list. Owner Q3 puts it with the flat adder, and the
  * discriminator is the REACH, which is measured, not the name.
  */
-export function panelShapeOf(rates: Record<string, unknown> | null | undefined, reach: InputReach | null | undefined): PanelShape {
+export function panelShapeOf(
+  rates: Record<string, unknown> | null | undefined, reach: InputReach | null | undefined, summaryInput = false,
+): PanelShape {
   const keys = new Set(Object.keys(rates ?? {}));
+  // BCS-2: only the BoQ summary reads it, so no pipeline's rate moves -- named by the config, not by the input's name or id
+  if (summaryInput) return "summary_only";
   if (reach?.isFlatAdder || keys.has("amount")) return "flat_adder";
   // ELR-3a (owner R-9, Q7): READ by a category's rules, yet no SKU's rate moves and no candidate SKU exists -- the
   // number builds the assembly. Flat adders keep their own shape (above). Measured at P3: on HVAC v54 / Electrical v68
@@ -149,7 +164,7 @@ export function panelShapeOf(rates: Record<string, unknown> | null | undefined, 
 
 export function movedLegOf(shape: PanelShape): MovedLeg {
   if (shape === "installation_share" || shape === "installation_markup") return "boq_install";
-  if (shape === "bcs_only") return "bcs";
+  if (shape === "bcs_only" || shape === "summary_only") return "bcs";
   return "boq_supply";
 }
 
@@ -185,7 +200,7 @@ export function editableFieldsOf(rates: Record<string, unknown> | null | undefin
  */
 export function multiplierFor(shape: PanelShape, vals: Record<string, number>, leg: MovedLeg): number | null {
   const num = (k: string) => (typeof vals[k] === "number" && Number.isFinite(vals[k]) ? vals[k] : undefined);
-  if (shape === "flat_adder") return null;
+  if (shape === "flat_adder" || shape === "summary_only") return null;
   if (shape === "installation_share") return num("share") ?? null;
   if (shape === "installation_markup") return 1 + (num("installation_markup") ?? 0);
   if (shape === "bcs_only") {
@@ -383,7 +398,7 @@ export function computeImpact(
   adderCtx?: AdderContext | null,
   exactCtx?: ExactContext | null,
 ): ImpactResult {
-  const shape = panelShapeOf(rates, reach);
+  const shape = panelShapeOf(rates, reach, isSummaryInput(exactCtx?.configs, exactCtx?.inputItemKey));
   const leg = movedLegOf(shape);
   const stored: Record<string, number> = {};
   for (const [k, v] of Object.entries(rates ?? {})) {

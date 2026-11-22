@@ -141,7 +141,11 @@ describe("the served fixture is the live endpoint's payload, and its rates ARE t
     // VAV-2a K2 (HVAC v77 minted + loaded; mechanical authority): withoutVav2a first (BEFORE the chain started at withoutVav1(storedHvac))
     // VAV-2b1 K2 (HVAC v79 minted + loaded; mechanical authority): withoutVav2b1 first (BEFORE the chain started at withoutVav2a(storedHvac))
     // VAV-2b2 K2 (B4, ANSWER 31): the fixture refreshed - NOTHING set aside. BEFORE: the chain of the ten set-aside steps above
-    for (const [label, s, a] of [["HVAC", servedHvac, storedHvac], ["Electrical", served.items.Electrical, storedItems(ELEC)]] as const) {
+    // BCS-2 (Electrical v73; the same standing authority): the Rs 42 input set aside by name on the stored side -- the served fixture
+    // is main's live payload at v72 and is not re-captured here. BEFORE: [..., ["Electrical", served.items.Electrical, storedItems(ELEC)]]
+    const withoutBcs2 = storedItems(ELEC).filter((it) => it.attributes.item !== "elec_bcs_install_per_sqft");
+    expect(storedItems(ELEC).length - withoutBcs2.length).toBe(1);
+    for (const [label, s, a] of [["HVAC", servedHvac, storedHvac], ["Electrical", served.items.Electrical, withoutBcs2]] as const) {
       const stored = new Map(a.map((it) => [String(it.item_uid), it.rates]));
       expect(new Set(s.map((it) => String(it.item_uid))), `${label}: the same uids`).toEqual(new Set(stored.keys()));
       const bad = s.filter((it) => JSON.stringify(it.rates) !== JSON.stringify(stored.get(String(it.item_uid))))

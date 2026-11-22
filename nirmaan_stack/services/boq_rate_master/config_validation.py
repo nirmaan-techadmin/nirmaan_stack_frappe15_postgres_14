@@ -202,6 +202,10 @@ _KNOWN_CONFIG_KEYS = {
     # fills). Real stored row shapes; each attr must be one of the category's declared attributes. Validated by
     # `_validate_impact_examples`; absent from every other config, which is therefore byte-identical.
     "impact_examples",
+    # BCS-2 (owner 2026-11-21 / 22): `bcs_default_margin` = {entries: [{components?, when?, ref, field}]} -- which Pricing Input
+    # the category's supply margin is READ from (never a number); `summary_inputs` = [input id] -- inputs only the BoQ summary
+    # reads (the Rs 42 per sq ft). Shape: `_validate_bcs_keys`; the inputs themselves: `bcs_problems`.
+    "bcs_default_margin", "summary_inputs",
     # SLICE 12d-2 (owner S1, 2026-10-07): `calculator_only` is RETIRED. It was the 12c FINISH / FA7
     # temporary calculator admission (one category, one slice), with a declared removal condition --
     # "the slice that makes the category fully eligible REMOVES this key in the same change, so there
@@ -559,6 +563,14 @@ def validate_delegated_sections(configs, items=None, label="config"):
     for disc in sorted({str(c.get("discipline") or "").strip() for c in configs}):
         mine = [c for c in configs if str(c.get("discipline") or "").strip() == disc]
         others = _active_section_configs(disc, exclude_categories={str(c.get("category_id") or "").strip() for c in mine})
+        # BCS-2: the cost-margin references and the BoQ-summary inputs of what is being WRITTEN resolve to active inputs
+        bcs_mine = [c for c in mine if c.get("bcs_default_margin") is not None or c.get("summary_inputs") is not None]
+        if bcs_mine:
+            kinds = {e["ref"]["kind"] for c in bcs_mine for e in ((c.get("bcs_default_margin") or {}).get("entries") or [])} | {
+                k for c in bcs_mine for k in (c.get("item_kinds") or []) if isinstance(k, str) and k.endswith("_pricing_input")}
+            bcs_found = bcs_problems(bcs_mine, _bcs_input_rates(disc, items, kinds))
+            if bcs_found:
+                frappe.throw(f"{label}: {bcs_found[0]} Nothing was written.", title="Invalid config")
         if not any(declares(c) for c in mine + others):
             continue
         if items is None:
@@ -4969,6 +4981,85 @@ _IMPACT_EXAMPLE_KEYS = _IMPACT_EXAMPLE_KEYS | {"items", "unit", "inputs"}
 _IMPACT_EXAMPLE_KEYS = _IMPACT_EXAMPLE_KEYS | {"includes"}
 
 
+_BCS_MARGIN_FIELDS = ("supply_markup", "ratio")
+
+
+def _validate_bcs_keys(cfg):
+    """BCS-2 -- `bcs_default_margin` and `summary_inputs`, refused BY NAME. The margin is a REFERENCE to a Pricing Input, so a
+    number anywhere in it is refused (owner 2026-11-22: "dont hardcode it"). PURE; whether the input exists: `bcs_problems`."""
+    from nirmaan_stack.services.boq_rate_master.csv_exporter import is_pricing_input_kind
+    m = cfg.get("bcs_default_margin")
+    if m is not None:
+        if not isinstance(m, dict) or set(m) != {"entries"} or not isinstance(m["entries"], list) or not m["entries"]:
+            _vthrow("bcs_default_margin must be an object with a non-empty 'entries' list.")
+        for i, e in enumerate(m["entries"]):
+            where = "bcs_default_margin.entries[%d]" % i
+            if not isinstance(e, dict) or not {"ref", "field"} <= set(e) or set(e) - {"components", "when", "ref", "field"}:
+                _vthrow("%s must be an object with ref / field (and optional components / when)." % where)
+            ref = e["ref"]
+            if not isinstance(ref, dict) or set(ref) != {"kind", "item"} or not is_pricing_input_kind(ref.get("kind")) \
+                    or not isinstance(ref.get("item"), str) or not ref["item"].strip():
+                _vthrow("%s.ref must name a Pricing Input: {kind: a *_pricing_input kind, item: its id}." % where)
+            if e["field"] not in _BCS_MARGIN_FIELDS:
+                _vthrow("%s.field must be one of %s (a margin is READ from an input, never typed)." % (where, ", ".join(_BCS_MARGIN_FIELDS)))
+            if "components" in e and (not isinstance(e["components"], list) or not e["components"]
+                                      or not all(isinstance(x, str) and x.strip() for x in e["components"])):
+                _vthrow("%s.components, when present, must be a non-empty list of component names." % where)
+            if "when" in e and (not isinstance(e["when"], dict) or not e["when"]
+                                or not all(isinstance(v, (str, int, float)) and not isinstance(v, bool) for v in e["when"].values())):
+                _vthrow("%s.when, when present, must map an attribute to the value it needs." % where)
+    si = cfg.get("summary_inputs")
+    if si is not None:
+        if not isinstance(si, list) or not si or not all(isinstance(x, str) and x.strip() for x in si) or len(set(si)) != len(si):
+            _vthrow("summary_inputs must be a non-empty list of unique Pricing Input ids.")
+
+
+def bcs_problems(configs, rates_by_input):
+    """BCS-2 -- the CROSS-ITEM half of the two keys, PURE: `rates_by_input` = {(kind, id): its rates} of every active Pricing
+    Input. A margin must resolve to an input carrying that field as a finite number (a `ratio` above 0); a summary input must
+    exist with a number. Returns the sentences in config order."""
+    out = []
+    for c in configs or []:
+        if not isinstance(c, dict):
+            continue
+        own = str(c.get("category_id") or "").strip()
+        margin = c.get("bcs_default_margin")
+        for i, e in enumerate((margin.get("entries") or []) if isinstance(margin, dict) else []):
+            key = ((e.get("ref") or {}).get("kind"), (e.get("ref") or {}).get("item"))
+            rates = (rates_by_input or {}).get(key)
+            where = f"'{own}' bcs_default_margin.entries[{i}]"
+            if rates is None:
+                out.append(f"{where}: '{key[1]}' is not an active Pricing Input.")
+                continue
+            v = rates.get(e.get("field"))
+            if not _is_finite_number(v) or (e.get("field") == "ratio" and not v > 0):
+                out.append(f"{where}: '{key[1]}' carries no usable '{e.get('field')}'.")
+        for iid in c.get("summary_inputs") or []:
+            hit = [r for (_k, item), r in (rates_by_input or {}).items() if item == iid]
+            if not hit:
+                out.append(f"'{own}' summary_inputs: '{iid}' is not an active Pricing Input.")
+            elif not any(_is_finite_number(v) for v in (hit[0] or {}).values()):
+                out.append(f"'{own}' summary_inputs: '{iid}' carries no number.")
+    return out
+
+
+def _bcs_input_rates(discipline, items, kinds):
+    """{(kind, id): rates} of the Pricing Inputs a write is checked against: the payload's own items, else the active ones."""
+    from nirmaan_stack.services.boq_rate_master.csv_exporter import is_pricing_input_kind
+    pool = list(items) if items is not None else []
+    have = {it.get("kind") for it in pool if isinstance(it, dict)}
+    db_kinds = sorted(k for k in kinds if k not in have)
+    if db_kinds:
+        for row in frappe.get_all("BoQ Rate Master Item",
+                                  filters={"discipline": discipline, "active": 1, "kind": ["in", db_kinds]},
+                                  fields=["kind", "attributes", "rates"]):
+            a = frappe.parse_json(row.attributes) if isinstance(row.attributes, str) else row.attributes
+            r = frappe.parse_json(row.rates) if isinstance(row.rates, str) else row.rates
+            pool.append({"kind": row.kind, "attributes": a or {}, "rates": r or {}})
+    return {(it.get("kind"), (it.get("attributes") or {}).get("item")): (it.get("rates") or {})
+            for it in pool if isinstance(it, dict) and is_pricing_input_kind(it.get("kind"))}
+
+
 def _validate_impact_examples(cfg):
     """ELR-3a -- `impact_examples`, refused BY NAME: a list of objects, each with a unique string id, a name and an
     `attrs` object whose every key is a declared attribute id (an undeclared one would be read by nothing and the
@@ -5154,6 +5245,7 @@ def _validate_config(cfg):
     _validate_rate_composition(cfg)   # SLICE 12a: the cost-parts composition; a no-op without the key
     _validate_column_order(cfg)       # SLICE 12c FINISH: the presentation order; a no-op without the key
     _validate_impact_examples(cfg)    # ELR-3a: the impact panel's worked examples; a no-op without the key
+    _validate_bcs_keys(cfg)           # BCS-2: the cost-margin reference and the BoQ-summary inputs; a no-op without the keys
 
     # attribute_definitions ------------------------------------------------------------------
     defs = cfg.get("attribute_definitions")

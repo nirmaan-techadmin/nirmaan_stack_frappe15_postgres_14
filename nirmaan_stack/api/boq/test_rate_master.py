@@ -72,6 +72,7 @@ import csv
 import io
 import sys
 import copy
+import hashlib
 import inspect
 import json
 import re
@@ -343,7 +344,10 @@ PIPELINE_KEYS = {"cable_boq", "termination_boq", "cable_bcs", "termination_bcs"}
 # ELR-4d (2026-10-30): v70 -> v71 (owner R-W6, R-DB-MANUAL; P6 "Q5 a"): the hop-only conduit fit on wiring's cable_boq and
 # `none_refusal` on the DB's two pricing pipelines; no item, rate or other step moved.
 # ELR-5 (2026-10-31): v71 -> v72 (owner "Q1 a, Q2 c"): `none_refusal` on Switches & Sockets' swsock_boq; no item, rate or other step moved.
-CURRENT_EALL_ASSET = "rate_master_electrical_all_v72.json"
+# BCS-2 (2026-11-22): v72 -> v73 (owner R1 - R4, 2026-11-21 / 22): the cost pipelines (conduit in cable_bcs, modules in popup_bcs, NEW
+# jb_bcs / indsock_bcs, the price side's refusal on db_buildup_bcs / swsock_bcs), `bcs_default_margin` on 12 configs, the Rs 42 input and
+# its `summary_inputs` mark, 15 point-wiring goldens re-banked + 7 new ones. No BoQ price pipeline and no existing item moved.
+CURRENT_EALL_ASSET = "rate_master_electrical_all_v73.json"
 
 # SLICE 12b(A): the two counts the slice MOVED, named so every assertion says WHY it is what it is.
 #
@@ -351,8 +355,9 @@ CURRENT_EALL_ASSET = "rate_master_electrical_all_v72.json"
 # asset is loaded. They are the same number by construction (the loader is wholesale), and that is the
 # point: an assertion that meant "EALL_ITEMS" in one sense and "1400" in the other would be a divergence
 # nobody could see. Retiring a count by editing the digit loses the reason; a named constant keeps it.
-EALL_ITEMS = 1411       # 1400 -> 1402: slice 12b(B) added tray_discount + jb_discount. ELR-3a (v69): 1402 -> 1411, the
-#                         nine assembly-step Pricing Inputs (owner R-9; WAS 1402).
+EALL_ITEMS = 1412       # 1400 -> 1402: slice 12b(B) added tray_discount + jb_discount. ELR-3a (v69): 1402 -> 1411, the
+#                         nine assembly-step Pricing Inputs (owner R-9; WAS 1402). BCS-2 (v73): 1411 -> 1412, the
+#                         "Electrical installation cost per sq ft (BCS)" input (owner R4; WAS 1411).
 EALL_CONFIGS = 13       # 12 -> 13: the new `electrical_pricing_inputs` category.
 # ⚠️ AND A THIRD NUMBER, WHICH IS NOT EITHER OF THE ABOVE AND MUST NOT BE CONFLATED WITH THEM.
 # The ALL-CATEGORIES rate file deliberately EXCLUDES the Pricing Inputs (acceptance 15), because a
@@ -360,7 +365,7 @@ EALL_CONFIGS = 13       # 12 -> 13: the new `electrical_pricing_inputs` category
 # make that file's column space meaningless. So the catalogue holds 1400 items while the mode-B file
 # holds 1367 rows, and both numbers are correct. Naming them separately is the only way a reader can
 # tell "the catalogue grew" from "the shared file should not have".
-EALL_ITEMS_IN_ALL_FILE = 1367   # EALL_ITEMS minus the 44 Pricing Inputs (35 until ELR-3a), which never join that file.
+EALL_ITEMS_IN_ALL_FILE = 1367   # EALL_ITEMS minus the 45 Pricing Inputs (35 until ELR-3a, 44 until BCS-2), which never join that file.
 PRICING_INPUTS_CATEGORY = "electrical_pricing_inputs"   # the 13th: item-only, no pipelines, never prices a row
 # The twelve that DO price. Slice 12b(A) removed a migrated literal from every one of them, so a
 # cumulative "which categories moved" pin now names all twelve -- that IS the pin doing its job.
@@ -632,20 +637,136 @@ def _without_wcl_note(cfg):
     return c
 
 
-def _without_elr1_runs_note(cfg):
+def _without_elr1_runs_note(cfg, bcs2=True):
     """ELR-1 (owner R-NOTE A, 2026-10-27; v67): a config with wiring_cabling's ONE added key -- the `note` on its `runs`
     definition -- normalised away, on either side. The latest-asset pins below compare the CURRENT asset key by key
     against an older one; this is the only thing v67 changed, so it is the only thing they forgive.
     ELR-2 (v68): plus v68's declared additions (`_without_elr2_notes_and_labels`) -- again the only things v68 changed.
     ELR-4a (v70): plus v70's declared wording and Blank plate flag (`_without_elr4a_wording`) -- the only things v70 changed.
     ELR-4d (v71): plus v71's conduit fit and DB refusal (`_without_elr4d_steps`) -- the only things v71 changed.
-    ELR-5 (v72): plus v72's Switches & Sockets refusal (`_without_elr5_refusal`) -- the only thing v72 changed."""
-    c = json.loads(json.dumps(cfg))
+    ELR-5 (v72): plus v72's Switches & Sockets refusal (`_without_elr5_refusal`) -- the only thing v72 changed.
+    BCS-2 (v73): plus v73's cost rules (`_without_bcs2`) -- the only things v73 changed in a config.
+    `bcs2=False`: the caller took v73's off already. NEVER twice: a second pass would also take an undeclared COPY of a declared step."""
+    c = _without_bcs2(cfg) if bcs2 else json.loads(json.dumps(cfg))
     if c.get("category_id") == "wiring_cabling":
         for d in c.get("attribute_definitions") or []:
             if d.get("id") == "runs":
                 d.pop("note", None)
     return _without_elr5_refusal(_without_elr4d_steps(_without_elr4a_wording(_without_elr3a_assembly_inputs(_without_elr2_notes_and_labels(c)))))
+
+
+BCS2_INPUT = "elec_bcs_install_per_sqft"
+# BCS-2 (v73): the FINGERPRINT (first 16 of the sha256 of the canonical JSON) of everything v73 declares it added. The normaliser below takes
+# away a thing only when it is exactly one of these, and each step at most once (owner answer 6: the tests ignore EXACTLY the approved list).
+BCS2_NEW_GOLDENS = {"wiring_cabling": {"g6": "925ff769038ba8d9", "g7": "5f258488f252ed9d"}, "popup_boxes": {"p2": "cb9590bbbe0bb241", "p3": "88c3f0395a063fe3"},
+                    "junction_box_raceway": {"j2": "a68500fe4ed047e3"}, "industrial_sockets": {"i6": "947a15dc19f108ec", "i7": "5380fa50830be624"}}
+BCS2_MARGINS = {
+    "cabletray_raceway": "5addabcbfa861404", "conduit_piping": "d7b643c0bc495b9e", "db_switchgear": "5336168fbde1e82e", "earthing": "27bb808bb48301e5",
+    "industrial_sockets": "5610fc981d62b1dd", "junction_box_raceway": "268d07c6ad5df88f", "lighting_mgmt_system": "ed8d82c38d0c0ee2",
+    "miscellaneous": "03b10f34d6db2e37", "point_wiring": "07cce88bf1932e4b", "popup_boxes": "63add7f9987f1c1a", "switches_sockets": "2b4f41d393eec196",
+    "wiring_cabling": "55b81b994a583deb"}
+BCS2_NEW_PIPELINES = {"jb_bcs": "96ecbb65e57f2f10", "indsock_bcs": "6459125a4a20656c"}
+BCS2_REFUSALS = {"db_buildup_bcs": "No part of this DB matched the catalogue - price it by hand.",
+                 "swsock_bcs": "No part of this row matched the catalogue - price it by hand."}
+BCS2_ADDED_STEPS = {
+    "cable_bcs": ["ef4248f886d39ea8", "695250fa1e0f5310", "62bc910e40d6c1f9", "d5368a5662e381f8", "1eb713b06427d477", "4d7876bb9aaafa70", "4173aa757816819f",
+                  "105d2dd794b66668", "ac28b8b7f559af8e"],
+    "popup_bcs": ["3a5c2213a3f65d42", "b0cc0ac3533def04", "9756c6a111d0bba3", "5b76e47d544730e9", "9a018195ceaa29dc", "af5161d9dac85589", "7d2bd6ebb4894dc6",
+                  "727b93c2a95d31e2", "9547487f0358e59a", "ad2c63b97e9c6ef4", "ddb0861378fa7641", "6220e62f83ee0038", "751e21e034e7e7cf"]}
+BCS2_ITEM = "548746047c787566"
+BCS2_REWORDED = ("8d612420f01d78d0", "discounted product cost plus 5% wastage, no markup")   # cable_bcs' one re-worded step and its old words
+
+
+def _bcs2_print(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()[:16]
+
+
+def _without_bcs2(cfg):
+    """BCS-2 (owner R1 - R4, 2026-11-21 / 22; v73): v73's declared NON-price changes taken away, each matched EXACTLY (above). Anything that is
+    not exactly a declared thing stays and fails the pin that uses this. Run it FIRST on a config: the other normalisers rewrite steps."""
+    c = json.loads(json.dumps(cfg))
+    cat = c.get("category_id")
+    if cat in BCS2_MARGINS and _bcs2_print(c.get("bcs_default_margin")) == BCS2_MARGINS[cat]:
+        del c["bcs_default_margin"]
+    if cat == PRICING_INPUTS_CATEGORY and c.get("summary_inputs") == [BCS2_INPUT]:
+        del c["summary_inputs"]
+    if isinstance(c.get("goldens"), list):      # the config's own copy; its siblings' values are NOT touched
+        c["goldens"] = _bcs2_drop_goldens(cat, c["goldens"])
+    pls = c.get("pipelines") or {}
+    for pid, fp in BCS2_NEW_PIPELINES.items():
+        if pid in pls and _bcs2_print(pls[pid]) == fp:
+            del pls[pid]
+    for pid, sentence in BCS2_REFUSALS.items():
+        for st in (pls.get(pid) or {}).get("steps") or []:
+            if st.get("step") == "sum_components" and st.get("none_refusal") == sentence:
+                del st["none_refusal"]
+    for pid, prints in BCS2_ADDED_STEPS.items():
+        if pid in pls:
+            left, kept = list(prints), []
+            for st in pls[pid]["steps"]:
+                fp = _bcs2_print(st)
+                if fp in left:
+                    left.remove(fp)
+                    continue
+                kept.append(dict(st, explain=BCS2_REWORDED[1]) if fp == BCS2_REWORDED[0] else st)
+            pls[pid]["steps"] = kept
+    return c
+
+
+def _bcs2_drop_goldens(cat, goldens):
+    return [g for g in goldens if _bcs2_print(g) != BCS2_NEW_GOLDENS.get(cat, {}).get(g.get("id"))]
+
+
+def _without_bcs2_items(items):
+    """BCS-2 (v73): the catalogue without the Rs 42 input, by name -- the one item v73 added."""
+    return [it for it in items if _bcs2_print(it) != BCS2_ITEM]
+
+
+# BCS-2 (owner "3a", 2026-11-22): the point-wiring examples were banked on July list prices; corrected to today's. (key, old, new) per
+# figure: the ONLY example values v73 changes. Traced: v40 -> v41 production cable prices, v41 -> v43 production switch / socket list;
+# putting the old list prices of those 11 items back reproduces all 15 old values. Read by the tests of owner answers 3 and 5 only: test_pw_cs_12, test_72b (by value), test_img_07,
+# test_lms_12, test_pw_cs_31, test_f25s3_04, test_v61_04, test_v63_03, test_wcl_05, test_r12.
+BCS2_REBANKED = {
+    "pw1": {"pw_boq_supply": ("supply", 1869.0, 2041), "pw_boq_install": ("install", 735.0, 743.8), "pw_bcs": ("bcs_supply", 1370.0, 1496)},
+    "pw2": {"pw_boq_supply": ("supply", 1823.0, 1979), "pw_boq_install": ("install", 722.2, 729.4), "pw_bcs": ("bcs_supply", 1342.0, 1457)},
+    "pw3": {"pw_boq_supply": ("supply", 1740.0, 1904), "pw_boq_install": ("install", 709.0, 716.8), "pw_bcs": ("bcs_supply", 1281.0, 1401)},
+    "pw4": {"pw_boq_supply": ("supply", 607.0, 659), "pw_boq_install": ("install", 330.0, 331), "pw_bcs": ("bcs_supply", 445.0, 480)},
+    "pw5": {"pw_boq_supply": ("supply", 9639.0, 9811), "pw_boq_install": ("install", 1335.0, 1343.8), "pw_bcs": ("bcs_supply", 7190.0, 7316)},
+}
+
+
+def _bcs2_rebanked_back(goldens):
+    """A point_wiring goldens list with the 15 corrected values put back to the old ones -- only where the value is EXACTLY the
+    declared new one, so any other value still shows as a difference."""
+    out = json.loads(json.dumps(goldens))
+    for g in out or []:
+        for pid, (key, old, new) in BCS2_REBANKED.get(g.get("id"), {}).items():
+            if (g.get("expect") or {}).get(pid) == {key: new}:
+                g["expect"][pid] = {key: old}
+    return out
+
+
+def _bcs2_goldens_back(goldens):
+    """The top-level goldens as v72 had them: the seven added examples off by name, the 15 corrected values back."""
+    g = _without_bcs2_goldens(goldens)
+    g["point_wiring"] = _bcs2_rebanked_back(g["point_wiring"])
+    return g
+
+
+def _bcs2_config_back(cfg):
+    """The same for a config's own copy of its goldens."""
+    if cfg.get("category_id") != "point_wiring" or not isinstance(cfg.get("goldens"), list):
+        return cfg
+    return dict(cfg, goldens=_bcs2_rebanked_back(cfg["goldens"]))
+
+
+def _without_bcs2_goldens(goldens):
+    """BCS-2 (v73): the top-level goldens without the SEVEN worked examples v73 added, by name. Their siblings' values are NOT touched."""
+    g = json.loads(json.dumps(goldens))
+    for cat in BCS2_NEW_GOLDENS:
+        if cat in g:
+            g[cat] = _bcs2_drop_goldens(cat, g[cat])
+    return g
 
 
 def _without_elr5_refusal(cfg):
@@ -1250,6 +1371,63 @@ def _purge_test_disciplines(disciplines):
         print("WARNING -- test discipline purge INCOMPLETE, rows left in the live DB: %s"
               % "; ".join(problems))
     return problems
+
+
+def _bcs2_stripped(asset):
+    """The whole v73 asset with everything v73 declares taken away and the 15 corrected example values put back."""
+    out = json.loads(json.dumps(asset))
+    out["items"] = _without_bcs2_items(out["items"])
+    out["category_configs"] = [_bcs2_config_back(_without_bcs2(c)) for c in out["category_configs"]]
+    out["goldens"] = _bcs2_goldens_back(out["goldens"])
+    return out
+
+
+class TestBcs2Normaliser(FrappeTestCase):
+    """BCS-2 (owner answer 6, proofs 1 and 2). Reads the two asset files only: no row is created or changed."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with open(_asset_path("rate_master_electrical_all_v72.json"), encoding="utf-8") as fh:
+            cls.v72 = json.load(fh)
+        with open(_asset_path("rate_master_electrical_all_v73.json"), encoding="utf-8") as fh:
+            cls.v73 = json.load(fh)
+
+    def _cfg(self, asset, cat):
+        return [c for c in asset["category_configs"] if c["category_id"] == cat][0]
+
+    def test_bn_01_v73_with_the_declared_changes_stripped_equals_v72_exactly(self):
+        """PROOF 1: over EVERYTHING -- every item, sheet, example and top-level key -- so the normaliser hides nothing beyond the list."""
+        self.assertEqual(_bcs2_stripped(self.v73), self.v72)
+
+    def test_bn_02_NEGATIVE_v73_itself_is_not_v72_and_the_strip_leaves_v72_alone(self):
+        self.assertNotEqual(self.v73, self.v72)
+        self.assertEqual(_bcs2_stripped(self.v72), self.v72)
+
+    def test_bn_03_NEGATIVE_one_undeclared_change_of_any_kind_is_never_hidden(self):
+        """PROOF 2 in test form: each change alone, on a copy, must survive the strip (so a pin that uses it fails)."""
+        def price_step(a): self._cfg(a, "wiring_cabling")["pipelines"]["cable_boq"]["steps"][5]["explain"] += " x"
+        def second_part(a):
+            st = self._cfg(a, "wiring_cabling")["pipelines"]["cable_bcs"]["steps"]
+            st.append(json.loads(json.dumps([x for x in st if x["step"] == "component_ref"][0])))
+        def other_part(a):
+            st = [x for x in self._cfg(a, "popup_boxes")["pipelines"]["popup_bcs"]["steps"] if x["step"] == "component_ref"][0]
+            st["target"] = "another_column"
+        def typed(a): [x for x in self._cfg(a, "industrial_sockets")["pipelines"]["indsock_bcs"]["steps"] if x.get("target") == "pi_indsock_discount"][0]["formula"] = "1-0.3"
+        def sentence(a): [x for x in self._cfg(a, "db_switchgear")["pipelines"]["db_buildup_bcs"]["steps"] if x["step"] == "sum_components"][0]["none_refusal"] = "Other words."
+        def margin(a): self._cfg(a, "earthing")["bcs_default_margin"]["entries"][0]["field"] = "ratio"
+        def mark(a): self._cfg(a, "electrical_pricing_inputs")["summary_inputs"].append("tray_cutting_amount")
+        def rate(a): [x for x in a["items"] if x["kind"] == "cable"][0]["rates"]["list_price_per_mtr"] += 1
+        def rs42(a): a["items"][-1]["rates"]["amount"] = 43.0
+        def extra(a): a["items"].append(dict(a["items"][-1], item_uid="rmi-000000000000"))
+        def value(a): [g for g in a["goldens"]["point_wiring"] if g["id"] == "pw4"][0]["expect"]["pw_boq_supply"]["supply"] = 660
+        def cfg_value(a): [g for g in self._cfg(a, "point_wiring")["goldens"] if g["id"] == "pw1"][0]["expect"]["pw_bcs"]["bcs_supply"] = 1497
+        def example(a): [g for g in a["goldens"]["wiring_cabling"] if g["id"] == "g6"][0]["expect"]["cable_bcs"]["bcs_supply_per_mtr"] += 1
+        def other(a): [g for g in a["goldens"]["wiring_cabling"] if g["id"] == "g1"][0]["expect"]["cable_boq"]["supply_per_mtr"] += 1
+        for change in (price_step, second_part, other_part, typed, sentence, margin, mark, rate, rs42, extra, value, cfg_value, example, other):
+            a = json.loads(json.dumps(self.v73))
+            change(a)
+            self.assertNotEqual(_bcs2_stripped(a), self.v72, "hidden: %s" % change.__name__)
 
 
 # #1608 -- THE CURRENT ASSET, SEEDED. A test that pins what the catalogue holds once CURRENT_EALL_ASSET is
@@ -1912,7 +2090,8 @@ class TestRateMaster(FrappeTestCase):
             "BoQ Rate Category Config",
             {"discipline": disc, "category_id": "wiring_cabling", "active": 1}, "config",
         ))
-        self.assertEqual([g["id"] for g in stored["goldens"]], ["g1", "g2", "g3", "g4", "g5"])
+        # BCS-2 (v73; mechanical authority): + g6 / g7, the conduit examples. WAS ["g1" .. "g5"]
+        self.assertEqual([g["id"] for g in stored["goldens"]], ["g1", "g2", "g3", "g4", "g5"] + sorted(BCS2_NEW_GOLDENS["wiring_cabling"]))
         # `item_kinds` is deliberately ABSENT on wiring_cabling -- its kinds derive from the
         # pipelines' match_master_row, and adding one would change the stored config for no gain.
         self.assertNotIn("item_kinds", stored)
@@ -4797,10 +4976,11 @@ class TestRateMaster(FrappeTestCase):
         # SLICE B: the two display-only pipelines were removed, so their expectations went with
         # them (`_validate_config` refuses a golden naming a pipeline the config no longer declares).
         # The three assembly values are UNCHANGED -- that is the real no-golden-moved guarantee.
+        # BCS-2 (v73, owner "3a"): corrected to today's list prices. WAS supply 607.0 / install 330.0 / bcs 445.0 (the July banking)
         self.assertEqual(goldens["pw4"]["expect"], {
-            "pw_boq_supply": {"supply": 607.0},
-            "pw_boq_install": {"install": 330.0},
-            "pw_bcs": {"bcs_supply": 445.0},
+            "pw_boq_supply": {"supply": 659},
+            "pw_boq_install": {"install": 331},
+            "pw_bcs": {"bcs_supply": 480},
         })
 
     # ══════════════════════════════════════════════════════════════════════════════════
@@ -7954,11 +8134,13 @@ class TestTpnPoleVocabulary(FrappeTestCase):
     def test_the_normalisation_exists_in_both_pipelines(self):
         """POSITIVE shape guard. indsock_boq and indsock_install each run the pair independently;
         normalising in one and not the other makes supply and install disagree about the pole --
-        silently, because each pipeline is internally consistent."""
+        silently, because each pipeline is internally consistent.
+        BCS-2 (v73; mechanical authority): + `indsock_bcs`, the cost, which must read the same pole. WAS the two price pipelines."""
         steps_by_pipeline = self._norm_steps()
-        self.assertEqual(set(steps_by_pipeline), {"indsock_boq", "indsock_install"})
+        self.assertEqual(set(steps_by_pipeline), {"indsock_boq", "indsock_install", "indsock_bcs"})
         tables = [norm[0]["params"]["table"] for _s, norm in steps_by_pipeline.values()]
-        self.assertEqual(tables[0], tables[1], "both pipelines must normalise IDENTICALLY")
+        self.assertEqual(tables[0], tables[1], "every pipeline must normalise IDENTICALLY")
+        self.assertEqual(tables[0], tables[2], "every pipeline must normalise IDENTICALLY")
 
     def test_plain_tp_is_not_swept_up_by_the_normalisation(self):
         """NEGATIVE, THE ONE THAT MATTERS. Every four-pole spelling except 4P / Four Pole starts
@@ -8133,7 +8315,8 @@ class TestSpnPoleVocabulary(FrappeTestCase):
                     and (s.get("params") or {}).get("result_attr") == "mcb_pole_norm"]
             self.assertEqual(len(norm), 1, "%s must carry exactly one mcb_pole_norm step" % pname)
             out[pname] = (steps, norm[0])
-        self.assertEqual(set(out), {"indsock_boq", "indsock_install"})
+        # BCS-2 (v73; mechanical authority): + `indsock_bcs`, on the current asset only. WAS the two price pipelines
+        self.assertEqual(set(out) - {"indsock_bcs"}, {"indsock_boq", "indsock_install"})
         return out
 
     def _fits(self, cfg):
@@ -8184,7 +8367,8 @@ class TestSpnPoleVocabulary(FrappeTestCase):
         now = self._config("industrial_sockets")
         before = self._config("industrial_sockets", self._PRIOR_ASSET)
         for pname, (_s, norm) in self._norm_steps(now).items():
-            prior = self._norm_steps(before)[pname][1]["params"]["table"]
+            # BCS-2 (v73; mechanical authority): the new cost pipeline has no v55 twin; its table is held to the PRICE's. WAS [pname]
+            prior = self._norm_steps(before)["indsock_boq" if pname == "indsock_bcs" else pname][1]["params"]["table"]
             table = norm["params"]["table"]
             for k, v in prior.items():
                 self.assertEqual(table.get(k), v, "%s: prior entry %r -> %r moved to %r" % (pname, k, v, table.get(k)))
@@ -8246,7 +8430,8 @@ class TestSpnPoleVocabulary(FrappeTestCase):
         # exemption list instead would leave this loop iterating nothing.
         for cid in before:
             if cid not in ("industrial_sockets", "switches_sockets", "cabletray_raceway", "popup_boxes", "conduit_piping"):  # + conduit_piping at v63
-                n2, b2 = _strip_12b_migration(_without_elr1_runs_note(now[cid]), before[cid])  # ELR-1: + the v67 Runs note
+                # BCS-2 (v73, owner answer 5 "a"): + the 15 corrected point-wiring example values (BCS2_REBANKED, old -> new) back. WAS without
+                n2, b2 = _strip_12b_migration(_bcs2_config_back(_without_elr1_runs_note(now[cid])), before[cid])  # ELR-1: + the v67 Runs note
                 self.assertEqual(n2, b2, "%s moved for something other than the pricing-input migration" % cid)
         # WIDENED AGAIN AT F-25 SLICE 2 (v58, owner 2026-09-07): the switches_sockets BOX ladder gained
         # `on_zero_from` + `on_zero_modules` on both pipelines (pinned key by key in TestF25Slice2BareBox);
@@ -8261,7 +8446,8 @@ class TestSpnPoleVocabulary(FrappeTestCase):
             # key -- or a change to any other step -- still fails.
             # ELR-2 (v68, mechanical authority): forgive exactly v68's declared additions on the current side
             # ELR-5 (v72, mechanical authority): + v72's refusal; WAS _without_elr2_notes_and_labels(now["switches_sockets"])
-            pa_c, pb_c = _strip_12b_migration(_without_elr5_refusal(_without_elr2_notes_and_labels(now["switches_sockets"])), before["switches_sockets"])
+            # BCS-2 (v73, owner answer 6 "a"): + v73's declared non-price changes. WAS _without_elr5_refusal(_without_elr2_notes_and_labels(..))
+            pa_c, pb_c = _strip_12b_migration(_without_elr5_refusal(_without_elr2_notes_and_labels(_without_bcs2(now["switches_sockets"]))), before["switches_sockets"])
             pa, pb = pa_c["pipelines"][pname], pb_c["pipelines"][pname]
             self.assertEqual(pa["output"], pb["output"], pname)
             self.assertEqual(pa["steps"][1:], pb["steps"][1:], pname)
@@ -8270,7 +8456,8 @@ class TestSpnPoleVocabulary(FrappeTestCase):
             self.assertEqual({k: v for k, v in la[1].items() if k not in ("on_zero_from", "on_zero_modules", "pick_from")}, lb[1], pname)
             self.assertEqual({k: v for k, v in pa["steps"][0]["params"].items() if k != "ladders"},
                              {k: v for k, v in pb["steps"][0]["params"].items() if k != "ladders"}, pname)
-        n, b = _without_elr2_notes_and_labels(now["industrial_sockets"]), before["industrial_sockets"]  # ELR-2: v68's socket display_label
+        # BCS-2 (v73, owner answer 6 "a"): + v73's declared non-price changes. WAS _without_elr2_notes_and_labels(now["industrial_sockets"])
+        n, b = _without_elr2_notes_and_labels(_without_bcs2(now["industrial_sockets"])), before["industrial_sockets"]  # ELR-2: v68's socket display_label
         self.assertEqual(n["rules"], b["rules"])  # R12 untouched
         for key in n:
             if key in ("attribute_definitions", "pipelines"):
@@ -8430,9 +8617,12 @@ class TestConduitInTheCableRate(FrappeTestCase):
         self.assertEqual(by_id["g2"]["expect"]["cable_boq"], {"supply_per_mtr": 170, "install_per_mtr": 28})
         self.assertEqual(by_id["g3"]["expect"]["cable_boq"], {"supply_per_mtr": 200, "install_per_mtr": 44})
         self.assertEqual(by_id["g5"]["expect"]["cable_boq"], {"supply_per_mtr": 720, "install_per_mtr": 40})
-        # and no golden carries a conduit attribute -- which is WHY they are unchanged
+        # and none of g1 - g5 carries a conduit attribute -- which is WHY they are unchanged
+        # BCS-2 (v73; mechanical authority): g6 (with conduit) and g7 (its twin without) are the conduit's own examples. WAS every golden
+        self.assertEqual([g["id"] for g in cfg["goldens"] if g["id"] not in BCS2_NEW_GOLDENS["wiring_cabling"]], ["g1", "g2", "g3", "g4", "g5"])
         for g in cfg["goldens"]:
-            self.assertFalse([k for k in g["attrs"] if "conduit" in k or k == "size_mm"])
+            if g["id"] not in BCS2_NEW_GOLDENS["wiring_cabling"]:
+                self.assertFalse([k for k in g["attrs"] if "conduit" in k or k == "size_mm"])
 
 
 # ---- PW-LENGTH-BY-POINT-TYPE + PW-CONDUIT-OPTIONAL: the v48 point_wiring slice ------------------
@@ -9428,8 +9618,14 @@ class TestPointWiringCircuitStretch(FrappeTestCase):
         now = dict((g["id"], g) for g in self._payload()["goldens"]["point_wiring"])
         self.assertEqual(sorted(now), ["pw1", "pw2", "pw3", "pw4", "pw5"])
         for gid in ("pw1", "pw2", "pw3", "pw4"):
+            # BCS-2 (v73, owner "3a"): the corrected values, each held to its declared old -> new, no other value. WAS now == prev verbatim.
+            # What this test protects (no circuit wiring charged) is also run through the calculator: electricalBcsV73.test.ts.
             for pid, expected in prev[gid]["expect"].items():
-                self.assertEqual(now[gid]["expect"][pid], expected, "%s/%s" % (gid, pid))
+                key, old, new = BCS2_REBANKED[gid].get(pid, (None, None, None))
+                if key is None:
+                    self.assertEqual(now[gid]["expect"].get(pid), expected, "%s/%s" % (gid, pid))
+                    continue
+                self.assertEqual((expected, now[gid]["expect"][pid]), ({key: old}, {key: new}), "%s/%s" % (gid, pid))
             # SLICE B: the display pipelines are gone, so their (always-zero) expectations went
             # with them. A no-circuit row is still proven to charge nothing -- by the ASSEMBLY
             # values compared against the previous asset in the loop directly above.
@@ -9791,7 +9987,8 @@ class TestPointWiringCircuitStretch(FrappeTestCase):
             # the LMS slice ADDED this key at v55; it has no counterpart in the older asset
             if _cat == "lighting_mgmt_system":
                 continue
-            self.assertEqual([g["id"] for g in _golds],
+            # BCS-2 (v73; mechanical authority): the seven added examples set aside by name. WAS the ids verbatim
+            self.assertEqual([g["id"] for g in _golds if g["id"] not in BCS2_NEW_GOLDENS.get(_cat, ())],
                              [g["id"] for g in prev["goldens"][_cat]], _cat)
 
 
@@ -9982,7 +10179,8 @@ class TestPointWiringCircuitStretch(FrappeTestCase):
         # set moved by exactly that ONE addition -- still "no golden was dropped".
         self.assertEqual(sorted(payload["goldens"]),
                          sorted(list(prev["goldens"]) + ["lighting_mgmt_system"]))
-        for cat, golds in payload["goldens"].items():
+        # BCS-2 (v73, owner "3a"): the seven added examples off by name and the 15 corrected values back; WAS payload["goldens"]
+        for cat, golds in _bcs2_goldens_back(payload["goldens"]).items():
             # the LMS slice ADDED this key at v55; it has no counterpart in the older asset
             if cat == "lighting_mgmt_system":
                 continue
@@ -10534,7 +10732,8 @@ class TestLmsPricingHelper(FrappeTestCase):
             if cat == "lighting_mgmt_system":
                 continue
             # ELR-4a (mechanical authority): WAS self.payload["goldens"] verbatim; v70 re-words golden pw5's note (owner P6 D4)
-            self.assertEqual(_without_elr4a_goldens(self.payload["goldens"]).get(cat), prev["goldens"].get(cat),
+            # BCS-2 (v73, owner "3a"): the seven added examples off by name and the 15 corrected values back; WAS _without_elr4a_goldens(self.payload["goldens"])
+            self.assertEqual(_bcs2_goldens_back(_without_elr4a_goldens(self.payload["goldens"])).get(cat), prev["goldens"].get(cat),
                              "%s goldens must not move" % cat)
 
 
@@ -10991,7 +11190,8 @@ class TestF25Slice3PickFrom(FrappeTestCase):
         # change to any other step, still fails.
         # ELR-2 (v68): + v68's declared additions forgiven on the current side (WAS: the raw current config)
         # ELR-5 (v72, mechanical authority): + v72's refusal; WAS _without_elr2_notes_and_labels(self.ss_now)
-        n2, w2 = _strip_12b_migration(_without_elr5_refusal(_without_elr2_notes_and_labels(self.ss_now)), self.ss_was)
+        # BCS-2 (v73, mechanical authority): + v73's cost rules; WAS _without_elr5_refusal(_without_elr2_notes_and_labels(self.ss_now))
+        n2, w2 = _strip_12b_migration(_without_elr5_refusal(_without_elr2_notes_and_labels(_without_bcs2(self.ss_now))), self.ss_was)
         now = copy.deepcopy(n2)
         for pid in ("swsock_boq", "swsock_bcs"):
             del now["pipelines"][pid]["steps"][0]["params"]["ladders"][1]["pick_from"]
@@ -11019,16 +11219,16 @@ class TestF25Slice3PickFrom(FrappeTestCase):
         # rode along on this slice still fails here.
         for cid in was:
             if cid not in ("switches_sockets", "cabletray_raceway", "popup_boxes", "conduit_piping"):  # + conduit_piping at v63
-                n2, w2 = _strip_12b_migration(_without_elr1_runs_note(_without_wcl_note(now[cid])), _without_wcl_note(was[cid]))  # ELR-1: + the v67 Runs note
+                n2, w2 = _strip_12b_migration(_bcs2_config_back(_without_elr1_runs_note(_without_wcl_note(now[cid]))), _without_wcl_note(was[cid]))  # ELR-1: + the v67 Runs note
                 self.assertEqual(n2, w2, "%s moved for something other than the pricing-input migration" % cid)
         self.assertEqual(_without_pricing_input_items(self.now["items"]),
                          _without_with_cover_list(self.was["items"]))
         # ELR-4a (mechanical authority): WAS self.now["goldens"] verbatim; v70 re-words golden pw5's note (owner P6 D4)
-        self.assertEqual(_without_elr4a_goldens(self.now["goldens"]), self.was["goldens"])
+        self.assertEqual(_bcs2_goldens_back(_without_elr4a_goldens(self.now["goldens"])), self.was["goldens"])   # BCS-2 (v73, owner "3a"): the seven added examples off by name and the 15 corrected values back; WAS _without_elr4a_goldens(self.now["goldens"])
         for key in self.was:
             if key not in ("category_configs", "items"):  # SLICE 12b(A): `items` is compared ABOVE with the 33 Pricing Inputs filtered out; comparing it again here, unfiltered, would undo that
                 # ELR-4a (mechanical authority): WAS self.now[key] verbatim; v70 re-words golden pw5's note (owner P6 D4)
-                self.assertEqual(_without_elr4a_goldens(self.now[key]) if key == "goldens" else self.now[key], self.was[key], "top-level %s moved" % key)
+                self.assertEqual(_bcs2_goldens_back(_without_elr4a_goldens(self.now[key])) if key == "goldens" else self.now[key], self.was[key], "top-level %s moved" % key)
         self.assertNotIn("pick_from", json.dumps(now["point_wiring"]))
         self.assertNotIn("pick_from", json.dumps(now["popup_boxes"]))
         pw_box = [s for s in now["point_wiring"]["pipelines"]["pw_boq_supply"]["steps"] if s["step"] == "module_fit"][0]["params"]["ladders"][1]
@@ -11206,7 +11406,8 @@ class TestV61TwoWays(FrappeTestCase):
         now["notes"] = self.ct_was["notes"]
         # SLICE 12b(A): the migration is normalised off BOTH sides by `_strip_12b_migration`;
         # everything else is still compared byte for byte, so a change that rode along still fails.
-        n2, w2 = _strip_12b_migration(now, self.ct_was)
+        # BCS-2 (v73, mechanical authority): + `bcs_default_margin` set aside; WAS `now`
+        n2, w2 = _strip_12b_migration(_without_bcs2(now), self.ct_was)
         self.assertEqual(n2, w2)
         # WITH_COVER_LIST SLICE: v66 REPLACED one sentence inside these notes (the column it described
         # no longer exists), so the raw `startswith` no longer holds. Normalised off BOTH sides, the
@@ -11230,17 +11431,17 @@ class TestV61TwoWays(FrappeTestCase):
         # TestV63ConduitTradeSizeLadder. A further category still fails.
         for cid in was:  # SLICE 12b(A): iterate the PRIOR asset -- the new category has no counterpart to compare against, and it is named above
             if cid not in ("cabletray_raceway", "popup_boxes", "conduit_piping"):
-                n2, w2 = _strip_12b_migration(_without_elr1_runs_note(_without_wcl_note(now[cid])), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above; ELR-1: + the v67 Runs note
+                n2, w2 = _strip_12b_migration(_bcs2_config_back(_without_elr1_runs_note(_without_wcl_note(now[cid]))), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above; ELR-1: + the v67 Runs note
                 self.assertEqual(n2, w2, "%s moved for something other than the pricing-input migration" % cid)
         self.assertEqual(_without_pricing_input_items(self.now["items"]),
                          _without_with_cover_list(self.was["items"]))  # SLICE 12b(A): minus the 33 new Pricing Input items; every OTHER item must still be byte-equal
         self.assertEqual(len(self.now["items"]), EALL_ITEMS)
         # ELR-4a (mechanical authority): WAS self.now["goldens"] verbatim; v70 re-words golden pw5's note (owner P6 D4)
-        self.assertEqual(_without_elr4a_goldens(self.now["goldens"]), self.was["goldens"])
+        self.assertEqual(_bcs2_goldens_back(_without_elr4a_goldens(self.now["goldens"])), self.was["goldens"])   # BCS-2 (v73, owner "3a"): the seven added examples off by name and the 15 corrected values back; WAS _without_elr4a_goldens(self.now["goldens"])
         for key in self.was:
             if key not in ("category_configs", "items"):  # SLICE 12b(A): `items` is compared ABOVE with the 33 Pricing Inputs filtered out; comparing it again here, unfiltered, would undo that
                 # ELR-4a (mechanical authority): WAS self.now[key] verbatim; v70 re-words golden pw5's note (owner P6 D4)
-                self.assertEqual(_without_elr4a_goldens(self.now[key]) if key == "goldens" else self.now[key], self.was[key], "top-level %s moved" % key)
+                self.assertEqual(_bcs2_goldens_back(_without_elr4a_goldens(self.now[key])) if key == "goldens" else self.now[key], self.was[key], "top-level %s moved" % key)
 
     # -- the projection (chokepoint 1) -------------------------------------------------------------
     def test_v61_05_the_projection_both_defs_reach_the_model_as_a_free_number_with_no_values(self):
@@ -11469,7 +11670,8 @@ class TestIncludesModulesGate(FrappeTestCase):
         # ELR-4a (v70, wording + the Blank plate flag): bumped. WAS "rate_master_electrical_all_v69.json"; the gate is unchanged.
         # ELR-4d (v71, the conduit fit + the DB refusal): bumped. WAS "rate_master_electrical_all_v70.json"; the gate is unchanged.
         # ELR-5 (v72, the Switches & Sockets refusal): bumped. WAS "rate_master_electrical_all_v71.json"; the gate is unchanged.
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v72.json")
+        # BCS-2 (v73, the cost rules): bumped. WAS "rate_master_electrical_all_v72.json"; the gate on popup_boq is unchanged.
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v73.json")
         fits = {}
         goldens = asset.get("goldens") or {}
         for c in asset["category_configs"]:
@@ -11482,7 +11684,8 @@ class TestIncludesModulesGate(FrappeTestCase):
                 for s in p["steps"]:
                     if s["step"] == "module_fit":
                         fits.setdefault(c["category_id"], []).append(s["params"].get("include_when"))
-        self.assertEqual(fits["popup_boxes"], [{"attr": "has_modules", "equals": "Yes"}])
+        # BCS-2 (v73; mechanical authority): popup_bcs fits the modules too, behind the SAME gate. WAS one entry (popup_boq)
+        self.assertEqual(fits["popup_boxes"], [{"attr": "has_modules", "equals": "Yes"}] * 2)
         self.assertEqual(sorted(k for k in fits if k != "popup_boxes"), ["point_wiring", "switches_sockets"])
         self.assertEqual(fits["switches_sockets"], [None, None])
         self.assertEqual(fits["point_wiring"], [None, None, None])
@@ -11497,11 +11700,11 @@ class TestIncludesModulesGate(FrappeTestCase):
         self.assertEqual(_without_pricing_input_items(now["items"]),
                          _without_with_cover_list(was["items"]))  # SLICE 12b(A): minus the 33 new Pricing Input items; SLICE v66: minus the removed cable_tray.with_cover_list on the OLD side; every OTHER item must still be byte-equal
         # ELR-4a (mechanical authority): WAS now["goldens"] verbatim; v70 re-words golden pw5's note (owner P6 D4)
-        self.assertEqual(_without_elr4a_goldens(now["goldens"]), was["goldens"])
+        self.assertEqual(_bcs2_goldens_back(_without_elr4a_goldens(now["goldens"])), was["goldens"])   # BCS-2 (v73, owner "3a"): the seven added examples off by name and the 15 corrected values back; WAS _without_elr4a_goldens(now["goldens"])
         for k in was:
             if k not in ("category_configs", "items"):  # SLICE 12b(A): `items` is compared ABOVE with the 33 Pricing Inputs filtered out; comparing it again here, unfiltered, would undo that
                 # ELR-4a (mechanical authority): WAS now[k] verbatim; v70 re-words golden pw5's note (owner P6 D4)
-                self.assertEqual(_without_elr4a_goldens(now[k]) if k == "goldens" else now[k], was[k], k)
+                self.assertEqual(_bcs2_goldens_back(_without_elr4a_goldens(now[k])) if k == "goldens" else now[k], was[k], k)
         for c in was["category_configs"]:
             n = [x for x in now["category_configs"] if x["category_id"] == c["category_id"]][0]
             if c["category_id"] == "conduit_piping":
@@ -11511,14 +11714,14 @@ class TestIncludesModulesGate(FrappeTestCase):
                 # is still compared verbatim, so a change that rode along still fails.
                 # ELR-4d (mechanical authority): WAS _strip_12b_migration(n, c); v71's declared steps come off first, since the
                 # strip aligns steps by position and the v71 fit is one more step
-                n2, c2 = _strip_12b_migration(_without_elr4d_steps(n), c)
+                n2, c2 = _strip_12b_migration(_without_elr4d_steps(_without_bcs2(n)), c)   # BCS-2: + v73's cost steps, by position as above
                 # SLICE v66: the one sentence that described the removed with_cover_list column is
                 # normalised off BOTH sides. This pin is a claim about the v61->v62 mint and must not
                 # start failing for a note corrected four mints later that it never spoke to.
-                n2, c2 = _without_elr1_runs_note(_without_wcl_note(n2)), _without_wcl_note(c2)  # ELR-1: + the v67 Runs note
+                n2, c2 = _bcs2_config_back(_without_elr1_runs_note(_without_wcl_note(n2), bcs2=False)), _without_wcl_note(c2)  # ELR-1: + the v67 Runs note
                 self.assertEqual(n2, c2, c["category_id"])
                 continue
-            n, c = _strip_12b_migration(_without_elr2_notes_and_labels(n), c)   # SLICE 12b(A), as above; ELR-2: + v68's declared additions
+            n, c = _strip_12b_migration(_without_elr2_notes_and_labels(_without_bcs2(n)), c)   # SLICE 12b(A), as above; ELR-2: + v68's declared additions
             for k in set(c) | set(n):
                 if k not in ("pipelines", "notes"):
                     self.assertEqual(n[k], c[k], k)
@@ -11629,25 +11832,27 @@ class TestV63ConduitTradeSizeLadder(FrappeTestCase):
             # SLICE 12b(A): both carry the migration now, so compare with it normalised off -- the claim
             # this test is NAMED for (they reach the conduit catalogue through their own component_ref,
             # not these pipelines) is untouched and still key by key.
-            n2, w2 = _strip_12b_migration(_without_elr1_runs_note(_without_wcl_note(now[cid])), _without_wcl_note(was[cid]))  # ELR-1: + the v67 Runs note
+            n2, w2 = _strip_12b_migration(_bcs2_config_back(_without_elr1_runs_note(_without_wcl_note(now[cid]))), _without_wcl_note(was[cid]))  # ELR-1: + the v67 Runs note
             self.assertEqual(n2, w2, "%s moved" % cid)
         for cid in was:  # SLICE 12b(A): iterate the PRIOR asset -- the new category has no counterpart to compare against, and it is named above
             if cid != "conduit_piping":
-                n2, w2 = _strip_12b_migration(_without_elr1_runs_note(_without_wcl_note(now[cid])), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above; ELR-1: + the v67 Runs note
+                n2, w2 = _strip_12b_migration(_bcs2_config_back(_without_elr1_runs_note(_without_wcl_note(now[cid]))), _without_wcl_note(was[cid]))   # SLICE 12b(A), see above; ELR-1: + the v67 Runs note
                 self.assertEqual(n2, w2, "%s moved for something other than the pricing-input migration" % cid)
         self.assertEqual(_without_pricing_input_items(self.now["items"]),
                          _without_with_cover_list(self.was["items"]))  # SLICE 12b(A): minus the 33 new Pricing Input items; every OTHER item must still be byte-equal
         self.assertEqual(len(self.now["items"]), EALL_ITEMS)
         # ELR-4a (mechanical authority): WAS self.now["goldens"] verbatim; v70 re-words golden pw5's note (owner P6 D4)
-        self.assertEqual(_without_elr4a_goldens(self.now["goldens"]), self.was["goldens"])
+        self.assertEqual(_bcs2_goldens_back(_without_elr4a_goldens(self.now["goldens"])), self.was["goldens"])   # BCS-2 (v73, owner "3a"): the seven added examples off by name and the 15 corrected values back; WAS _without_elr4a_goldens(self.now["goldens"])
         for key in self.was:
             if key not in ("category_configs", "items"):   # SLICE 12b(A): `items` is compared above, filtered
                 # ELR-4a (mechanical authority): WAS self.now[key] verbatim; v70 re-words golden pw5's note (owner P6 D4)
-                self.assertEqual(_without_elr4a_goldens(self.now[key]) if key == "goldens" else self.now[key], self.was[key], key)
+                self.assertEqual(_bcs2_goldens_back(_without_elr4a_goldens(self.now[key])) if key == "goldens" else self.now[key], self.was[key], key)
         # conduit differs in EXACTLY the def, the two ladder steps and its notes
-        for k in set(self.cp_now) | set(self.cp_was):
+        # BCS-2 (v73; mechanical authority): the declared `bcs_default_margin` taken away, matched exactly. WAS self.cp_now as it stands
+        cp_now = _without_bcs2(self.cp_now)
+        for k in set(cp_now) | set(self.cp_was):
             if k not in ("attribute_definitions", "pipelines", "notes"):
-                self.assertEqual(self.cp_now[k], self.cp_was[k], k)
+                self.assertEqual(cp_now[k], self.cp_was[k], k)
         self.assertEqual(self.cp_now["goldens"], self.cp_was["goldens"])
         self.assertTrue(self.cp_now["notes"].startswith(self.cp_was["notes"])); self.assertIn("v63", self.cp_now["notes"])
 
@@ -11862,7 +12067,8 @@ class TestValidationGaps(FrappeTestCase):
         `conditions` / `params` / `formula`; every config validates under the new rule."""
         assembly = [(c["category_id"], pid, si, s) for c in self.now["category_configs"]
                     for pid, si, s in self._component_refs(c) if self._is_assembly(s)]
-        self.assertEqual(len(assembly), 79)
+        # BCS-2 (v73; mechanical authority): + 10 cost steps (cable_bcs 1, popup_bcs 7, indsock_bcs 2). WAS 79
+        self.assertEqual(len(assembly), 89)
         self.assertEqual(sorted({cid for cid, _, _, _ in assembly}),
                          ["db_switchgear", "industrial_sockets", "point_wiring", "popup_boxes",
                           "switches_sockets", "wiring_cabling"])
@@ -11921,7 +12127,8 @@ class TestValidationGaps(FrappeTestCase):
         uses = [(c["category_id"], pid, si, s["qty"]["from_fit"]) for c in self.now["category_configs"]
                 for pid, si, s in self._component_refs(c)
                 if isinstance(s.get("qty"), dict) and "from_fit" in s["qty"]]
-        self.assertEqual(len(uses), 9)
+        # BCS-2 (v73; mechanical authority): + popup_bcs' blank_count. WAS 9
+        self.assertEqual(len(uses), 10)
         self.assertEqual(sorted({u[3] for u in uses}), ["blank_count", "conduit_qty"])
         self.assertEqual(sorted({u[0] for u in uses}), ["point_wiring", "popup_boxes", "switches_sockets"])
         for cid in ("point_wiring", "popup_boxes", "switches_sockets"):
@@ -12590,7 +12797,8 @@ class TestHvacAssetSlice1b(FrappeTestCase):
         # ELR-4a (v70, wording + the Blank plate flag): bumped. WAS "rate_master_electrical_all_v69.json".
         # ELR-4d (v71, the conduit fit + the DB refusal): bumped. WAS "rate_master_electrical_all_v70.json".
         # ELR-5 (v72, the Switches & Sockets refusal): bumped. WAS "rate_master_electrical_all_v71.json".
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v72.json")
+        # BCS-2 (v73, the cost rules): bumped. WAS "rate_master_electrical_all_v72.json".
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v73.json")
         data_dir = os.path.dirname(_asset_path(CURRENT_EALL_ASSET))
         names = sorted(os.listdir(data_dir))
         # each series resolved on its own (owner ruling, slice 1c, INVERTING the 1b first-version pin): the HVAC
@@ -15322,7 +15530,8 @@ class TestInsulationCatalogueSlice12a(FrappeTestCase):
             for _lbl, _f, _u, steps, _cv in cv._pipeline_scopes(c):
                 if any(s.get("step") == "component_ref" for s in steps):
                     crefs += 1
-        self.assertEqual(crefs, 14, "Electrical's component_ref pipelines -- the reason the boundary "
+        # BCS-2 (v73; mechanical authority): + cable_bcs, popup_bcs, indsock_bcs. WAS 14
+        self.assertEqual(crefs, 17, "Electrical's component_ref pipelines -- the reason the boundary "
                                     "cannot be 'the pipeline carries a component_ref'")
 
     # -- y05 ----------------------------------------------------------------------------------------
@@ -15836,7 +16045,9 @@ class TestPricingInputs(FrappeTestCase):
         # new rows are named so a THIRD addition still fails this pin rather than sliding past it.
         # ELR-3a (owner R-9; mechanical authority): WAS 35. v69 adds the nine assembly-step inputs, named below so a
         # tenth addition still fails this pin.
-        self.assertEqual(len(inputs), 44, "the approved table has 44 rows (33 + tray_discount + jb_discount + ELR-3a's 9)")
+        # BCS-2 (owner R4; mechanical authority): WAS 44. v73 adds the Rs 42, named below so a second addition still fails this pin.
+        self.assertEqual(len(inputs), 45, "the approved table has 45 rows (33 + tray_discount + jb_discount + ELR-3a's 9 + BCS-2's 1)")
+        self.assertIn(BCS2_INPUT, {(i.get("attributes") or {}).get("item") for i in inputs})
         self.assertEqual({(i.get("attributes") or {}).get("item") for i in inputs} & set(ELR3A_INPUTS), set(ELR3A_INPUTS))
         self.assertEqual({(i.get("attributes") or {}).get("item") for i in inputs}
                          & {"tray_discount", "jb_discount"},
@@ -16275,14 +16486,15 @@ class TestRateColumnLabels12bB(FrappeTestCase):
             old = json.load(fh)
         o = {i["item_uid"]: i for i in old["items"] if i["kind"] != "cable_tray"}
         # ELR-3a (mechanical authority): WAS new["items"] verbatim; v69's nine added inputs are normalised off the NEW side
-        n = {i["item_uid"]: i for i in _without_elr3a_input_items(new["items"]) if i["kind"] != "cable_tray"}
+        # BCS-2 (mechanical authority): + v73's one added input; WAS _without_elr3a_input_items(new["items"])
+        n = {i["item_uid"]: i for i in _without_bcs2_items(_without_elr3a_input_items(new["items"])) if i["kind"] != "cable_tray"}
         self.assertEqual(set(o), set(n))
         for uid in o:
             self.assertEqual(json.dumps(n[uid], sort_keys=True), json.dumps(o[uid], sort_keys=True),
                              "%s changed" % uid)
         keys_old = {}
         keys_new = {}
-        for src, dst in ((old["items"], keys_old), (_without_elr3a_input_items(new["items"]), keys_new)):  # ELR-3a: as above
+        for src, dst in ((old["items"], keys_old), (_without_bcs2_items(_without_elr3a_input_items(new["items"])), keys_new)):  # ELR-3a, BCS-2: as above
             for i in src:
                 if i["kind"] == "cable_tray":
                     continue
@@ -16299,7 +16511,8 @@ class TestRateColumnLabels12bB(FrappeTestCase):
         for c in new["category_configs"]:
             self.assertNotIn("with_cover_list", json.dumps(c.get("pipelines") or {}))
         # ELR-1: + the v67 Runs note normalised away (the only other thing that moved since v65)
-        probe = [_without_elr1_runs_note(c) for c in json.loads(json.dumps(new["category_configs"]))]
+        # BCS-2 (v73, owner answer 5 "a"): + the 15 corrected point-wiring example values (BCS2_REBANKED, old -> new) back. WAS without
+        probe = [_bcs2_config_back(_without_elr1_runs_note(c)) for c in json.loads(json.dumps(new["category_configs"]))]
         STALE = " The with_cover_list column remains on items as reference data only."
         for c in probe:
             if c["category_id"] == "cabletray_raceway":
@@ -17106,7 +17319,8 @@ class TestRateAndFactorColumns(FrappeTestCase):
         pis = [i for i in self.eall["items"] if csv_exporter.is_pricing_input_kind(i["kind"])]
         # ELR-3a (owner R-R1 Q2 "the existing factor value column with a unit"; mechanical authority): WAS 35 inputs and
         # NEITHER column on any. NOW 44, and `factor` on EXACTLY the nine assembly-step inputs; `rate` still on none.
-        self.assertEqual(len(pis), 44)
+        # BCS-2 (owner "4b"; mechanical authority): + the Rs 42, stored under `amount` so no column is added. WAS 44
+        self.assertEqual(len(pis), 45)
         for i in pis:
             item = (i.get("attributes") or {}).get("item")
             self.assertNotIn("rate", (i.get("rates") or {}), "%s carries rate -- Electrical's file would grow a column" % i["item_uid"])
@@ -17137,7 +17351,7 @@ class TestRateAndFactorColumns(FrappeTestCase):
         self.assertIn("factor", headers)
         for c in ("discount", "supply_markup", "amount"):
             self.assertIn(c, headers)
-        self.assertEqual(out["n"], 44)
+        self.assertEqual(out["n"], 45)   # BCS-2 (owner "4b"; mechanical authority): + the Rs 42, under `amount`. WAS 44
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -18147,7 +18361,7 @@ class TestServedRatesAreStored(FrappeTestCase):
         # served Electrical total is EALL_ITEMS (1411); the per-item byte-for-byte check above is unchanged.
         # #1608: "live" is now the seeded current asset (above), so this holds on a database not yet imported to it.
         self.assertEqual(sum(v for (d, _k), v in counts.items() if d == "Electrical"), EALL_ITEMS)
-        self.assertEqual(counts[("Electrical", "electrical_pricing_input")], 44)   # ELR-3a: 35 + the nine
+        self.assertEqual(counts[("Electrical", "electrical_pricing_input")], 45)   # ELR-3a: 35 + the nine; BCS-2 (v73): + the Rs 42 (WAS 44)
 
     def test_sv_02_the_display_figure_is_SERVED_in_its_own_map_and_the_GI_rows_still_get_555(self):
         """The grid still shows the live figure (owner F4 of 12c FINISH is intact): `computed_rates` carries

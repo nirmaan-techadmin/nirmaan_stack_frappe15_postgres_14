@@ -69,10 +69,17 @@ describe("a part its own Yes/No switched off counts as absent, for none_refusal 
     expect(res.finals.install).toBeCloseTo(0);
   });
 
-  it("NEGATIVE: the BCS pipeline declares nothing and still sums to 0 (owner: deferred to the BCS build)", () => {
+  // INVERTED at BCS-2 (Electrical v73, owner R1: the cost refuses where the price refuses, never 0) by mechanical authority.
+  // BEFORE: "NEGATIVE: the BCS pipeline declares nothing and still sums to 0 (owner: deferred to the BCS build)"
+  it("since the BCS build (v73) the BCS pipeline refuses in the same words; NEGATIVE: without its declaration it still sums to 0", () => {
     const res = run(cfgWith(true), { ...NOTHING, back_box: "No" }, "swsock_bcs");
-    expect(res.status).toBe("ok");
-    expect(res.finals.bcs_supply).toBeCloseTo(0);
+    expect(res.status).toBe("no_match");
+    expect(res.finals).toEqual({});
+    const bare = structuredClone(cfgWith(true)) as unknown as { pipelines: Record<string, { steps: Array<{ none_refusal?: string }> }> };
+    for (const s of bare.pipelines.swsock_bcs.steps) delete s.none_refusal;
+    const plain = run(bare as never, { ...NOTHING, back_box: "No" }, "swsock_bcs");
+    expect(plain.status).toBe("ok");
+    expect(plain.finals.bcs_supply).toBeCloseTo(0);
   });
 });
 

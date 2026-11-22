@@ -119,6 +119,9 @@ PRICING_INPUT_USED_BY = "used_by"
 PRICING_INPUT_SHARED_BY = "shared_by"
 PRICING_INPUT_NAME = "item"
 PRICING_INPUT_REMARKS = "remarks"
+# BCS-2 (owner 2026-11-22): what the used-by cell calls an input ONLY the BoQ summary reads (a config's `summary_inputs`); it
+# is a reader, not a pricing rule, so the text carries no "(n uses)" when it is the only one
+PRICING_INPUT_SUMMARY_USE = "BoQ summary"
 
 
 # SLICE 12b(A) -- the columns of a Pricing Inputs file that are READ-ONLY.
@@ -199,6 +202,12 @@ def pricing_input_used_by(configs):
             if cid not in cats:
                 cats = cats + [cid]
             out[iid] = (n + 1, cats)
+        # BCS-2: an input the BoQ summary reads is in use -- one use, named by the marker, so the file does not say "not used"
+        # and `refuse_if_in_use` refuses deleting or renaming it
+        for iid in (cfg.get("summary_inputs") or []) if isinstance(cfg, dict) else []:
+            n, cats = out.get(iid, (0, []))
+            if PRICING_INPUT_SUMMARY_USE not in cats:
+                out[iid] = (n + 1, cats + [PRICING_INPUT_SUMMARY_USE])
     return out
 
 
@@ -521,6 +530,8 @@ def pricing_input_used_by_text(n, cats, labels=None):
     """
     if not n:
         return "not used"
+    if list(cats or []) == [PRICING_INPUT_SUMMARY_USE]:
+        return PRICING_INPUT_SUMMARY_USE
     names = sorted({(labels or {}).get(c, c) for c in (cats or [])})
     return "%s (%d use%s)" % (", ".join(names), n, "" if n == 1 else "s")
 

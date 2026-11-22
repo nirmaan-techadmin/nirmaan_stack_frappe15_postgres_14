@@ -122,17 +122,21 @@ describe("R-DB-MANUAL: a DB row with no part matched refuses", () => {
     expect(priced(r)).toBe(false);
   });
 
-  it("only a pipeline that declares the sentence refuses: the BCS pipeline and a declaration-less copy still sum to 0", () => {
+  // INVERTED at BCS-2 (Electrical v73, owner R1: the cost refuses where the price refuses, never 0) by mechanical authority.
+  // BEFORE: "... the BCS pipeline and a declaration-less copy still sum to 0"; the negative half now strips BOTH pipelines
+  it("only a pipeline that declares the sentence refuses: since v73 the BCS pipeline declares it too; a declaration-less copy of either still sums to 0", () => {
     const cfg = ELECTRICAL_CONFIGS.get("db_switchgear")!;
     const none = Object.fromEntries(["db_shell_item", "mcb1_item", "mcb2_item", "mcb3_item", "mcb4_item", "mcb5_item", "enclosure_item"].map((k) => [k, "None"]));
     const pl = cfg.pipelines!;
     expect(noneRefusalOf(runPipeline("db_buildup_supply", pl.db_buildup_supply as never, ELECTRICAL_ITEMS, none))).toBe(REFUSAL);
-    expect(noneRefusalOf(runPipeline("db_buildup_bcs", pl.db_buildup_bcs as never, ELECTRICAL_ITEMS, none))).toBeUndefined();
-    const stripped = structuredClone(pl.db_buildup_supply) as unknown as { steps: Array<{ none_refusal?: string }> };
-    for (const s of stripped.steps) delete s.none_refusal;
-    const res = runPipeline("db_buildup_supply", stripped as never, ELECTRICAL_ITEMS, none);
-    expect(res.status).toBe("ok");
-    expect(noneRefusalOf(res)).toBeUndefined();
+    expect(noneRefusalOf(runPipeline("db_buildup_bcs", pl.db_buildup_bcs as never, ELECTRICAL_ITEMS, none))).toBe(REFUSAL);
+    for (const pid of ["db_buildup_supply", "db_buildup_bcs"]) {
+      const stripped = structuredClone(pl[pid]) as unknown as { steps: Array<{ none_refusal?: string }> };
+      for (const s of stripped.steps) delete s.none_refusal;
+      const res = runPipeline(pid, stripped as never, ELECTRICAL_ITEMS, none);
+      expect(res.status).toBe("ok");
+      expect(noneRefusalOf(res)).toBeUndefined();
+    }
   });
 });
 

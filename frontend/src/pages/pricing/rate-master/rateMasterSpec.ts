@@ -954,6 +954,9 @@ export function pricingInputCell(column: string, value: unknown): string {
     : String(value);
 }
 
+/** BCS-2 (owner 2026-11-22): what the used-by cell calls an input ONLY the BoQ summary reads -- `csv_exporter.PRICING_INPUT_SUMMARY_USE`. */
+export const SUMMARY_USE = "BoQ summary";
+
 /**
  * The used-by text acceptance 13 refuses a delete with, and the screen shows read-only.
  * DERIVED from the pipelines -- a stored count would go stale the moment a rule changed.
@@ -1004,6 +1007,15 @@ export function pricingInputUsedBy(
       if (!e.categories.includes(cid)) e.categories.push(cid);
       out[u.input] = e;
     }
+    // BCS-2: an input only the BoQ summary reads (a config's `summary_inputs`) is in use too -- the `csv_exporter` twin
+    for (const iid of ((cfg as { summary_inputs?: string[] } | null)?.summary_inputs ?? [])) {
+      const e = out[iid] ?? { sites: 0, categories: [] };
+      if (!e.categories.includes(SUMMARY_USE)) {
+        e.sites += 1;
+        e.categories.push(SUMMARY_USE);
+      }
+      out[iid] = e;
+    }
   }
   return out;
 }
@@ -1023,6 +1035,7 @@ export function pricingInputUsedByText(
   labelOf?: (categoryId: string) => string,
 ): string {
   if (!entry || !entry.sites) return "not used";
+  if (entry.categories.length === 1 && entry.categories[0] === SUMMARY_USE) return SUMMARY_USE;
   const names = [...new Set(entry.categories.map((c) => labelOf?.(c) ?? c))].sort();
   return `${names.join(", ")} (${entry.sites} use${entry.sites === 1 ? "" : "s"})`;
 }
