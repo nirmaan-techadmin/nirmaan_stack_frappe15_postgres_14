@@ -2715,7 +2715,7 @@ and no stored row has an unstocked size; a typed entry would need `extract_as` a
 **ELR-4d: A DB ROW WITH NO PART REFUSES (owner R-DB-MANUAL 2026-07-31; P6 "Q3 a"; v71).** `sum_components` may declare
 `none_refusal: "<sentence>"`: when EVERY component was zeroed by `none_skips`, the pipeline returns `no_match` and
 `noneRefusalOf` reads the sentence; the helper shows it as the basis and once in the first block. A part named at quantity 0
-is not absent and still sums to 0. `db_buildup_bcs` does not declare it, because the ruling does not name it.
+is not absent and still sums to 0. `db_buildup_bcs` did not declare it in v71; since v73 it declares the same sentence (BCS-2, below).
 
 **ELR-5: AN EMPTY SWITCHES & SOCKETS ROW REFUSES TOO (owner R-SS0; P4 "Q1 a, Q2 c, Q3 b", 2026-10-31; v72).** `swsock_boq` declares
 `none_refusal: "No part of this row matched the catalogue - price it by hand."`. A `none_skips` part whose own `qty.if_attr` switched it
@@ -2723,7 +2723,7 @@ off (Back box = No) now counts as absent for that check; without this the back b
 `none_refusal` reads that set, so a pipeline that declares nothing is unchanged. A part named at quantity 0 (`from_attr`, `from_fit`) is
 still a part. Back box = Yes on an empty board still prices the 3M box. A blank plate with no quantity still asks for "Plate qty"
 (R-V1). A blanker named alone refuses as well: the blanker comes from the fit, and with no plate there is no spare module; pricing it
-alone is logged for a later slice. `swsock_bcs` does not declare the sentence (deferred to the BCS build, with R-BCS). Line 5 of the
+alone is logged for a later slice. `swsock_bcs` declares the same sentence since v73 (BCS-2, below). Line 5 of the
 tab, "Plate, back box and blanks", shows the sentence from the config.
 
 **VRF-1: THE VRF CATALOGUE IS DATA ONLY; FOUR MISC ITEMS ARE A SHARED KIND; THE TWO CONVERSION FACTORS ARE PRICING INPUTS (owner R-SRC / R-IGNORE / R-INPUTS / R-MISC / R-ITEMNAME / D-6, 2026-11-01..03; HVAC v55).**
@@ -5169,7 +5169,8 @@ invariants:
   row -> null) is owner-locked. The helper (`pricingSheetHelper.ts`) resolves the config PER row category
   (`configsByCategory`, all 11 registry categories fetched via a child `RateConfigFetcher`); a category
   with no eligible config -> "coming soon". Groups render ONE per NON-BCS pipeline (ids containing "bcs"
-  are NEVER surfaced -- owner deferral), labelled `config.pipeline_labels?.[id]` (CONFIG DATA, added to
+  are not surfaced on a BoQ row: the Electrical cost pipelines exist and are complete since v73, and showing
+  them on a row is BCS slice 3), labelled `config.pipeline_labels?.[id]` (CONFIG DATA, added to
   wiring by an audited RM-4b edit) else a prettified id. **The `wiring_cabling` paired Cable+Termination
   display is a TEMPORARY owner special-case (Decision 2) with a NAMED SUCCESSOR: EA-4 designs the generic
   pairing/assembly mechanism and wiring migrates onto it then -- do NOT extend the named-category branch.**
@@ -5962,3 +5963,48 @@ Keys file: frontend/src/pages/boq-wizard/rate-helper/__fixtures__/vav2b2Keys.jso
   "none found" line vs the sheet note naming a 0 m row; a duct static pressure row for the AHU / VFD counts as the VAVs' DP sensor row
   (QUESTION: as built it switches the DP share off, e.g. BOQ-26-00355 r41); an item's own supply shown under "Installation only" (display
   only).
+
+## BCS cost rules (Electrical v73) - BCS-2 (2026-11-22 / 23) - as built
+
+The COST side of the Electrical rate file, owner R1 - R4 (2026-11-21 / 22). No BoQ price calculation, existing item or price moved
+(`test_electrical_v73_bcs.py` pins every v72 BoQ pipeline byte-equal). The cost pipelines are complete; they are still NOT surfaced
+on a BoQ row, in the helper panel or in the calculator.
+
+### The rules (each with the Pricing Input it reads; nothing is typed)
+- DEFAULT: where no cost is stated, cost = BoQ supply / (1 + supply margin). The margin is READ through the category's
+  `bcs_default_margin` (12 categories), never typed: `supply_markup` of `tray_supply`, `conduit`, `switchgear`, `earthing_supply`,
+  `indsock` (socket) / `switchgear` (paired MCB), `jb_supply`, `lms_supply`, `swsock`, `cable_arm` / `cable_unarm` by Insulation, `lug`,
+  `gland`; `ratio` of `misc_supply` and `popup_supply` (margin = 1 / ratio - 1).
+- A STATED COST MUST AGREE with that default. Rounding on the BoQ side, rounding on the cost side and a declared wastage count as
+  agreeing (`bcsAgrees`: A equal, B rounding, C wastage, D disagrees, E nothing stated). The mint's guard refuses a class-D file.
+- CABLE (`cable_bcs`): the cable as before (list less the `cable_arm` / `cable_unarm` discount, plus that input's `wastage`, rounded up
+  to the rupee, x runs) PLUS the conduit at cost when Conduit included is Yes: list x (1 - `conduit` discount), one conduit per row, no
+  wastage, not rounded. It fits an unstocked conduit size exactly as `cable_boq` does.
+- POP-UP BOX (`popup_bcs`): the box at the `popup_supply` / `popup_install` ratio PLUS its modules when Includes modules is Yes: the
+  list prices the price adds x (1 - `swsock` discount), not rounded. The modules add nothing to the cost's install.
+- JUNCTION BOX (`jb_bcs`, new): list x (1 - `jb_discount`), not rounded.
+- INDUSTRIAL SOCKET (`indsock_bcs`, new): socket list x (1 - `indsock` discount) plus the paired MCB list x (1 - `switchgear` discount);
+  an interlocked socket already holds its MCB, so it adds none.
+- A COST REFUSES WHERE THE PRICE REFUSES, NEVER 0: `db_buildup_bcs` and `swsock_bcs` declare the price side's `none_refusal` sentence.
+  `pw_bcs` declares none because the price side has none: both stop at the same step ("wire1 ... missing") with the same words, and a
+  fully blank row never reaches the sum (owner answer 7, "a").
+- THE RS 42 (`elec_bcs_install_per_sqft`, "Electrical installation cost per sq ft (BCS)", `rates: {amount: 42.0}`, Rs per sq ft): named
+  in `summary_inputs` of `electrical_pricing_inputs`, read by the BoQ summary only. Rate Master shows it as used by "BoQ summary"; its
+  impact panel (`summary_only`) says the BoQ rate is not impacted. Slice 5 reads the `amount` field.
+
+### Load-bearing
+- `bcs_default_margin` and `summary_inputs` are validated keys (`_validate_bcs_keys`, `bcs_problems` in `config_validation.py`): a number
+  in a margin, an unknown field, or an input that is not active is refused by name, so a margin can only be read from a live input.
+- `bcsCost.ts` (`defaultBcsSupply`, `bcsAgrees`, `resolveBcsMargin`) is the one implementation of the default and the agreement; never
+  copy the arithmetic.
+- No cost output name may collide with a price output name (`test_electrical_v73_bcs.py`).
+- `_without_bcs2` (`test_rate_master.py`) takes away EXACTLY v73's declared changes, each matched by fingerprint and each step at most
+  once, and runs FIRST in a chain; a second pass would take an undeclared copy of a declared step. `test_bn_01` - `test_bn_03` hold it.
+- The 15 point-wiring worked-example answers were corrected for two production price-list updates (v41 cable prices, v43 switch and
+  socket prices).
+
+### Known gaps
+- The Rate Master shows no whole row's cost: the calculator and the Derivation tab carry no cost figure, and the Pricing Input impact
+  panel works its "SKU rate (BCS)" out from the input's own fields, not from these pipelines.
+- `misc_bcs`'s explain text still says "25% markup assumed" beside the 0.8 ratio input (outside this slice's edit list).
+- The tracked replay reads raw items, so the LMS two-brand rows replay as no match.

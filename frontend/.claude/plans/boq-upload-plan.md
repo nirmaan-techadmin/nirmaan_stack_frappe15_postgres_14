@@ -52297,3 +52297,20 @@ As built (commits, figures and counts: the report `BoQ main lane\VAV-2b2\<date>_
   full-rate block that withholds its price ("price this share"); the added cabling item's "none found" line beside a sheet note naming a
   0 m row; a supply-duct static pressure row for the AHU / VFD claimed as the VAVs' DP sensor row (a QUESTION); an item's own supply shown
   under "Installation only" (display only - the row's supply is 0).
+
+## Slice BCS-2 (dev2) - Electrical cost rules, HVAC v81 loaded, Electrical v73 - 2026-11-22 / 23
+
+The 18 cost rules of the BCS plan for Electrical, built in the rate file (owner 21 Nov 16:09 / 22 Nov 15:16). dev2 lane: main taken in
+by fast-forward to c2bf7d076; HVAC v81 loaded; Electrical v73 minted and loaded. As built (commits, figures and counts: the report
+`BCS lane\BCS-2\2026-11-22_BCS-2_Report.md`):
+- K1 009b679d8 - Electrical v73, the mint with the agreement guard, bcsCost.ts, the config keys `bcs_default_margin` / `summary_inputs`,
+  the Rate Master's "BoQ summary" used-by and impact shape, tests, pins. K1b 8688e6af3 - the mint's `verify` comparison (written and
+  never run before the load). K2 - docs (this entry; boq-rate-master.md "BCS cost rules (Electrical v73)").
+- Replay: 33,346 rows byte-equal to the pre-slice baseline (0 price moves). Costs: exactly the designed kinds, counts as designed; BCS-R1
+  class D 387 -> 0 and class E 772 -> 0 over 12,847 priced rows.
+- The cert on localhost:8180: C1 (by the load batch; the page shows no version number), C2 - C6, C10 as seen; C7 / C8 part by part plus
+  the calculator run on the live sheets; C9 on the Derivation tabs and the sheet formula lines (owner answer 9, "a"). CARRIED to slice
+  3's cert: C7 and C8.
+- Edit 5 was built for two of the three cost calculations: point wiring needs no refusal sentence (owner answer 7, "a").
+- NEXT SLICES (owner, 2026-11-23): BCS is also to show in the CALCULATOR, and the calculator's BCS must equal the helper's BCS for the
+  same attribute inputs, the constraint BoQ values have today. Not built here.
