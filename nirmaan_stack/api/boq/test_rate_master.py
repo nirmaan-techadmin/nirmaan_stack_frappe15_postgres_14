@@ -3978,19 +3978,16 @@ class TestRateMaster(FrappeTestCase):
         # SLICE, and that is its regression proof -- they carry no circuit wiring, so `none_skips`
         # zeroes both circuit lines and the flat add is 0.
         self.assertEqual(sorted(by_id), ["pw1", "pw2", "pw3", "pw4", "pw5"])
-        self.assertEqual(by_id["pw1"]["expect"]["pw_boq_supply"]["supply"], 1869.0)
-        self.assertEqual(by_id["pw1"]["expect"]["pw_boq_install"]["install"], 735.0)
-        self.assertEqual(by_id["pw1"]["expect"]["pw_bcs"]["bcs_supply"], 1370.0)
-        self.assertEqual(by_id["pw2"]["expect"]["pw_boq_supply"]["supply"], 1823.0)
-        self.assertEqual(by_id["pw2"]["expect"]["pw_boq_install"]["install"], 722.2)
-        self.assertEqual(by_id["pw2"]["expect"]["pw_bcs"]["bcs_supply"], 1342.0)
-        # pw3 (slice 2 part 2): 1682 + the blanker line. Grey 1M Blanker list 79, computed count 2:
-        #   supply : ceil(79 x 0.3625) = 29 x2 = 58 -> 1682 + 58 = 1740
-        #   install: 735 - ceil(514 x 0.0725)=38 + ceil(79 x 0.0725)=6 x2 = 12 -> 709
-        #   bcs    : 1370 - ceil(514 x 0.25)=129 + ceil(79 x 0.25)=20 x2 = 40 -> 1281
-        self.assertEqual(by_id["pw3"]["expect"]["pw_boq_supply"]["supply"], 1740.0)
-        self.assertEqual(by_id["pw3"]["expect"]["pw_boq_install"]["install"], 709.0)
-        self.assertEqual(by_id["pw3"]["expect"]["pw_bcs"]["bcs_supply"], 1281.0)
+        # BCS-2b (owner answer 1 "b fix it", 2026-11-24): pw1 - pw3's nine figures are READ from the committed current Electrical
+        # file (CURRENT_EALL_ASSET), never typed: BCS-2 re-banked all 15 point-wiring examples to today's list prices (owner "3a",
+        # 2026-11-22; BCS2_REBANKED), and a live sheet that differs from the committed file is what this pin catches. The figures
+        # this test used to type were the July ones: pw1 1869 / 735 / 1370, pw2 1823 / 722.2 / 1342, pw3 1740 / 709 / 1281 (pw3 =
+        # pw1's July total + a computed 2 x Grey 1M Blanker line).
+        with open(_asset_path(CURRENT_EALL_ASSET), encoding="utf-8") as fh:
+            committed = {g["id"]: g for g in json.load(fh)["goldens"]["point_wiring"]}
+        for gid in ("pw1", "pw2", "pw3"):
+            for pid, key in (("pw_boq_supply", "supply"), ("pw_boq_install", "install"), ("pw_bcs", "bcs_supply")):
+                self.assertEqual(by_id[gid]["expect"][pid][key], committed[gid]["expect"][pid][key], (gid, pid))
         # pw1/pw2 carry the blanker as a POSITIVE ABSENCE, so their line contributes zero and their
         # totals above are unmoved. A golden's attrs are an ATOMIC SET.
         for gid in ("pw1", "pw2"):
