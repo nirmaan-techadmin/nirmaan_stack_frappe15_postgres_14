@@ -52370,3 +52370,21 @@ by fast-forward to c2bf7d076; HVAC v81 loaded; Electrical v73 minted and loaded.
   to the baseline after main (sha 06907130); costs bit for bit on 12,847 rows / 1,633 cases / 30 examples; negative control 5,419 rows.
 - Visible change: only the wording of the Electrical supply cost lines in Rate Master (the FORMULA row); no figure anywhere.
 - Slice 3 builds on v74: run the stored `<x>_bcs` as today; a new exception is an entry in bcs_derive.PAIRS, never a hand step.
+
+## Slice BCS-3 (dev2) - the helper panel and the calculator show the BoQ and BCS sections, the conduit and pop-up box lines, the server role check - 2026-11-24
+- Owner R1 ("1 ok": slice 3 split into BCS-3 and BCS-3S), R2 "1a" (Admin and Estimates see cost), R3 / R5 / R6 (both sections in every
+  panel, green and blue at equal weight, the clicked column open, the other folded), R4 (the conduit and the pop-up box as their own
+  lines). Answers 1 "1a, 2a" (PMO / Procurement Lead lose the BCS block on screen; hooks.py gets two entries), 2 "b" (HVAC Cables, an
+  alias of Electrical wiring, stays unchanged but for the tag), 3 "a" (cert rows), 4 "a" (the dummy no-cost user).
+- Main 01c16f0e8 (VAV-2c2, HVAC v83) taken in by merge 5ed64ed96 (two doc conflicts, both sides adding lines); HVAC v83 loaded on dev2.
+- K1 62aafa975: rate-helper/PriceSection.tsx (the one section piece), rate-helper/bcsSide.ts (the cost side: the paired cost pipeline
+  read from the rate file, run through the same interpreter; the split lines read from the step trace), the panel's `target` /
+  `showCost`, the calculator's BCS section, the grid's BCS box opener + `applyBcsRate` + "On the BoQ summary", boqAccess.canSeeBcsCost.
+  K1b de4121d7a: the pop-up box line leads the cost block too (found in the cert). K2 5d7055af1: the role check on set_bcs_enabled /
+  confirm_bcs_columns / get_sheet_bcs_rates / save_row_bcs_rates (the pricing-access set), the two hooks.py entries for BoQ Row BCS
+  Rate, the rate-master data services' cost content withheld on the HTTP call only, the pages' gates.
+- Proof: replay 33,346 rows, 0 price moves (443 Electrical rows gain only the ruled lines); the screen cost = BCS-2b's cost harness on
+  12,847 rows / 1,633 cases / 30 examples and the four named rows; 1,197 split-line checks add up; switch-offs 9 of 9 red.
+- Open: the installation box's "On the BoQ summary" is cut to "On the Bo..." by the 80 px box (cert C8, Question 5); HVAC Cables gets
+  the lines and the cost side when HVAC gets its BCS; the panel's scope line still reads "Supply rate" when the BCS box opened it.
+- BCS-3S builds on this: Suggest switching BCS on and its run; the cost side is already in every Electrical suggestion (`bcs`).

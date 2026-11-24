@@ -671,6 +671,37 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
     payload is rates-only server-side. ON is the exception, not the rule, and an internal cost rate is the last
     layer on which to relax "nothing arrives un-asked-for".
 
+  - **THE HELPER PANEL AND THE CALCULATOR SHOW TWO SECTIONS (BCS-3, owner R3 / R5 / R6, the approved mockup 24 Nov).** One
+    shared piece, `rate-helper/PriceSection.tsx`, draws "BoQ - what we quote the customer" (green-50 / green-300 / tag
+    green-700) and "BCS - our cost" (blue-50 / blue-300 / tag blue-700) at equal weight, open or FOLDED to one line (tag,
+    figure, chevron) that opens on a tap. The calculator IS the panel's `calculator` variant, so the two surfaces cannot
+    draw a section differently.
+    - **The column rule:** `RateHelperPanel`'s `target` says which box opened it -- a rate cell ("rate", default) or the
+      row's BCS supply cost box ("bcs"). The clicked box's section is open and emphasised (`border-2`); the other folded.
+      The headline, the final-value box and "Use this value" follow the clicked box: a rate cell exactly as before
+      (`result.values[kind]`), the BCS box the cost side's supply (`kind` "bcs_supply" in the Use meta). A typed final value
+      belongs to the side it was typed on. The calculator has no box: both sections open.
+    - **The cost side is the suggestion's `bcs` field** (`rate-helper/bcsSide.ts`, entry `pricingSheetHelper.bcsSideFor`):
+      for each price block, its PAIRED cost pipeline -- read from the rate file (a supply output `supply<sfx>` pairs the
+      cost pipeline producing `bcs_supply<sfx>`, else the category's single `bcs_supply*` pipeline) -- run through the same
+      interpreter on the same selection. Supply only (`figureKinds: ["supply_rate"]`), and every cost block ends "Installation
+      cost is one figure for the whole BoQ, on the BoQ summary". It NEVER feeds `values` (the BoQ suggestion is byte-equal with
+      the cost side off: `bcs3Sections.test.ts`). The step lines of a cost block come from the SAME function as its price
+      block's (`stepWorkingLines`, R7).
+    - **Who sees it:** `showCost` = `boqAccess.canSeeBcsCost` (Admin, Estimates). Anyone else gets the BoQ section only --
+      and the server serves them the config without its cost pipelines, so the result has no cost to show anyway.
+    - **The two split lines (owner R4):** where a pipeline makes an output as `base + <part>` (a `scale` step with formula
+      `base+<name>`), the two parts are shown from the step trace (`bcsSide.addedParts`): the cable and its conduit, the
+      pop-up box itself (leading the block, before the modules) and its modules, price and cost. The price's own round-up
+      after the sum is said only where it changed the figure. Display only: the figures row is the interpreter's output.
+    - **An alias category is unchanged but for the tag (owner answer 2 "b"):** HVAC Cables prices through the Electrical
+      wiring calculation (`alias_of`), and shows neither the split lines nor a BCS section until HVAC gets its BCS.
+    - **The grid:** the BCS SUPPLY box (the single box on a combined-only sheet) carries the opener
+      (`onBcsHelperClick`); `PricingGridHandle.applyBcsRate` puts "Use this value" through EXACTLY the typing path (the draft,
+      the debounced `commitBcsRate` -> `save_row_bcs_rates`), never `save_cell_price`; no Suggestion Event is recorded for it.
+      An Electrical row's installation cost box reads "On the BoQ summary" (placeholder + title) and stays editable.
+    - **The pages (owner answer 1 "1a"):** for a user outside Admin and Estimates the pricing page and the read-only view never
+      make the cost read (`get_sheet_bcs_rates`'s key is null), and show neither the BCS columns nor the BCS switch.
 
 ### Filters, selection and Suggest rates
 
