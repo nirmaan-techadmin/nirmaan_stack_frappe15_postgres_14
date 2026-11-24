@@ -157,9 +157,12 @@ export function computeBcsSide(
     const finals: Record<string, number> = {};
     const figures: Partial<Record<RateKind, number>> = {};
     if (res.status === "ok" && out && typeof res.finals[out] === "number") {
-      if (linesOf) lines.push(...linesOf(pl, res));
+      // the SAME order as the price block (owner R4 / P4c): the base (the box itself) LEADS the block, before the parts it
+      // carries; the added part and any round-up sit just before the figure line
       const parts = addedParts(pl, res, out, BCS_SUPPLY_WORD);
-      if (parts) lines.push(parts.baseLine, parts.partLine, ...(parts.sumLine ? [parts.sumLine] : []));
+      if (parts) lines.push(parts.baseLine);
+      if (linesOf) lines.push(...linesOf(pl, res));
+      if (parts) lines.push(parts.partLine, ...(parts.sumLine ? [parts.sumLine] : []));
       lines.push(`${BCS_SUPPLY_WORD} = ${moneyValue(res.finals[out])}`);
       finals[out] = res.finals[out];
       figures.supply_rate = res.finals[out];

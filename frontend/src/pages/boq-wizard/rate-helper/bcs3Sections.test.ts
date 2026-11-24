@@ -136,6 +136,10 @@ describe("BCS-3 the two lines (owner R4): display only, they add up to the block
     expect(box + modules).toBe(g.figures!.supply_rate);
     const cost = s.bcs!.sections[0].derivation;
     expect(num(cost.find((l) => l.startsWith("BCS box supply = "))!) + num(cost.find((l) => l.startsWith("BCS modules supply = "))!)).toBeCloseTo(s.bcs!.values.supply_rate!, 9);
+    // P4c: the box line leads the COST block too -- before every module line (found in the cert, C3)
+    expect(cost[0]).toMatch(/^BCS box supply = \d/);
+    const firstModule = cost.findIndex((l) => /^(Switch|Socket \d|Blank plate|Frame\/Face plate): /.test(l));
+    expect(firstModule).toBeGreaterThan(0);
   });
   it("(-) addedParts reads only `base + <part>` outputs: a plain output gives null", () => {
     const pl = cfg("industrial_sockets").pipelines!.indsock_boq as Pipeline;
