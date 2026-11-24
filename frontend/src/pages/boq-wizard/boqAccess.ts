@@ -140,3 +140,22 @@ export function canSeeBoqCommercials(
   if (userId === "Administrator") return true;
   return !!role && BOQ_COMMERCIALS_PROFILES.has(role);
 }
+
+/**
+ * BCS-3 (owner R2 "1a", 24 Nov 13:54; BCS-D0 Q3 (a)): may see, type and switch on the BCS COST -- Admin and Estimates.
+ *
+ * NARROWER THAN `canSeeBoqCommercials`, ON PURPOSE (owner answer 1 "1a", 24 Nov 15:38): PMO and Billing see a sheet's rates and
+ * amounts but not what the job costs us. The SAME population as the server's pricing-access set (`api/pricing/workbook.py`
+ * `PRICING_ACCESS_SET`, which every BCS service now checks) and as `canDownloadBcsExport` -- a test pins the two client copies
+ * equal on every profile, so they cannot drift. Like every predicate here it is a UI gate only; the server refuses the rest.
+ * "Loading" / "Error" fall through to false: withhold until the role is known.
+ */
+const BCS_COST_PROFILES: ReadonlySet<string> = new Set([
+  "Nirmaan Admin Profile",
+  "Nirmaan Estimates Executive Profile",
+]);
+
+export function canSeeBcsCost(role: string | undefined, userId: string | undefined): boolean {
+  if (userId === "Administrator") return true;
+  return !!role && BCS_COST_PROFILES.has(role);
+}

@@ -451,6 +451,8 @@ export interface WorkingsGroup {
   figures?: Partial<Record<RateKind, number>>;
   /** Optional group-scoped matched-row line(s). */
   matchedRows?: string[];
+  /** BCS-3: the kinds this group's figures row shows; absent = the three. A cost block shows its supply only (R-BCS-29). */
+  figureKinds?: RateKind[];
   /** Optional group-scoped attributes (unused this slice; SHARED attrs live on WorkingsSection). */
   attributes?: WorkingsAttribute[];
 }
@@ -523,6 +525,20 @@ export interface Suggestion {
   /** One-line basis (what the suggestion rests on). */
   basis: string;
   workings: WorkingsSection;
+  /** BCS-3: the COST side -- one cost block per price block that has a paired cost pipeline (`bcsSide.computeBcsSide`).
+   *  ABSENT on every category with no cost calculation (all HVAC today) and wherever the config arrived without its cost
+   *  content (a user outside Admin and Estimates): the panel then draws the BoQ section alone. It NEVER feeds `values`. */
+  bcs?: BcsSide;
+}
+
+/** BCS-3: the cost side of a Suggestion. Every figure is a cost pipeline's output; supply only (R-BCS-29 / 38). */
+export interface BcsSide {
+  /** one cost block per paired price block, in the price blocks' order, each with the price block's label */
+  sections: WorkingsGroup[];
+  /** the PRIMARY price block's cost supply -- what "Use this value" writes from the row's BCS cost box */
+  values: Partial<Record<RateKind, number>>;
+  /** one entry per block for the stacked header, only where the price side stacks (wiring) */
+  headlines?: { label: string; values: Partial<Record<RateKind, number>> }[];
 }
 
 /** A helper declined -- with an honest reason (rendered greyed). */

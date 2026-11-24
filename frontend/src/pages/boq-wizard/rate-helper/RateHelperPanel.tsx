@@ -35,6 +35,8 @@ import {
   type ShownAttribute,
 } from "./pricingSheetHelper";
 import { moneyValue } from "./attributeWorkingLines";
+// BCS-3: the ONE section piece (tag, colour, open / folded) the panel and the calculator draw both sections with
+import { PriceSection } from "./PriceSection";
 import { ScopeBox } from "./ScopeBox";
 import { DoubleCountBlock, ReviewBlock, SharedItems } from "./SharedItemBlock";
 import { SHARES_OVERRIDE_KEY, applyShareEdit, type ShareEditOp } from "./vavSheetShares";
@@ -291,8 +293,10 @@ function CopyFigureButton({ value, label }: { value: number; label: string }) {
  * moved into a component and every surface mounts it. `copy` off = the figures alone (no mount uses it since DU-1 R2: the row total
  * now carries the copy control too, stacked one figure per line).
  */
-function FiguresRow({ figures, copy = true, muted = false, stacked = false, unit, notInScope }: {
+function FiguresRow({ figures, copy = true, muted = false, stacked = false, unit, notInScope, kinds }: {
   figures: Partial<Record<string, number>> | undefined;
+  /** BCS-3: the kinds the row shows (a cost block: its supply only -- `WorkingsGroup.figureKinds`). Absent: the three. */
+  kinds?: readonly string[];
   /** VAV-2c1 (R5): the side the row's scope leaves out of this line ("Supply 0 per Nos - not in scope") */
   notInScope?: { kind: string; word: string };
   copy?: boolean;
@@ -314,6 +318,7 @@ function FiguresRow({ figures, copy = true, muted = false, stacked = false, unit
   return (
     <div className={stacked ? "mt-1 flex flex-col gap-y-0.5 text-xs" : "mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs"} data-testid={stacked ? "row-total-figures" : undefined}>
       {DISPLAY_RATE_KINDS.map((k) => {
+        if (kinds && !kinds.includes(k)) return null;
         const v = figures?.[k];
         return (
           <span key={k} className="inline-flex items-center gap-1 tabular-nums">
@@ -384,6 +389,19 @@ interface RateHelperPanelProps {
    * `variant="calculator"`; the BoQ variants stack their sections as before.
    */
   blockColumns?: number;
+  /**
+   * BCS-3 (owner R6): WHICH BOX OPENED THE PANEL. "rate" (default) = a rate cell: the BoQ section is open and the headline,
+   * the final value and "Use this value" are the BoQ figure for `kind`, exactly as before. "bcs" = the row's BCS supply
+   * cost box: the BCS section is open and those three are the BCS supply. The other section is folded to one line that
+   * opens on a tap. The calculator has no box: it shows both sections open.
+   */
+  target?: "rate" | "bcs";
+  /**
+   * BCS-3 (owner R2 "1a"): the viewer may see cost (Admin and Estimates, `boqAccess.canSeeBcsCost`). false (default) = the
+   * BoQ section only -- no folded BCS line, no BCS figure anywhere -- whatever the result carries. The server also serves
+   * the config without its cost pipelines to such a viewer, so the result has no cost to show in the first place.
+   */
+  showCost?: boolean;
 }
 
 /**
@@ -436,7 +454,7 @@ export function hasSessionEdits(
   return anyAttr || Object.keys(finals).length > 0;
 }
 
-export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onClose, variant = "embedded", calculatorBlocks, fieldColumns, blockColumns }: RateHelperPanelProps) {
+export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onClose, variant = "embedded", calculatorBlocks, fieldColumns, blockColumns, target = "rate", showCost = false }: RateHelperPanelProps) {
   // RM-3b: a row is loaded iff we have its context. Absent => the empty-state placeholder.
   const hasSelection = ctx != null && excelRow != null && col != null && kind != null;
   // Panel-session state ONLY (never persisted): per-helper attribute edits, which card is expanded,
@@ -467,6 +485,12 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
   // embedded panel, a push panel and the calculator never share an id
   const fieldUid = useId();
   const [finalOverrideState, setFinalOverrideState] = useState<RowScoped<Record<string, string>>>(EMPTY_FINAL_STATE);
+  // BCS-3 (owner R6, "I agree"): the FOLDED section opens on a tap. Scoped to the box that opened the panel -- a new box
+  // (another row, another column, the other side) starts folded again, with no effect to clear it.
+  const foldKey = `${excelRow ?? ""}|${col ?? ""}|${target}`;
+  const [otherOpenKey, setOtherOpenKey] = useState<string | null>(null);
+  const otherOpen = otherOpenKey === foldKey;
+  const toggleOther = () => setOtherOpenKey((k) => (k === foldKey ? null : foldKey));
   // What the CURRENT row may see. A different row (or none) sees nothing -- never the previous row's.
   const attrOverrides = overridesForRow(attrOverrideState, excelRow, EMPTY_ATTR_MAP);
   const finalOverride = overridesForRow(finalOverrideState, excelRow, EMPTY_FINAL_MAP);
@@ -548,9 +572,11 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
     });
     // An attribute change invalidates a stale final-value override -> re-prefill from the recompute.
     setFinalOverrideState((prev) => {
-      if (prev.row !== excelRow || prev.byHelper[helperId] === undefined) return prev;
+      // BCS-3: both sides' typed values (`<id>` and `<id>|bcs`) go stale together
+      if (prev.row !== excelRow || (prev.byHelper[helperId] === undefined && prev.byHelper[`${helperId}|bcs`] === undefined)) return prev;
       const next = { ...prev.byHelper };
       delete next[helperId];
+      delete next[`${helperId}|bcs`];
       return { row: excelRow, byHelper: next };
     });
   };
@@ -579,9 +605,11 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
       return { row: excelRow, byHelper: { ...prev.byHelper, [helperId]: nextForHelper } };
     });
     setFinalOverrideState((prev) => {
-      if (prev.row !== excelRow || prev.byHelper[helperId] === undefined) return prev;
+      // BCS-3: both sides' typed values (`<id>` and `<id>|bcs`) go stale together
+      if (prev.row !== excelRow || (prev.byHelper[helperId] === undefined && prev.byHelper[`${helperId}|bcs`] === undefined)) return prev;
       const next = { ...prev.byHelper };
       delete next[helperId];
+      delete next[`${helperId}|bcs`];
       return { row: excelRow, byHelper: next };
     });
   };
@@ -681,10 +709,18 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
               </div>
             );
           }
+          // BCS-3: the cost side, only for a viewer who may see cost; the BCS box asks for its supply, a rate cell for `kind`
+          const bcs = showCost ? result.bcs : undefined;
+          const onBcs = target === "bcs" && !!bcs;
+          // the BCS box opens the panel with kind "supply_rate" (SheetPricingPage), so a headline reads `h.values[kind]` either way
+          const headlines = onBcs ? bcs!.headlines : result.headlines;
           const computed = result.values[kind!]; // non-null: this block only renders with a selection
+          const shownFigure = onBcs ? bcs!.values.supply_rate : computed;
           // ELR-4c (owner R-FLOAT, "Q3 a"): the box carries the figure as shown -- money to 2 decimals (216.05, not 216.04999999999998)
+          // BCS-3: a typed final value belongs to the side it was typed on, so a BoQ figure can never be used from the BCS box
+          const finalKey = onBcs ? `${helper.id}|bcs` : helper.id;
           const finalStr =
-            finalOverride[helper.id] ?? (typeof computed === "number" ? String(moneyValue(computed)) : "");
+            finalOverride[finalKey] ?? (typeof shownFigure === "number" ? String(moneyValue(shownFigure)) : "");
           const finalNum = Number.parseFloat(finalStr);
           // SLICE 6: an item-list suggestion renders its blocks instead of the flat attribute list, and "Use
           // this value" stays disabled until EVERY item priced (S4 -- all or nothing).
@@ -702,7 +738,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                   <div className="truncate text-xs text-muted-foreground">{result.basis}</div>
                 </div>
                 <div className="flex items-center gap-1 whitespace-nowrap">
-                  {result.headlines && result.headlines.length > 0 ? (
+                  {headlines && headlines.length > 0 ? (
                     // 2026-08-22 (owner Ruling A + C, "stacked...double height"): a helper that
                     // prices a row through more than one pipeline publishes one entry per block and
                     // they render STACKED, one line each -- label then figure. The header is taller
@@ -714,7 +750,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                     // total anywhere. An entry with no figure for this cell's rate-kind falls to the
                     // SAME em dash the single-headline branch uses -- it never borrows the other.
                     <div className="flex flex-col items-end gap-0.5">
-                      {result.headlines.map((h, hi) => {
+                      {headlines.map((h, hi) => {
                         const hv = h.values[kind!];
                         return (
                           <div key={`${h.label}-${hi}`} className="flex items-baseline gap-1.5">
@@ -728,7 +764,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                     </div>
                   ) : (
                     <span className="text-sm font-semibold tabular-nums">
-                      {typeof computed === "number" ? moneyValue(computed) : "—"}
+                      {typeof shownFigure === "number" ? moneyValue(shownFigure) : "—"}
                     </span>
                   )}
                   {isOpen ? (
@@ -747,7 +783,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                 // calculator's CSS order and containers differ. No element is rendered twice.
                 <div className={isCalculator ? "flex flex-col gap-3 border-t px-3 py-2" : "space-y-2 border-t px-3 py-2"}>
                   {itemList && (
-                    <div className={isCalculator ? "order-2" : undefined}>
+                    <PriceSection side="boq" open className={isCalculator ? "order-2" : undefined}>
                       <ItemListBlocks
                         view={itemList}
                         onEdit={(op) => setAttr(helper.id, ITEM_LIST_OVERRIDE_KEY, JSON.stringify(applyItemEdit(itemList.editState, op)))}
@@ -757,7 +793,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                         onScope={(v) => setAttr(helper.id, SCOPE_OVERRIDE_KEY, v)}
                         onShares={(op) => setAttr(helper.id, SHARES_OVERRIDE_KEY, JSON.stringify(applyShareEdit(itemList.shares?.editState, op)))}
                       />
-                    </div>
+                    </PriceSection>
                   )}
                   {/* ELR-1 (owner R-UNIT): the attribute path's no-unit / rate-only note, the item-list box. A BoQ row
                       only -- the calculator has no row unit, so it never carries one. */}
@@ -1075,7 +1111,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                               this slice takes off the screen. An older producer with no `figures`
                               renders three dashes rather than a blank. */}
                           {(g.figures !== undefined || Object.keys(g.finals).length > 0) && (
-                            <FiguresRow figures={g.figures} />
+                            <FiguresRow figures={g.figures} kinds={g.figureKinds} />
                           )}
                         </div>
                     );
@@ -1089,6 +1125,13 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                     const sectionsStyle = isCalculator
                       ? { gridTemplateColumns: `repeat(${Math.max(1, blockColumns ?? 2)}, minmax(0, 1fr))` }
                       : undefined;
+                    // BCS-3 (owner R3 / R5 / R6): BOTH sections in one panel. The clicked box's section is OPEN and
+                    // emphasised; the other is FOLDED to one line that opens on a tap. The calculator (no box) shows both
+                    // open. A result with no cost side (HVAC, or a viewer who may not see cost) draws the BoQ section alone,
+                    // never foldable -- the panel as before plus its tag. The BoQ body below is unchanged.
+                    const boqOpen = isCalculator || !onBcs || otherOpen;
+                    const bcsOpen = isCalculator || onBcs || otherOpen;
+                    const boqBody = (() => {
                     if (result.workings.sections && result.workings.sections.length > 0) {
                       // RM-3a: LABELLED groups -- each rendered as its OWN separated block (header +
                       // card/divider + own derivation lines + own final values), so a cable row's
@@ -1126,7 +1169,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           ))}
                         </ul>
                       )}
-                      {result.workings.derivation.length > 0 && (
+                          {result.workings.derivation.length > 0 && (
                         <ul className="space-y-0.5 text-xs text-muted-foreground">
                           {result.workings.derivation.map((line, i) => (
                             <li key={i}>{line}</li>
@@ -1134,6 +1177,35 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                         </ul>
                       )}
                     </>
+                    );
+                    })();
+                    return (
+                      <>
+                        <PriceSection
+                          side="boq"
+                          open={boqOpen}
+                          emphasised={!!bcs && !isCalculator && !onBcs}
+                          foldedFigure={result.values.supply_rate}
+                          onToggle={bcs && !isCalculator && onBcs ? toggleOther : undefined}
+                          className={isCalculator ? "order-1" : undefined}
+                        >
+                          {boqBody}
+                        </PriceSection>
+                        {bcs && (
+                          <PriceSection
+                            side="bcs"
+                            open={bcsOpen}
+                            emphasised={!isCalculator && onBcs}
+                            foldedFigure={bcs.values.supply_rate}
+                            onToggle={!isCalculator && !onBcs ? toggleOther : undefined}
+                            className={isCalculator ? "order-1" : undefined}
+                          >
+                            <div className={isCalculator ? "grid gap-2" : "space-y-1.5"} style={sectionsStyle}>
+                              {bcs.sections.map(renderSection)}
+                            </div>
+                          </PriceSection>
+                        )}
+                      </>
                     );
                   })()}
 
@@ -1153,7 +1225,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           row: excelRow!,
                           byHelper: {
                             ...(prev.row === excelRow ? prev.byHelper : EMPTY_FINAL_MAP),
-                            [helper.id]: e.target.value,
+                            [finalKey]: e.target.value,
                           },
                         }))
                       }
@@ -1166,12 +1238,12 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                       onClick={() =>
                         onUse(col!, finalNum, {
                           helperId: helper.id,
-                          kind: kind!,
+                          kind: onBcs ? "bcs_supply" : kind!,
                           correctedAttributes: Object.fromEntries(
                             result.workings.attributes.map((a) => [a.id, a.value]),
                           ),
                           // ELR-4c (owner "Q3b a"): the feedback log records the value shown, so accepting it reads as not overridden
-                          computedValue: typeof computed === "number" ? moneyValue(computed) : null,
+                          computedValue: typeof shownFigure === "number" ? moneyValue(shownFigure) : null,
                           ...(itemList ? { itemsOnScreen: itemsOnScreen(itemList) } : {}),
                         })
                       }

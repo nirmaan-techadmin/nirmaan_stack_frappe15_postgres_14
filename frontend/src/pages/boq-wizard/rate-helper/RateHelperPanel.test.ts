@@ -149,7 +149,10 @@ describe("slice 11 / the unit label is opt-in per call site, which is what keeps
   });
 
   it("⚠️ NEGATIVE: the NON-item-list surface passes NO unit, so Electrical's figures are unchanged", () => {
-    expect(src).toContain("<FiguresRow figures={g.figures} />");
+    // MOVED at BCS-3 (owner R3 / R6: a cost block's figures row shows its supply only) by this slice's ruled display change. BEFORE:
+    // toContain("<FiguresRow figures={g.figures} />"). The section mount now also passes the group's own `figureKinds`, which
+    // only a COST group carries -- every price group's figures row is the three kinds, and the mount still passes NO unit.
+    expect(src).toContain("<FiguresRow figures={g.figures} kinds={g.figureKinds} />");
     // exactly three mounts in the file, and exactly one of them is unit-less
     // INVERTED at VRF-3b (owner 2026-11-05, U1 board 12) by mechanical authority: BEFORE `toBe(3)`. The fourth mount is an extra
     // line's figures, which carries the row's rate unit; exactly one mount is still unit-less (the claim below)

@@ -56,6 +56,9 @@ import { itemListPricingSpec } from "@/pages/boq-wizard/rate-helper/itemListPric
 import type { RateMasterItem } from "./rate-master/rateMasterTypes";
 import { RateHelperPanel } from "@/pages/boq-wizard/rate-helper/RateHelperPanel";
 import { DISPLAY_RATE_KINDS, type RateHelper, type RateHelperRowContext } from "@/pages/boq-wizard/rate-helper/rateHelperTypes";
+// BCS-3: the BCS section under the BoQ boxes, for Admin and Estimates only (owner R2 "1a")
+import { canSeeBcsCost } from "@/pages/boq-wizard/boqAccess";
+import { useUserData } from "@/hooks/useUserData";
 
 /**
  * Which pricing-workbook pages carry a Calculator tab, and for which rate-master discipline. Keyed by
@@ -327,6 +330,8 @@ export function PricingCalculator({ discipline }: { discipline: string }) {
   // THE SHARED PLUMBING -- the same fetches, keys and accumulate-once map the BoQ page uses.
   const { configsByCategory, onConfigLoaded } = useConfigsByCategory();
   const { data: itemsData } = useRateMasterItems(true, discipline);
+  const { role, user_id } = useUserData();
+  const showCost = canSeeBcsCost(role, user_id);
   const ownItems = useMemo(() => itemsData?.message?.items ?? [], [itemsData]);
   // SLICE 3 (L6): an aliased category prices with its TARGET discipline's items, so every alias target
   // discipline is fetched too (one child per discipline) and merged behind the own set, deduplicated by
@@ -470,6 +475,7 @@ export function PricingCalculator({ discipline }: { discipline: string }) {
             calculatorBlocks={blockLabels}
             fieldColumns={fieldColumns}
             blockColumns={blockColumns}
+            showCost={showCost}
           />
         </div>
       )}

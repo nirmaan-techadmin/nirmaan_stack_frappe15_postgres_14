@@ -63,6 +63,8 @@ import type {
 import { CHAIN_ROW_NOTE_PLACE, CHAIN_ROW_PLACE, POLE_WORDS, attrDisplayValue, sortAttrNotes } from "./rateHelperTypes";
 import { applyConductorFloor, conductorFloorGroups, CONDUCTOR_FLOOR_NOTE } from "./conductorFloor";
 import { USED_INPUT_MARK, attributeWorkingLine, moneyValue, usedAssemblyInputs } from "./attributeWorkingLines";
+// BCS-3: the cost side of a suggestion and the split lines of an added part (cable + conduit, box + modules) -- pure, display only
+import { addedParts, computeBcsSide, supplyOutputOf, type PriceBlock } from "./bcsSide";
 // SLICE 6 (owner S1-S5, 2026-09-24): the item-list mode prices a LIST of items per row through the pure module;
 // the helper only assembles the list (the model's items overlaid with the panel's session edits) and shapes the
 // result for the panel. Every default, ladder and conversion stays in the module + config.
@@ -261,6 +263,62 @@ export type RowContextWithUnit = RateHelperRowContext & {
 /** A pipeline id is surfaced in the helper iff it is NOT a BCS pipeline (owner deferral). PURE. */
 export function isBcsPipelineId(id: string): boolean {
   return id.toLowerCase().includes("bcs");
+}
+
+/** BCS-3: the category's COST pipeline ids (the same BCS test the price side filters on). PURE. */
+export function costPipelineIds(config: RateCategoryConfig): string[] {
+  return Object.keys(config.pipelines ?? {}).filter(isBcsPipelineId);
+}
+
+/**
+ * BCS-3: THE cost side the panel and the calculator show for a selection -- the one entry point `compute` uses, exported so
+ * the screen-cost harness runs exactly this code (P6b). `blocks` are the price blocks in display order; the primary block's
+ * cost is the appliable value. undefined = the category has no cost calculation (or the config came without it).
+ */
+export function bcsSideFor(
+  config: RateCategoryConfig,
+  items: RateMasterItem[],
+  selected: Record<string, string | number>,
+  blocks: readonly PriceBlock[],
+  primaryPid: string,
+  stacked = false,
+) {
+  const costIds = costPipelineIds(config);
+  if (costIds.length === 0) return undefined;
+  // the generic path lists its step lines; the wiring path lists none (its price blocks show none either)
+  const linesOf = stacked ? undefined : (pl: Pipeline, res: PipelineResult) => stepWorkingLines(pl, res, config, items, selected);
+  return computeBcsSide(config, items, selected, blocks, primaryPid, costIds, stacked, linesOf);
+}
+
+/**
+ * A block's step lines (the generic path): one line per step that names a catalogue row or a Pricing Input. BCS-3 moved this
+ * here VERBATIM from the generic path's loop, so a price block and its cost block list their parts by one rule (R7).
+ */
+export function stepWorkingLines(
+  pl: Pipeline,
+  res: PipelineResult,
+  category: RateCategoryConfig,
+  items: RateMasterItem[],
+  selected: Record<string, string | number>,
+): string[] {
+  const out: string[] = [];
+  // EA-4a: the assembly categories expose their per-component build-up as the step traces; surface
+  // each component line (name = value) in the group so the pricer sees the bill, not just the total.
+  // ELR-2 (owner R-WORD / R-MISC, D1-D8): in plain English -- the Pricing Input's own name, the bound field's label
+  // ELR-3a (owner Q2 a): a Pricing Input read ONLY by an assembly step (a length, a conduit fill) moves no SKU's
+  // own rate and adds no line -- the bill reads exactly as it did while those numbers were literals
+  const assemblyOnly = assemblyOnlyCtxKeys(pl);
+  // ELR-4c (owner R-ELR2 (c), "one line per input used"; P6 "Q1 b"): such an input DOES get a line on a row whose
+  // pipeline used it -- "<name> = <value> <unit> (Pricing Input)" -- and none on a row that did not
+  const usedInputs = usedAssemblyInputs(pl, res.steps, selected);
+  for (const st of res.steps) {
+    if (st.step === "rate_ref" && st.produced && assemblyOnly.has(st.produced.key)) {
+      if (usedInputs.has(st.produced.key)) out.push(`${attributeWorkingLine(st, pl, category, items, (a) => selected[a])} ${USED_INPUT_MARK}`);
+      continue;
+    }
+    if (st.produced && st.refItem) out.push(attributeWorkingLine(st, pl, category, items, (a) => selected[a]));
+  }
+  return out;
 }
 
 /** Prettify a snake_case id ("conduit_boq" -> "Conduit Boq"). PURE. The LAST fallback only. */
@@ -1504,6 +1562,10 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
     const claimRow = (ext as ExtractionRowWithItems | undefined)?.claim;
     const claimCfg = claimedConfigOf(claimRow, ROW_CATEGORIES.get(extractionByRow)?.get(ctx.excelRow), ctx.category, configsByCategory);
     const cfg = claimCfg ?? resolveConfig(ctx.category);
+    // BCS-3 (owner answer 2 "b"): the cost side and the two split lines belong to a category whose OWN config holds the
+    // calculation. An alias (HVAC Cables -> Electrical wiring) prices through another discipline's calculation and keeps its
+    // panel as before but for the BoQ tag (UI CHANGE CONTROL 2) until its own discipline gets BCS.
+    const ownCalc = !(configsByCategory && isAliasConfig(configsByCategory.get(ctx.category ?? "") ?? null));
     // SLICE 12d-2: ONE predicate on every surface (the FA7 calculator admission is retired) -- the
     // BoQ decline cards, the pre-run rules and the server's extraction population all read the same test.
     // VRF-4 (Q1 A): VRF-2a's calculator-surface admission is removed -- the same predicate on every surface.
@@ -2030,7 +2092,7 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
     // WIRING SPECIAL CASE (owner Decision 2, temporary): paired Cable + Termination display and the
     // cable-vs-termination primary choice. Group labels come from config.pipeline_labels.
     if (category.category_id === WIRING_CATEGORY_ID) {
-      return computeWiring(category, items, selected, ctx, workingsAttrs, attrLine);
+      return computeWiring(category, items, selected, ctx, workingsAttrs, attrLine, ownCalc);
     }
 
     // GENERIC PATH: run every NON-BCS pipeline; each is one group (labelled from config data / a
@@ -2056,9 +2118,17 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
       const derivation: string[] = [];
       const matchedRows: string[] = [];
       const label = pipelineLabel(category, pid);
+      // BCS-3 (owner R4 "2 a line for the pop-up box itself"): where an output is made as `base + <part>`, the base leads
+      // the block's lines (before the modules) and the part sits just before the output's own line. null everywhere else.
+      const baseLines: string[] = [];
       if (res.status === "ok") {
         for (const o of res.outputs) {
           finals[o] = res.finals[o];
+          const parts = ownCalc ? addedParts(pl as Pipeline, res, o, outputWord(o)) : null;
+          if (parts) {
+            baseLines.push(parts.baseLine);
+            derivation.push(parts.partLine, ...(parts.sumLine ? [parts.sumLine] : []));
+          }
           // Calculator slice 1: the pricer's word ("Supply = 320"), not the output id ("supply = 320",
           // "supply_per_mtr = 1490"); an output that fills no kind keeps its own name.
           derivation.push(`${outputWord(o)} = ${moneyValue(res.finals[o])}`);   // ELR-4c (R-FLOAT): money to 2 decimals
@@ -2068,22 +2138,9 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
           const kind = kindForOutput(o);
           if (kind && values[kind] === undefined) values[kind] = res.finals[o];
         }
-        // EA-4a: the assembly categories expose their per-component build-up as the step traces; surface
-        // each component line (name = value) in the group so the pricer sees the bill, not just the total.
-        // ELR-2 (owner R-WORD / R-MISC, D1-D8): in plain English -- the Pricing Input's own name, the bound field's label
-        // ELR-3a (owner Q2 a): a Pricing Input read ONLY by an assembly step (a length, a conduit fill) moves no SKU's
-        // own rate and adds no line -- the bill reads exactly as it did while those numbers were literals
-        const assemblyOnly = assemblyOnlyCtxKeys(pl as Pipeline);
-        // ELR-4c (owner R-ELR2 (c), "one line per input used"; P6 "Q1 b"): such an input DOES get a line on a row whose
-        // pipeline used it -- "<name> = <value> <unit> (Pricing Input)" -- and none on a row that did not
-        const usedInputs = usedAssemblyInputs(pl as Pipeline, res.steps, selected);
-        for (const st of res.steps) {
-          if (st.step === "rate_ref" && st.produced && assemblyOnly.has(st.produced.key)) {
-            if (usedInputs.has(st.produced.key)) matchedRows.push(`${attributeWorkingLine(st, pl as Pipeline, category, items, (a) => selected[a])} ${USED_INPUT_MARK}`);
-            continue;
-          }
-          if (st.produced && st.refItem) matchedRows.push(attributeWorkingLine(st, pl as Pipeline, category, items, (a) => selected[a]));
-        }
+        // BCS-3: moved verbatim into `stepWorkingLines`, so a cost block lists its parts by the SAME rule as its price block
+        matchedRows.push(...stepWorkingLines(pl as Pipeline, res, category, items, selected));
+        if (baseLines.length) matchedRows.unshift(...baseLines);
         flatMatched.push(`Matched ${label} for ${attrLine}.`);
       } else if (noneRefusalOf(res)) {
         if (!wholeRowRefusal) derivation.push(noneRefusalOf(res)!);
@@ -2137,10 +2194,15 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
     const unitNote = Object.keys(values).length
       ? attributeUnitNote(category, items, (ctx as RowContextWithUnit).unit, surfaced[0][0], pipelineResults[0])
       : undefined;
+    // BCS-3: the cost side, on the SAME selection, one cost block per price block that has a paired cost pipeline. It never
+    // feeds `values` (P6d: the BoQ suggestion is byte-equal with it switched off).
+    const primarySupply = surfaced.find(([, pl]) => supplyOutputOf(pl as Pipeline) !== undefined)?.[0] ?? surfaced[0][0];
+    const bcs = ownCalc ? bcsSideFor(category, items, selected, surfaced.map(([pid]) => ({ pid, label: pipelineLabel(category, pid) })), primarySupply) : undefined;
     return {
       kind: "suggestion",
       values,
       producibleKinds: PRODUCIBLE_KINDS,
+      ...(bcs ? { bcs } : {}),
       // Calculator slice 1: the category's LABEL ("Switches and Sockets"), not its id ("switches_sockets").
       basis: Object.keys(values).length
         ? `Rate master: ${categoryLabel(category)} @ ${attrLine}`
@@ -2168,6 +2230,8 @@ function computeWiring(
   ctx: RateHelperRowContext,
   workingsAttrs: WorkingsAttribute[],
   attrLine: string,
+  /** BCS-3 (owner answer 2 "b"): false on an alias row (HVAC Cables): no split lines, no cost side */
+  ownCalc = true,
 ): HelperResult {
   const pipelines = config.pipelines ?? {};
   const termination = isTerminationRow(ctx.description);
@@ -2191,6 +2255,9 @@ function computeWiring(
     for (const o of result.outputs) {
       const kind = kindForOutput(o);
       if (kind) values[kind] = result.finals[o];
+      // BCS-3 (owner R4 "1 conduit as its own line"): the cable and its conduit as their own lines before the output's line
+      const parts = ownCalc ? addedParts(primary, result, o, outputWord(o)) : null;
+      if (parts) derivation.push(parts.baseLine, parts.partLine, ...(parts.sumLine ? [parts.sumLine] : []));
       derivation.push(`${outputWord(o)} = ${moneyValue(result.finals[o])}`);
     }
     if (typeof values.supply_rate === "number" && typeof values.install_rate === "number") {
@@ -2260,6 +2327,8 @@ function computeWiring(
     if (sr.status === "ok") {
       for (const o of sr.outputs) {
         secondaryGroup.finals[o] = sr.finals[o];
+        const parts = ownCalc ? addedParts(secondary, sr, o, outputWord(o)) : null;
+        if (parts) secondaryGroup.derivation.push(parts.baseLine, parts.partLine, ...(parts.sumLine ? [parts.sumLine] : []));
         secondaryGroup.derivation.push(`${outputWord(o)} = ${moneyValue(sr.finals[o])}`);
       }
     } else {
@@ -2303,12 +2372,16 @@ function computeWiring(
   const unitNote = Object.keys(values).length
     ? attributeUnitNote(config, items, (ctx as RowContextWithUnit).unit, primaryId, result)
     : undefined;
+  // BCS-3: the cost side in the SAME block order (cable first), the primary block's cost appliable, stacked like the price
+  const blockIds = termination ? [secondaryId, primaryId] : [primaryId, secondaryId];
+  const bcs = ownCalc ? bcsSideFor(config, items, selected, blockIds.map((pid) => ({ pid, label: pipelineLabel(config, pid) })), primaryId, true) : undefined;
 
   return {
     kind: "suggestion",
     values,
     producibleKinds: PRODUCIBLE_KINDS,
     headlines,
+    ...(bcs ? { bcs } : {}),
     basis:
       result.status === "ok"
         ? `Rate master: ${categoryLabel(config)} @ ${attrLine}`

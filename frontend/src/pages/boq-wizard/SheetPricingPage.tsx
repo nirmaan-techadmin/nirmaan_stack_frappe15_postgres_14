@@ -208,7 +208,7 @@ import {
 import { RateHelperPanel, type UseMeta } from "./rate-helper/RateHelperPanel";
 import { buildHelperList, makePreviouslyPricedHelper, type MatchRunData } from "./rate-helper/rateHelperRegistry";
 import type { MatchDetail, PreviousMatch } from "./rate-helper/rateHelperTypes";
-import { canOpenBoqHub } from "./boqAccess";
+import { canOpenBoqHub, canSeeBcsCost } from "./boqAccess";
 import {
   buildExtractionByRow,
   rowUsesPreRunHelper,
@@ -528,6 +528,10 @@ export function normalizeOverrideReason(raw: string): string | null {
   const trimmed = raw.slice(0, CATEGORY_OVERRIDE_REASON_MAX_LEN).trim();
   return trimmed || null;
 }
+
+/** BCS-3: the panel's `col` when the BCS box opened it -- a label, never a sheet column letter. */
+const BCS_HELPER_COL = "BCS";
+const EMPTY_EXCEL_ROW_SET: ReadonlySet<number> = new Set<number>();
 
 const SheetPricingPage = () => {
   const { boqId, sheetName } = useParams<{ boqId: string; sheetName: string }>();
@@ -1048,6 +1052,8 @@ const SheetPricingPage = () => {
   // `role` read + everything marked "G3b" when the override is removed (owner commitment: once
   // classification engines cover all disciplines).
   const { user_id: currentUser, role } = useUserData();
+  // BCS-3 (owner R2 "1a"): the cost side of the helper -- and the BCS box opener -- for Admin and Estimates only
+  const showBcsCost = canSeeBcsCost(role, currentUser);
   const showCategoryOverrideControl = isNirmaanAdmin(role, currentUser);
   const { call: acquirePricingLock } = useFrappePostCall(
     "nirmaan_stack.api.boq.wizard.pricing.acquire_pricing_lock",
@@ -1303,6 +1309,8 @@ const SheetPricingPage = () => {
     excelRow: number;
     col: string;
     kind: string;
+    /** BCS-3: which box opened the panel -- a rate cell, or the row's BCS supply cost box */
+    target: "rate" | "bcs";
   } | null>(null);
   // RM-3 suggest run: the run whose extraction drives the badges/panel (from the active run on
   // load [version-keyed] OR a just-completed press). The async run's modal/poll state mirrors the
@@ -2306,6 +2314,17 @@ const SheetPricingPage = () => {
     bcsToggle === "on" && bcsReady && !isViewingHistory && liveCommitVersion !== null;
   const bcsRatesLoad = bcsRatesLoadState({ data: bcsRatesData, error: bcsRatesFetchError });
   const bcsColumnsVisible = bcsBlockConfigured && bcsRatesLoad.isUsable;
+  // BCS-3 (R-BCS-29, P3e): the rows whose installation cost box reads "On the BoQ summary" -- every row whose category's
+  // config is Electrical (the discipline that has a BCS calculation). Category-pick stable; the SHARED empty set otherwise.
+  const bcsInstallOnSummaryRows = useMemo(() => {
+    if (!bcsColumnsVisible) return EMPTY_EXCEL_ROW_SET;
+    const s = new Set<number>();
+    liveCategoriesByExcelRow.forEach((c, excelRow) => {
+      const cfg = c?.effective_category_id ? configsByCategory.get(c.effective_category_id) : undefined;
+      if (cfg?.discipline === "Electrical") s.add(excelRow);
+    });
+    return s.size > 0 ? s : EMPTY_EXCEL_ROW_SET;
+  }, [bcsColumnsVisible, liveCategoriesByExcelRow, configsByCategory]);
   /** BCS is set up on this version, but its stored costs could not be read. */
   const bcsCostsUnreadable = bcsBlockConfigured && bcsRatesLoad.isFailed;
   const handleRetryBcsRates = () => {
@@ -3343,10 +3362,16 @@ const SheetPricingPage = () => {
       const d = columnDescriptors.find((dd) => dd.col === col);
       const kind = d ? rateKindOfDescriptor(d) : null;
       if (!kind) return;
-      setHelperPanel({ excelRow, col, kind });
+      setHelperPanel({ excelRow, col, kind, target: "rate" });
     },
     [columnDescriptors],
   );
+
+  // BCS-3 (owner R6): the row's BCS supply cost box opens the SAME panel on its BCS section. `col` is a label, never a sheet
+  // column: "Use this value" from this target writes the BCS supply through the grid's typed cost path, never a rate cell.
+  const handleBcsHelperClick = useCallback((excelRow: number) => {
+    setHelperPanel({ excelRow, col: BCS_HELPER_COL, kind: "supply_rate", target: "bcs" });
+  }, []);
 
   // USE: apply the value + optimistically mark used + record the Use telemetry (fire-and-forget).
   const handleUseSuggestion = useCallback(
@@ -3361,6 +3386,14 @@ const SheetPricingPage = () => {
         return;
       }
       const excelRow = helperPanel.excelRow;
+      if (helperPanel.target === "bcs") {
+        // BCS-3: the BCS supply (the single box on a combined-only sheet) through the typed cost path -> save_row_bcs_rates.
+        // No Suggestion Event is recorded and no rate badge is marked: the cost box has no badge, and the slice writes no
+        // row beyond the cost itself.
+        gridRef.current?.applyBcsRate(excelRow, value);
+        setHelperPanel(null);
+        return;
+      }
       gridRef.current?.applyRate(excelRow, col, value);
       usedPairsRef.current.add(`${excelRow}::${col}`);
       setSuggestionsByExcelRow((prev) => markSuggestionUsed(prev, excelRow, col));
@@ -5676,6 +5709,9 @@ const SheetPricingPage = () => {
             bcsAmountSource={bcsAmountSource}
             onSaveBcsRates={bcsWritable ? handleSaveBcsRates : undefined}
             bcsReadOnlyReason={bcsCostReason}
+            // BCS-3: the BCS box opener (Admin and Estimates, the helper on) and the Electrical installation-box hint
+            onBcsHelperClick={RATE_HELPER_ENABLED && showBcsCost ? handleBcsHelperClick : undefined}
+            bcsInstallOnSummaryRows={bcsInstallOnSummaryRows}
             onDirtyChange={handleDirtyChange}
             // Slice B (undo/redo): the grid surfaces {canUndo, canRedo}; the bottom-ribbon buttons
             // read it (the onDirtyChange precedent). The undo/redo ACTIONS ride the imperative handle.
@@ -5757,6 +5793,8 @@ const SheetPricingPage = () => {
             excelRow={helperPanelOpen ? helperPanel!.excelRow : undefined}
             col={helperPanelOpen ? helperPanel!.col : undefined}
             kind={helperPanelOpen ? helperPanel!.kind : undefined}
+            target={helperPanelOpen ? helperPanel!.target : "rate"}
+            showCost={showBcsCost}
             ctx={helperPanelOpen ? helperPanelCtx! : undefined}
             helpers={panelHelpers}
             onUse={handleUseSuggestion}
@@ -5773,6 +5811,8 @@ const SheetPricingPage = () => {
             excelRow={helperPanel.excelRow}
             col={helperPanel.col}
             kind={helperPanel.kind}
+            target={helperPanel.target}
+            showCost={showBcsCost}
             ctx={helperPanelCtx}
             helpers={panelHelpers}
             onUse={handleUseSuggestion}

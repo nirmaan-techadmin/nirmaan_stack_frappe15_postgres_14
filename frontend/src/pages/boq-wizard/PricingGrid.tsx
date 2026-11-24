@@ -2102,6 +2102,16 @@ interface PricingGridProps {
    */
   bcsReadOnlyReason?: string | null;
   /**
+   * BCS-3: open the helper panel on a row's BCS supply cost box (owner R6). Absent => no opener (a viewer who may not see
+   * cost, or the helper off). The opener sits only in an EDITABLE supply box (or the single box of a combined-only sheet).
+   */
+  onBcsHelperClick?: (excelRow: number) => void;
+  /**
+   * BCS-3 (R-BCS-29 / P3e): the rows whose installation cost box reads "On the BoQ summary" -- the Electrical rows (the
+   * installation cost is one figure per BoQ). The box stays editable: nothing typed is hidden or deleted.
+   */
+  bcsInstallOnSummaryRows?: ReadonlySet<number>;
+  /**
    * ── BCS-S13: the % Margin RANGE FILTER, opened from the % Margin column header ──────────────
    * The applied bounds AS TYPED (`""` = open on that side) and the matched row count, both
    * DISPLAY ONLY -- the grid renders them into the header control and never filters on them.
@@ -2203,6 +2213,13 @@ export interface PricingGridHandle {
    * autosave/refetch. No-op if the cell is not an editable rate cell (onSaveRate withheld => locked).
    * The ONE write the "Use this value" affordance calls; it adds no second save path. */
   applyRate: (excelRow: number, col: string, value: number) => void;
+  /**
+   * BCS-3 ("Use this value" from the row's BCS cost box): put `value` in the row's BCS SUPPLY box -- the single box on a
+   * combined-only sheet (R-BCS-38) -- through EXACTLY the typing path (the draft, then the debounced `commitBcsRate` ->
+   * `save_row_bcs_rates`), so the whole-row gather keeps the other cost fields, undo records it, and a refusal keeps the
+   * draft. Never `save_cell_price`. A no-op where the boxes are read-only or the sheet has no supply / combined box.
+   */
+  applyBcsRate: (excelRow: number, value: number) => void;
 }
 
 // ── Editor perf fix: PricingGrid row-level memoization (recon items 1+2) ─────────
@@ -2815,6 +2832,10 @@ interface PricingGridRowProps {
   onSaveBcsRates?: (args: BcsRowSaveArgs) => Promise<void>;
   /** Why the boxes are read-only (grid-level string), rendered as the cell title. */
   bcsReadOnlyReason?: string | null;
+  /** BCS-3: the BCS box opener (grid-level, stable) -- see the grid prop. */
+  onBcsHelperClick?: (excelRow: number) => void;
+  /** BCS-3: THIS row's installation cost box reads "On the BoQ summary" (a memo-safe scalar). */
+  bcsInstallOnSummary?: boolean;
   /** Commit ONE cost box (blur / Enter / the debounce firing). Gathers the whole row itself. */
   commitBcsRate?: (row: PricedRow, kind: BcsRateKind, rawValue: string) => void;
   /** Restart this box's 1s debounced auto-save (the onChange path). */
@@ -2917,6 +2938,8 @@ export function pricingRowPropsAreEqual(
     prev.bcsAmountSource === next.bcsAmountSource &&
     prev.onSaveBcsRates === next.onSaveBcsRates &&
     prev.bcsReadOnlyReason === next.bcsReadOnlyReason &&
+    prev.onBcsHelperClick === next.onBcsHelperClick &&
+    prev.bcsInstallOnSummary === next.bcsInstallOnSummary &&
     prev.commitBcsRate === next.commitBcsRate &&
     prev.scheduleBcsAutoSave === next.scheduleBcsAutoSave &&
     prev.setDraftBcsRates === next.setDraftBcsRates &&
@@ -2944,6 +2967,10 @@ export function pricingRowPropsAreEqual(
  */
 /** DEV2-B6: the opening control's words (tooltip AND screen-reader text). */
 export const RATE_HELPER_OPEN_TEXT = "Open rate suggestions";
+/** BCS-3: the BCS supply box's opener -- the same panel, opened on the BCS section. */
+export const BCS_HELPER_OPEN_TEXT = "Open rate suggestions (BCS - our cost)";
+/** BCS-3 (R-BCS-29, P3e): what an Electrical row's installation cost box says. */
+export const BCS_INSTALL_ON_SUMMARY = "On the BoQ summary";
 
 /** PURE (DEV2-B6 PANEL ICON). What a rate cell shows to open the panel:
  *  "badge+sparkle" -- this cell has a badge entry (count / tick): the badge, and beside it the visible sparkle;
@@ -3017,6 +3044,8 @@ const PricingGridRow = memo(function PricingGridRow({
   bcsAmountSource = null,
   onSaveBcsRates,
   bcsReadOnlyReason = null,
+  onBcsHelperClick,
+  bcsInstallOnSummary = false,
   commitBcsRate,
   scheduleBcsAutoSave,
   setDraftBcsRates,
@@ -3807,13 +3836,17 @@ const PricingGridRow = memo(function PricingGridRow({
                 const key = bcsCellKey(row.row_index, field);
                 const value = merged[field] ?? "";
                 const costed = bcsRow?.is_filled === 1;
+                // BCS-3: the supply box opens the helper on the BCS side; a combined-only sheet's single box carries it
+                const opensHelper = !!onBcsHelperClick && (kind === "supply" || (kind === "combined" && !bcsKinds.includes("supply")));
+                // BCS-3 (R-BCS-29): an Electrical row's installation cost is one figure per BoQ, on the BoQ summary
+                const onSummary = bcsInstallOnSummary && kind === "install";
                 if (!editable) {
                   return (
                     <td
                       key={field}
                       {...tdFocusProps(colIndex)}
                       data-colkey={bcsWidthKey(kind)}
-                      title={bcsReadOnlyReason ?? undefined}
+                      title={onSummary && value === "" ? BCS_INSTALL_ON_SUMMARY : bcsReadOnlyReason ?? undefined}
                       className={cn(
                         "px-2 py-1.5 text-right align-top tabular-nums border-l border-border",
                         cellNavClass(colIndex),
@@ -3827,7 +3860,7 @@ const PricingGridRow = memo(function PricingGridRow({
                   <td
                     key={field}
                     data-colkey={bcsWidthKey(kind)}
-                    title={costed ? "Cost entered" : undefined}
+                    title={onSummary ? BCS_INSTALL_ON_SUMMARY : costed ? "Cost entered" : undefined}
                     className={cn(
                       "relative px-1 py-1 align-top border-l border-border",
                       // The cost layer gets the SAME priced-emerald wash the rate cells use --
@@ -3838,10 +3871,26 @@ const PricingGridRow = memo(function PricingGridRow({
                     )}
                   >
                     <div className="flex items-center justify-end gap-0.5">
+                      {opensHelper && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onBcsHelperClick!(row.source_row_number);
+                          }}
+                          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-primary hover:bg-primary/10"
+                          title={BCS_HELPER_OPEN_TEXT}
+                          aria-label={BCS_HELPER_OPEN_TEXT}
+                          data-testid="bcs-helper-open"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                        </button>
+                      )}
                       <Input
                         {...inputFocusProps(colIndex)}
                         type="text"
                         inputMode="decimal"
+                        placeholder={onSummary ? BCS_INSTALL_ON_SUMMARY : undefined}
                         value={value}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -3945,7 +3994,7 @@ PricingGridRow.displayName = "PricingGridRow";
 // future non-stable prop silently kills the shield (see frontend/.claude/context/domain/
 // boq-pricing-editor-frontend.md).
 export const PricingGrid = memo(forwardRef<PricingGridHandle, PricingGridProps>(function PricingGrid(
-  { rows, columnDescriptors, onSaveRate, onBatchWrite, onDirtyChange, onHistoryChange, override = false, formulasComplete = true, categoryGateOpen = true, onSaveRemark, onSaveColor, columnFormulas = [], onSaveFormula, rowFlags, expanded = false, reconChoices = [], categoriesByExcelRow = EMPTY_CATEGORY_MAP, hasRun = false, rowTypeFilterOptions = EMPTY_FILTER_OPTIONS, rowTypeFilter = EMPTY_FILTER_SET, onRowTypeFilterChange, categoryFilterOptions = EMPTY_FILTER_OPTIONS, categoryFilter = EMPTY_FILTER_SET, onCategoryFilterChange, categoryLabelById = EMPTY_CATEGORY_LABEL_MAP, pendingLabelByCategory = EMPTY_PENDING_LABEL_MAP, onCategoryClick, rowSuggestionsByExcelRow = EMPTY_SUGGESTIONS_MAP, matchResultRows = EMPTY_ROW_SET, onSuggestionBadgeClick, tickableRows = EMPTY_ROW_SET, selectedRows = EMPTY_ROW_SET, onToggleTick, showOnlyTicked = false, onToggleTicked, onSaveReconChoice, hiddenCols, currentHitExcelRow = null, collapsed, childrenByParent, onToggleCollapse, onRevealRow, frozen = false, virtualized = false, bcsKinds = EMPTY_BCS_KINDS, bcsRatesByExcelRow = EMPTY_BCS_RATES_MAP, bcsQtySource = null, bcsAmountSource = null, onSaveBcsRates, bcsReadOnlyReason = null, marginFrom = "", marginTo = "", marginRangeCount = null, onApplyMarginRange, marginSortDir = null, onCycleMarginSort, viewFiltersActive = false, onClearViewFilters },
+  { rows, columnDescriptors, onSaveRate, onBatchWrite, onDirtyChange, onHistoryChange, override = false, formulasComplete = true, categoryGateOpen = true, onSaveRemark, onSaveColor, columnFormulas = [], onSaveFormula, rowFlags, expanded = false, reconChoices = [], categoriesByExcelRow = EMPTY_CATEGORY_MAP, hasRun = false, rowTypeFilterOptions = EMPTY_FILTER_OPTIONS, rowTypeFilter = EMPTY_FILTER_SET, onRowTypeFilterChange, categoryFilterOptions = EMPTY_FILTER_OPTIONS, categoryFilter = EMPTY_FILTER_SET, onCategoryFilterChange, categoryLabelById = EMPTY_CATEGORY_LABEL_MAP, pendingLabelByCategory = EMPTY_PENDING_LABEL_MAP, onCategoryClick, rowSuggestionsByExcelRow = EMPTY_SUGGESTIONS_MAP, matchResultRows = EMPTY_ROW_SET, onSuggestionBadgeClick, tickableRows = EMPTY_ROW_SET, selectedRows = EMPTY_ROW_SET, onToggleTick, showOnlyTicked = false, onToggleTicked, onSaveReconChoice, hiddenCols, currentHitExcelRow = null, collapsed, childrenByParent, onToggleCollapse, onRevealRow, frozen = false, virtualized = false, bcsKinds = EMPTY_BCS_KINDS, bcsRatesByExcelRow = EMPTY_BCS_RATES_MAP, bcsQtySource = null, bcsAmountSource = null, onSaveBcsRates, bcsReadOnlyReason = null, onBcsHelperClick, bcsInstallOnSummaryRows = EMPTY_ROW_SET, marginFrom = "", marginTo = "", marginRangeCount = null, onApplyMarginRange, marginSortDir = null, onCycleMarginSort, viewFiltersActive = false, onClearViewFilters },
   ref,
 ) {
   // Cluster B: per-cell reconciliation choice map (per-SHEET; reference-stable across a keystroke
@@ -4323,6 +4372,9 @@ export const PricingGrid = memo(forwardRef<PricingGridHandle, PricingGridProps>(
   );
   const applyRateRef = useRef(applyRate);
   applyRateRef.current = applyRate;
+  // BCS-3: "Use this value" from the BCS box -- the same steps as typing in it (draft, then the debounced commit). Defined
+  // with the typing path's own pieces, so there is no second save path for a cost.
+  const applyBcsRateRef = useRef<(excelRow: number, value: number) => void>(() => {});
   // BCS-S4: the % Margin reading the range filter tests. Same ref pattern as undo/redo/applyRate --
   // the handle delegates to the LATEST closure, so it need not rebuild when rows/descriptors/drafts
   // change, and a reading taken at any moment sees the values on screen at that moment. Assigned
@@ -4458,6 +4510,16 @@ export const PricingGrid = memo(forwardRef<PricingGridHandle, PricingGridProps>(
     },
     [onSaveBcsRates],
   );
+
+  applyBcsRateRef.current = (excelRow: number, value: number) => {
+    if (!onSaveBcsRates) return;
+    const kind: BcsRateKind | null = bcsKinds.includes("supply") ? "supply" : bcsKinds.includes("combined") ? "combined" : null;
+    const row = rowsRef.current.find((r) => r.source_row_number === excelRow);
+    if (!kind || !row) return;
+    const key = bcsCellKey(row.row_index, BCS_RATE_FIELD[kind]);
+    setDraftBcsRates((prev) => ({ ...prev, [key]: String(value) }));
+    scheduleBcsAutoSave(row, kind);
+  };
 
   // Keep the latest-state closures fresh for the BCS debounce / flush (refs avoid stale
   // captures), mirroring the rate path's effect above.
@@ -5579,6 +5641,7 @@ export const PricingGrid = memo(forwardRef<PricingGridHandle, PricingGridProps>(
       // U1 rate-helper: delegate to the latest applyRate via a ref (like undo/redo) so the handle
       // need not rebuild when rows/descriptors change.
       applyRate: (excelRow, col, value) => applyRateRef.current(excelRow, col, value),
+      applyBcsRate: (excelRow, value) => applyBcsRateRef.current(excelRow, value),
       // BCS-S4: every row's % Margin, taken at the moment it is asked for (BCS-S13: on an explicit
       // filter Apply). Delegates via a ref for the same reason undo/redo/applyRate do.
       computeMargins: (rowsToMeasure) => computeMarginsRef.current(rowsToMeasure),
@@ -6654,6 +6717,8 @@ export const PricingGrid = memo(forwardRef<PricingGridHandle, PricingGridProps>(
       bcsAmountSource={bcsAmountSource}
       onSaveBcsRates={onSaveBcsRates}
       bcsReadOnlyReason={bcsReadOnlyReason}
+      onBcsHelperClick={onBcsHelperClick}
+      bcsInstallOnSummary={bcsInstallOnSummaryRows.has(row.source_row_number)}
       commitBcsRate={commitBcsRate}
       scheduleBcsAutoSave={scheduleBcsAutoSave}
       setDraftBcsRates={setDraftBcsRates}

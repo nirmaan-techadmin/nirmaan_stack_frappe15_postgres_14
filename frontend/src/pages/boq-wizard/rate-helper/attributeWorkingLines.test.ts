@@ -71,6 +71,9 @@ const TEMPLATES: Array<{ id: string; re: RegExp }> = [
   { id: "formula Bus bar", re: new RegExp(`^Bus bar( = ${AMT}|: not included)$`) },
   // wiring & cabling / HVAC Cables: the pair sentence computeWiring has always written (plain English, unchanged)
   { id: "wiring matched row", re: /^Matched (cable|termination) rate row for .+\.$/ },
+  // ADDED at BCS-3 (owner R4 "2 a line for the pop-up box itself: yes"): the box's own share leads the pop-up block, price
+  // (supply and install) -- `bcsSide.addedParts` from the step trace; the modules' part sits with the derivation lines
+  { id: "pop-up box itself", re: new RegExp(`^Box (supply|install) = ${AMT}$`) },
 ];
 const classify = (line: string) => TEMPLATES.find((t) => t.re.test(line))?.id ?? "other";
 
@@ -202,7 +205,10 @@ describe("ELR-2 AC2: THE PERMANENT SWEEP -- no internal name on any Electrical-e
       "junction_box_raceway", "lighting_mgmt_system", "miscellaneous", "point_wiring", "popup_boxes", "switches_sockets",
     ].flatMap((c) => [`${c}|calculator`, `${c}|panel`]));
     // every template a category can show is reached (the 80 internal-name lines of the 2026-10-28 replay, by template)
-    expect(reached.size).toBe(80); // = the 80 (category, key) lines P2 measured on the replay, one template each
+    // MOVED at BCS-3 (owner R4 "2 a line for the pop-up box itself: yes"): +1 = "popup_boxes|pop-up box itself", the box's own line.
+    // BEFORE: toBe(80) -- the 80 (category, key) lines P2 measured on the replay, one template each; those 80 are all still reached.
+    expect(reached.size).toBe(81);
+    expect(reached.has("popup_boxes|pop-up box itself")).toBe(true);
     for (const k of ["db_switchgear|component MCB 5", "point_wiring|component Circuit wire 2", "switches_sockets|component Socket 3",
       "earthing|formula Bus bar", "miscellaneous|PI Miscellaneous supply BCS ratio", "hvac_raceway|PI Cable tray ceiling accessories"]) {
       expect(reached.has(k), k).toBe(true);
@@ -234,7 +240,12 @@ describe("ELR-2 AC2: THE PERMANENT SWEEP -- no internal name on any Electrical-e
 describe("ELR-2: one mechanism, one call site; the item-list path untouched (AC6)", () => {
   it("pricingSheetHelper builds the attribute path's lines ONLY through attributeWorkingLine", () => {
     const src = fs.readFileSync(path.join(__dirname, "pricingSheetHelper.ts"), "utf-8");
-    expect(src).toContain("matchedRows.push(attributeWorkingLine(st, pl as Pipeline, category, items, (a) => selected[a]));");
+    // MOVED at BCS-3 (R7: a price block and its cost block list their parts by ONE rule) by this slice's ruled change. BEFORE:
+    // toContain("matchedRows.push(attributeWorkingLine(st, pl as Pipeline, category, items, (a) => selected[a]));"). The loop
+    // moved VERBATIM into `stepWorkingLines`, which the price block and the cost block both call -- still ONLY through
+    // attributeWorkingLine.
+    expect(src).toContain("out.push(attributeWorkingLine(st, pl, category, items, (a) => selected[a]));");
+    expect(src).toContain("matchedRows.push(...stepWorkingLines(pl as Pipeline, res, category, items, selected));");
     expect(src).not.toContain("`${st.produced.key}: ${st.refItem} = ${st.produced.value}`");
   });
   it("the labels module does not use plainPricerText (ELR-R0: it garbles these lines) and names no category", () => {
