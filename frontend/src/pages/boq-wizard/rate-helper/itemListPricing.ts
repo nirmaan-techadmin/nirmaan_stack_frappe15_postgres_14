@@ -27,6 +27,7 @@
 // NOT ELIGIBLE YET (P8): nothing here is wired into `pricingSheetHelper`; `isEligibleConfig` still reads
 // `pipelines`, which the ADP config keeps empty. Slice 6 wires the panel.
 import type { SheetSharesSpec } from "./vavSheetShares";
+import type { ScopeRuleSpec } from "./scopeRule";
 import {
   buildModuleLadder,
   fitModuleLadder,
@@ -1151,6 +1152,13 @@ export interface ScopeSpec {
   uplift_input: string;
   title: string;
   lines: Record<string, string>;
+  /** VAV-2c2 (R3 a, owner 2026-11-23 13:46): the `lines` (and `normal_note`) worded for a scope the USER chose (the panel's pick) or the
+   *  Calculator's, where no BoQ said it -- "BoQ says" stays only where the helper read the scope from the BoQ. A key absent here keeps its
+   *  `lines` text; the whole key ABSENT => `lines` everywhere, as before. */
+  chosen_lines?: Record<string, string>;
+  /** VAV-2c2 (R1 / R2, owner 2026-11-23 13:52 - 13:57; QR-SURE / QR-WORDS / QR-ASK 2026-11-24): THE SCOPE RULE (`scopeRule.ts`) -- the row's
+   *  scope from the rule, with its note, on a BoQ row with its sheet. ABSENT => the model's scope answer, as before. */
+  rule?: ScopeRuleSpec;
   /** VRF-6 (owner Q5): a supply-only row under a heading / note (`words`) saying the rates include installation -- supply only
    *  with `with_row` when the same sheet has an installation-only row of the same kind ({rows}); else supply + installation with
    *  `no_row` ({said} = the words found). ABSENT => the row's scope answer alone, as before. */
@@ -6482,7 +6490,9 @@ function priceOneItem(
     let scaleAt = 0;
     let before: Record<string, unknown> = {};
     for (const st of r.steps) {
-      if (st.produced) out.working.push(`${id}: ${claddingLabel(st)} = ${fmt(st.produced.value)}`);
+      // VAV-2c2 (R3 g): a step label that already names its side ("supply: BCS cost x ...") is not given the side twice
+      const lab = st.produced ? claddingLabel(st) : "";
+      if (st.produced) out.working.push(lab.toLowerCase().startsWith(`${id.toLowerCase()}:`) ? `${lab} = ${fmt(st.produced.value)}` : `${id}: ${lab} = ${fmt(st.produced.value)}`);
       if (showNumbers && st.step === "scale") {
         const def = scaleDefs[scaleAt++] as { target?: string; formula?: string; params?: Record<string, unknown> } | undefined;
         const line = def && st.produced ? numbersLine(def, before, runSel) : null;
