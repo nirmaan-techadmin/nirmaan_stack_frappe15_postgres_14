@@ -348,7 +348,10 @@ PIPELINE_KEYS = {"cable_boq", "termination_boq", "cable_bcs", "termination_bcs"}
 # BCS-2 (2026-11-22): v72 -> v73 (owner R1 - R4, 2026-11-21 / 22): the cost pipelines (conduit in cable_bcs, modules in popup_bcs, NEW
 # jb_bcs / indsock_bcs, the price side's refusal on db_buildup_bcs / swsock_bcs), `bcs_default_margin` on 12 configs, the Rs 42 input and
 # its `summary_inputs` mark, 15 point-wiring goldens re-banked + 7 new ones. No BoQ price pipeline and no existing item moved.
-CURRENT_EALL_ASSET = "rate_master_electrical_all_v73.json"
+# BCS-2b (2026-11-24): v73 -> v74 (owner R3 "1b", 2026-11-24; QUESTION 2 "a"): the 13 supply cost pipelines GENERATED from the price
+# pipelines by services/boq_rate_master/bcs_derive.py (`_without_bcs2b` puts each back to v73's, by fingerprint). No price pipeline,
+# item, Pricing Input or golden moved.
+CURRENT_EALL_ASSET = "rate_master_electrical_all_v74.json"
 
 # SLICE 12b(A): the two counts the slice MOVED, named so every assertion says WHY it is what it is.
 #
@@ -682,10 +685,40 @@ def _bcs2_print(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()[:16]
 
 
+# BCS-2b (owner R3 "1b", 2026-11-24; QUESTION 2 "a"): v74 changes ONLY the 13 supply cost pipelines, each GENERATED from its price
+# pipeline (services/boq_rate_master/bcs_derive.py). The FINGERPRINT of each as v74 stores it; `_without_bcs2b` puts a pipeline back to
+# v73's ONLY when it is exactly that one - anything else stays and fails the pin that uses this.
+BCS2B_GENERATED = {
+    "tray_bcs": "64e5a1265baef310", "conduit_bcs": "433473993685b4f9", "db_buildup_bcs": "1eb5321eac681e9d", "earthing_bcs": "a8cedcdf8d556378",
+    "indsock_bcs": "1fc55a0384e6cc4d", "jb_bcs": "1a02f190775c9889", "lms_bcs": "cec620a90c23ad95", "misc_bcs": "9112bb4624ca1615",
+    "pw_bcs": "8eafd566e09c0bf5", "popup_bcs": "d8ea5eb4bc5843b9", "swsock_bcs": "f1ab28a1b9323888", "cable_bcs": "a35d753097d08f8a",
+    "termination_bcs": "4877286bcf10a783"}
+_BCS2B_V73 = {}
+
+
+def _without_bcs2b(cfg):
+    """BCS-2b (v74): each of the 13 generated cost pipelines put back to v73's stored one, matched EXACTLY by fingerprint (above), each at
+    most once; nothing else is touched. Runs FIRST, inside `_without_bcs2`, so every latest-asset comparison forgives exactly v74's
+    declared change and then v73's as before."""
+    c = json.loads(json.dumps(cfg))
+    if not _BCS2B_V73:
+        with open(_asset_path("rate_master_electrical_all_v73.json"), encoding="utf-8") as fh:
+            for v73cfg in json.load(fh)["category_configs"]:
+                for pid in BCS2B_GENERATED:
+                    if pid in (v73cfg.get("pipelines") or {}):
+                        _BCS2B_V73[pid] = v73cfg["pipelines"][pid]
+    pls = c.get("pipelines") or {}
+    for pid, fp in BCS2B_GENERATED.items():
+        if pid in pls and _bcs2_print(pls[pid]) == fp:
+            pls[pid] = json.loads(json.dumps(_BCS2B_V73[pid]))
+    return c
+
+
 def _without_bcs2(cfg):
     """BCS-2 (owner R1 - R4, 2026-11-21 / 22; v73): v73's declared NON-price changes taken away, each matched EXACTLY (above). Anything that is
-    not exactly a declared thing stays and fails the pin that uses this. Run it FIRST on a config: the other normalisers rewrite steps."""
-    c = json.loads(json.dumps(cfg))
+    not exactly a declared thing stays and fails the pin that uses this. Run it FIRST on a config: the other normalisers rewrite steps.
+    BCS-2b (v74): it starts with `_without_bcs2b`, which puts v74's 13 generated cost pipelines back to v73's (by fingerprint)."""
+    c = _without_bcs2b(cfg)
     cat = c.get("category_id")
     if cat in BCS2_MARGINS and _bcs2_print(c.get("bcs_default_margin")) == BCS2_MARGINS[cat]:
         del c["bcs_default_margin"]
@@ -10537,6 +10570,12 @@ class TestLmsPricingHelper(FrappeTestCase):
         pl = self.lms["pipelines"]["lms_bcs"]
         self.assertEqual(pl["output"], ["bcs_supply"])
         scale = [s for s in pl["steps"] if s["step"] == "scale"]
+        # BCS-2b (v74, QUESTION 3 "a"): v74 GENERATES lms_bcs from lms_boq: the price's markup step with the supply markup LEFT OUT
+        # (markup 0), then the cost-only BCS markup step. WAS assertEqual(len(scale), 1); the BCS markup step is asserted as before.
+        self.assertEqual(len(scale), 2)
+        left_out = [s for s in scale if "m_from_ctx" not in s.get("params", {})]
+        self.assertEqual([(s["params"], s["formula"]) for s in left_out], [({"markup": 0}, "base*(1+markup)")])
+        scale = [s for s in scale if "m_from_ctx" in s.get("params", {})]
         self.assertEqual(len(scale), 1)
         # INVERTED AT PRICING INPUTS (v64, owner 2026-09-27). The owner ruled that a "factor" is not a
         # thing this system has any more: every number is a discount, a markup, a wastage or a BCS
@@ -11381,7 +11420,9 @@ class TestV61TwoWays(FrappeTestCase):
         map_attribute still prefers a stated millimetre and carries all 27 gauges."""
         # SLICE 12b(A): the migration is normalised off BOTH sides by `_strip_12b_migration`;
         # everything else is still compared byte for byte, so a change that rode along still fails.
-        n2, w2 = _strip_12b_migration(self.ct_now, self.ct_was)
+        # BCS-2b (v74, QUESTION 3 "a"): v74 GENERATES tray_bcs; `_without_bcs2b` puts it back to v73's (= v59's), by fingerprint.
+        # WAS _strip_12b_migration(self.ct_now, self.ct_was).
+        n2, w2 = _strip_12b_migration(_without_bcs2b(self.ct_now), self.ct_was)
         self.assertEqual(n2["pipelines"], w2["pipelines"])
         for pid, p in self.ct_now["pipelines"].items():
             cf = [s for s in p["steps"] if s["step"] == "catalog_fit"]
@@ -11669,7 +11710,8 @@ class TestIncludesModulesGate(FrappeTestCase):
         # ELR-4d (v71, the conduit fit + the DB refusal): bumped. WAS "rate_master_electrical_all_v70.json"; the gate is unchanged.
         # ELR-5 (v72, the Switches & Sockets refusal): bumped. WAS "rate_master_electrical_all_v71.json"; the gate is unchanged.
         # BCS-2 (v73, the cost rules): bumped. WAS "rate_master_electrical_all_v72.json"; the gate on popup_boq is unchanged.
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v73.json")
+        # BCS-2b (v74, the generated cost pipelines): bumped. WAS "rate_master_electrical_all_v73.json"; the gate is unchanged.
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v74.json")
         fits = {}
         goldens = asset.get("goldens") or {}
         for c in asset["category_configs"]:
@@ -12161,7 +12203,11 @@ class TestValidationGaps(FrappeTestCase):
             self._validate(bad)
         self.assertIn("'conduit_typo'", str(cm.exception)); self.assertIn("absent_when.attr", str(cm.exception))
         worse = self._cfg("point_wiring")
-        worse["pipelines"]["pw_bcs"]["steps"][10]["params"]["absent_when"] = {"attr": "conduit_type"}
+        # BCS-2b (v74, QUESTION 3 "a"): the circuit_fit step found by its kind - v74's generated pw_bcs loads its wastage reference
+        # first, so the step is no longer at position 10. WAS worse["pipelines"]["pw_bcs"]["steps"][10].
+        fit_at = [i for i, s in enumerate(worse["pipelines"]["pw_bcs"]["steps"]) if s["step"] == "circuit_fit"]
+        self.assertEqual(len(fit_at), 1)
+        worse["pipelines"]["pw_bcs"]["steps"][fit_at[0]]["params"]["absent_when"] = {"attr": "conduit_type"}
         with self.assertRaises(frappe.ValidationError) as cm:
             self._validate(worse)
         self.assertIn("absent_when must be {attr, equals}", str(cm.exception))
@@ -12796,7 +12842,8 @@ class TestHvacAssetSlice1b(FrappeTestCase):
         # ELR-4d (v71, the conduit fit + the DB refusal): bumped. WAS "rate_master_electrical_all_v70.json".
         # ELR-5 (v72, the Switches & Sockets refusal): bumped. WAS "rate_master_electrical_all_v71.json".
         # BCS-2 (v73, the cost rules): bumped. WAS "rate_master_electrical_all_v72.json".
-        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v73.json")
+        # BCS-2b (v74, the generated cost pipelines): bumped. WAS "rate_master_electrical_all_v73.json".
+        self.assertEqual(CURRENT_EALL_ASSET, "rate_master_electrical_all_v74.json")
         data_dir = os.path.dirname(_asset_path(CURRENT_EALL_ASSET))
         names = sorted(os.listdir(data_dir))
         # each series resolved on its own (owner ruling, slice 1c, INVERTING the 1b first-version pin): the HVAC

@@ -49,7 +49,8 @@ describe("a fixture with a part taken out is classed as disagreeing", () => {
   it("(-) the modules removed from popup_bcs: the modules are E", () => {
     const cfg = clone(cfgOf(ASSET, "popup_boxes"));
     const p = cfg.pipelines.popup_bcs as unknown as { steps: Array<{ result?: string; params?: Record<string, unknown> }> };
-    p.steps = p.steps.filter((s) => s.result !== "module_cost" && !s.params?.modules_from_ctx);
+    // BCS-2b (v74): the generated popup_bcs makes its modules as "module_supply"; v73's made them as "module_cost" - both taken out
+    p.steps = p.steps.filter((s) => s.result !== "module_cost" && s.result !== "module_supply" && !s.params?.modules_from_ctx);
     const v = verdicts(cfg, popup, ITEMS, golden("popup_boxes", "p2").attrs)!;
     expect(v.map((x) => [x.part, x.cls])).toEqual([["box", "A"], ["modules", "E"]]);
   });

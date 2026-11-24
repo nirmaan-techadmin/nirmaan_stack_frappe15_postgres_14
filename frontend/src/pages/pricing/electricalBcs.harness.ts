@@ -140,9 +140,13 @@ export function verdicts(cfg: Cfg, pair: Pair, items: RateMasterItem[], sel: Gol
     return out;
   }
   if (pair.price === "popup_boq") {
-    const out = [judge("box", null, produced(price, "box_supply")!, ok ? producedAll(cost!, "bcs_supply")[0] ?? null : null, null, null)];
+    // BCS-2b (v74): a GENERATED popup_bcs names its parts as the price does - the box after its ratio is the LAST "box_supply",
+    // the modules "module_supply"; v73's hand-written one named them the FIRST "bcs_supply" and "module_cost".
+    const generated = !((C?.steps ?? []) as Array<{ result?: string }>).some((s) => s.result === "module_cost");
+    const boxCost = !ok ? null : generated ? (producedAll(cost!, "box_supply").at(-1) ?? null) : (producedAll(cost!, "bcs_supply")[0] ?? null);
+    const out = [judge("box", null, produced(price, "box_supply")!, boxCost, null, null)];
     const mods = produced(price, "module_supply") ?? 0;
-    if (mods > 0) out.push(judge("modules", "switch", mods, ok ? produced(cost!, "module_cost") : null, null, lastDigits(P, "module_supply")));
+    if (mods > 0) out.push(judge("modules", "switch", mods, ok ? produced(cost!, generated ? "module_supply" : "module_cost") : null, null, lastDigits(P, "module_supply")));
     return out;
   }
   return total();
