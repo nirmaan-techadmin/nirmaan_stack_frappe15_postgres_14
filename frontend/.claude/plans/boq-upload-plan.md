@@ -52336,3 +52336,16 @@ by fast-forward to c2bf7d076; HVAC v81 loaded; Electrical v73 minted and loaded.
 - Edit 5 was built for two of the three cost calculations: point wiring needs no refusal sentence (owner answer 7, "a").
 - NEXT SLICES (owner, 2026-11-23): BCS is also to show in the CALCULATOR, and the calculator's BCS must equal the helper's BCS for the
   same attribute inputs, the constraint BoQ values have today. Not built here.
+
+## Slice BCS-2b (dev2) - the Electrical supply cost GENERATED from the price (Electrical v74), main taken in - 2026-11-24
+- Owner R1 / R2 / R3 ("1b", 2026-11-24 00:36): one calculation, generated at mint. Main fc03a3e1d taken in by merge 0515783c0 (three
+  conflicts, each both sides adding lines; both kept, main's first); HVAC v82 loaded on dev2.
+- services/boq_rate_master/bcs_derive.py: the general rule (supply markups named by bcs_default_margin left out) and the exceptions
+  table (wastage, drop_roundup, roundup_digits, drop_stage_round, ratio, cost_markup). Electrical v74 (sha256 a8d88a1a...) = v73 with
+  the 13 supply cost pipelines generated under their ids; prices, items, Pricing Inputs, examples byte-equal. Commits: cb9f3fada
+  (test_42 reads the committed example prices, owner answer 1 "b fix it"), 4dd36724c (K1: generator, v74, mint with the EXACT guard,
+  test_bcs_derive incl. the drift test, test_electrical_v74_bcs, moved checks per owner answers 2 "a" and 3 "1a").
+- Proof: exact guard 14,528 cases 0 differ; v74 loaded on dev2 (rmbulk-8345f1280b38), verify EQUAL; replay 33,346 rows byte-equal
+  to the baseline after main (sha 06907130); costs bit for bit on 12,847 rows / 1,633 cases / 30 examples; negative control 5,419 rows.
+- Visible change: only the wording of the Electrical supply cost lines in Rate Master (the FORMULA row); no figure anywhere.
+- Slice 3 builds on v74: run the stored `<x>_bcs` as today; a new exception is an entry in bcs_derive.PAIRS, never a hand step.

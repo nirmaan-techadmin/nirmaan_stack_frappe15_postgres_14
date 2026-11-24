@@ -6020,7 +6020,9 @@ on a BoQ row, in the helper panel or in the calculator.
   `indsock` (socket) / `switchgear` (paired MCB), `jb_supply`, `lms_supply`, `swsock`, `cable_arm` / `cable_unarm` by Insulation, `lug`,
   `gland`; `ratio` of `misc_supply` and `popup_supply` (margin = 1 / ratio - 1).
 - A STATED COST MUST AGREE with that default. Rounding on the BoQ side, rounding on the cost side and a declared wastage count as
-  agreeing (`bcsAgrees`: A equal, B rounding, C wastage, D disagrees, E nothing stated). The mint's guard refuses a class-D file.
+  agreeing (`bcsAgrees`: A equal, B rounding, C wastage, D disagrees, E nothing stated - used by the tests, not by a mint). The v73
+  mint's guard compared price and cost with every markup zeroed and every round-up stripped, allowing 0.01; since v74 the mint's EXACT
+  guard compares each generated cost with the stored one (the BCS-2b section below).
 - CABLE (`cable_bcs`): the cable as before (list less the `cable_arm` / `cable_unarm` discount, plus that input's `wastage`, rounded up
   to the rupee, x runs) PLUS the conduit at cost when Conduit included is Yes: list x (1 - `conduit` discount), one conduit per row, no
   wastage, not rounded. It fits an unstocked conduit size exactly as `cable_boq` does.
@@ -6039,8 +6041,8 @@ on a BoQ row, in the helper panel or in the calculator.
 ### Load-bearing
 - `bcs_default_margin` and `summary_inputs` are validated keys (`_validate_bcs_keys`, `bcs_problems` in `config_validation.py`): a number
   in a margin, an unknown field, or an input that is not active is refused by name, so a margin can only be read from a live input.
-- `bcsCost.ts` (`defaultBcsSupply`, `bcsAgrees`, `resolveBcsMargin`) is the one implementation of the default and the agreement; never
-  copy the arithmetic.
+- `bcsCost.ts` (`defaultBcsSupply`, `bcsAgrees`, `resolveBcsMargin`) holds the default and the agreement for the tests (bcsCost.test.ts,
+  electricalBcs.harness.ts); NO product code calls it yet (slice 3 decides its use); never copy the arithmetic.
 - No cost output name may collide with a price output name (`test_electrical_v73_bcs.py`).
 - `_without_bcs2` (`test_rate_master.py`) takes away EXACTLY v73's declared changes, each matched by fingerprint and each step at most
   once, and runs FIRST in a chain; a second pass would take an undeclared copy of a declared step. `test_bn_01` - `test_bn_03` hold it.
@@ -6050,5 +6052,45 @@ on a BoQ row, in the helper panel or in the calculator.
 ### Known gaps
 - The Rate Master shows no whole row's cost: the calculator and the Derivation tab carry no cost figure, and the Pricing Input impact
   panel works its "SKU rate (BCS)" out from the input's own fields, not from these pipelines.
-- `misc_bcs`'s explain text still says "25% markup assumed" beside the 0.8 ratio input (outside this slice's edit list).
+- `misc_bcs`'s explain text said "25% markup assumed" beside the 0.8 ratio input - replaced in v74 by the live ratio wording (BCS-2b).
 - The tracked replay reads raw items, so the LMS two-brand rows replay as no match.
+
+## BCS supply cost generated from the price (Electrical v74) - BCS-2b (2026-11-24) - as built
+
+The owner's direction (R1, 2026-11-23 01:35): "the BCS part should get worked out from the same code which works out the BoQ price, just
+leaving the final supply markup increases, and adding exceptions like wastage where applicable"; for SUPPLY only (R2, 01:38:
+"for installation we follow the rules we have specified"); one calculation, generated when the rate file is made (R3, 2026-11-24 00:36,
+"1b"). v74 = v73 with the 13 supply cost pipelines REPLACED, under the same ids, by what
+`nirmaan_stack/services/boq_rate_master/bcs_derive.py` generates from each category's price pipeline. Every price pipeline, item,
+Pricing Input, worked example and every other key is byte-equal to v73; every cost figure is v73's, bit for bit.
+
+### How a supply cost is made now
+- THE GENERAL RULE: every supply markup the category's `bcs_default_margin` names is left out of the price pipeline - each
+  `<x>_from_ctx` reading that input's `supply_markup` becomes `<x>: 0` (the factor 1 + markup becomes 1 + 0); the markup's own
+  `rate_ref` is then read by nothing and goes. Every item read, discount read, catalogue fit and refusal of the price stays.
+- THE EXCEPTIONS TABLE (`bcs_derive.PAIRS`, one entry per supply cost; each exception by kind and the input it reads):
+  - wastage - point wiring (`cable_unarm`) and wiring & cabling (`cable_arm`, `cable_unarm`): the wire's markup is replaced by the same
+    input's `wastage`, not left out.
+  - drop_roundup - cable tray, junction box, lighting, the pop-up modules, and the cable's total: the round-up after the markup goes too.
+  - roundup_digits - the cable: its round-up stays where it is but rounds to the rupee (units) instead of to tens.
+  - drop_stage_round - industrial sockets: the socket's and the paired MCB's own per-part round-ups go.
+  - ratio - miscellaneous (`misc_supply.ratio`) and the pop-up box (`popup_supply.ratio`): our share of the quote.
+  - cost_markup - lighting: the cost-only input `lms_bcs.bcs_markup`, which the price does not read.
+  DB & switchgear, switches & sockets and terminations keep their round-up to tens, as their price does.
+- A generated pipeline keeps the cost's own output names, drops the price's installation steps, and carries v73's installation
+  steps UNCHANGED where the cost has an installation output (`misc_bcs`, `popup_bcs`; R2). `tray_bcs_install` is not generated.
+  Every changed explanation line reads as a cost and names the input it reads (no typed figure); a price sentence left in a cost
+  step is refused by the generator. Each pipeline's `note` says it is worked out from the price, markup left out.
+
+### Load-bearing
+- THE EXACT GUARD (mint_electrical_v74_bcs2b.py `agree`): the generated cost, run by the product's interpreter, must equal the
+  previous file's stored cost on every agreement case, worked example and (with `--rows`) priced row - every output, no tolerance,
+  refusals alike - or the mint refuses. It replaces BCS-2's neutral guard (markups zeroed, rounding stripped, 0.01 allowed), of which
+  nothing remains for these 13 pairs.
+- THE DRIFT TEST (`test_bcs_derive.TestDrift`): the newest committed Electrical file's cost pipelines must be exactly what the
+  generator makes from that file's own price pipelines. A mint that changes a price step without regenerating its cost fails it.
+- A new Electrical mint regenerates the costs with `bcs_derive.apply(prev)`; a new exception is a new entry in `PAIRS`, never a
+  hand-written cost step. Every cost pipeline must read the same Pricing Inputs as before (asserted by the mint).
+- `_without_bcs2b` (`test_rate_master.py`) puts v74's 13 generated pipelines back to v73's, each matched by fingerprint, first inside
+  `_without_bcs2`; the next mint chains its own in front.
+- `bcsCost.ts` is NOT called by product code (only bcsCost.test.ts and electricalBcs.harness.ts import it); slice 3 decides its use.
