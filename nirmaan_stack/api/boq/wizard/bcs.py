@@ -227,6 +227,57 @@ def _descriptor_index(boq_name, sheet_name, committed_version) -> dict:
 # the rules about what may be picked are not its business.
 
 
+# ── who may see and change cost (BCS-3) ───────────────────────────────────────────
+# Owner R2 (2026-11-24 13:54, "1a"; BCS-D0 Q3 (a)): only Admin and Estimates may switch BCS on, write a cost, or READ a cost.
+# The population is the EXISTING pricing-access set -- `api/pricing/workbook.py` `PRICING_ACCESS_SET`, read through its own
+# gate `_require_pricing_access` -- never a second list of role names (the BCS export reuses it the same way,
+# `export_bcs_writeback._require_bcs_export_access`). Imported inside the functions, as the export does, so this module's
+# import graph is unchanged.
+_BCS_COST_REFUSAL = "Only Admin and Estimates users may see or change BCS cost."
+
+
+def _require_bcs_cost_access():
+    """Refuse (PermissionError) unless the session user may see and change cost. Returns the user."""
+    from nirmaan_stack.api.pricing.workbook import _require_pricing_access
+
+    try:
+        return _require_pricing_access()
+    except frappe.PermissionError:
+        frappe.throw(_BCS_COST_REFUSAL, frappe.PermissionError)
+
+
+def may_see_bcs_cost(user: str | None = None) -> bool:
+    """The same rule as `_require_bcs_cost_access`, as a yes / no for any user (the permission hooks and the rate-master
+    data services). Administrator, or a role profile in the pricing-access set, or a role in it."""
+    from nirmaan_stack.api.pricing.workbook import PRICING_ACCESS_SET
+
+    user = user or frappe.session.user
+    if user == "Administrator":
+        return True
+    if not user or user == "Guest":
+        return False
+    profile = frappe.db.get_value("User", user, "role_profile_name")
+    if profile and profile in PRICING_ACCESS_SET:
+        return True
+    return bool(set(frappe.get_roles(user)) & PRICING_ACCESS_SET)
+
+
+def has_bcs_rate_permission(doc=None, ptype=None, user=None, *args, **kwargs):
+    """hooks.py `has_permission` for `BoQ Row BCS Rate` (owner answer 1 "2a"): DENY-ONLY -- a user outside the pricing-access
+    set is refused every read, write and insert of a cost record through /api/resource and the Desk; for an allowed user it
+    returns None, so the doctype's own permission rows still decide (a hook can only narrow, never grant). The product's own
+    write (`save_row_bcs_rates`) inserts with ignore_permissions after its own check, so it is not affected."""
+    if not may_see_bcs_cost(user):
+        return False
+    return None
+
+
+def bcs_rate_query_conditions(user=None, *args, **kwargs):
+    """hooks.py `permission_query_conditions` for `BoQ Row BCS Rate`: a list read returns no row to a user outside the
+    pricing-access set ("1=0"); "" (no narrowing) for an allowed user."""
+    return "" if may_see_bcs_cost(user) else "1=0"
+
+
 # ── endpoints ────────────────────────────────────────────────────────────────────
 @frappe.whitelist(methods=["POST"])
 def set_bcs_enabled(boq_name=None, sheet_name=None, committed_version=None, enabled=None):
@@ -241,6 +292,7 @@ def set_bcs_enabled(boq_name=None, sheet_name=None, committed_version=None, enab
     pricing._set_sheet_lock. sheet_name VERBATIM (#152).
     Returns {ok, bcs_enabled, is_ready}.
     URL: /api/method/nirmaan_stack.api.boq.wizard.bcs.set_bcs_enabled"""
+    _require_bcs_cost_access()  # BCS-3 (owner R2 "1a"): Admin and Estimates only, before anything is read
     committed_version = _validate_common_args(boq_name, sheet_name, committed_version)
     # `enabled` is required but 0/"0"/False are all VALID (they mean disable) -- _require
     # rejects only None and "", never a falsy-but-present value.
@@ -292,6 +344,7 @@ def confirm_bcs_columns(boq_name=None, sheet_name=None, committed_version=None,
     Returns {ok, bcs_qty_source, bcs_amount_source, bcs_confirmed_by, bcs_confirmed_at,
     is_ready}.
     URL: /api/method/nirmaan_stack.api.boq.wizard.bcs.confirm_bcs_columns"""
+    _require_bcs_cost_access()  # BCS-3 (owner R2 "1a"): Admin and Estimates only, before anything is read
     committed_version = _validate_common_args(boq_name, sheet_name, committed_version)
     sheet_row = _resolve_sheet_row(boq_name, sheet_name, committed_version)
     _guard_sheet_not_locked(boq_name, sheet_name, committed_version)
@@ -386,6 +439,7 @@ def get_sheet_bcs_rates(boq_name=None, sheet_name=None, committed_version=None):
     the field list S2b widened to three, which reads as a promise that a combined-rate
     sheet's cost is not returned here. It is -- `_BCS_READ_FIELDS` names all three.
     URL: /api/method/nirmaan_stack.api.boq.wizard.bcs.get_sheet_bcs_rates"""
+    _require_bcs_cost_access()  # BCS-3 (owner R2 "1a"): Admin and Estimates only, before anything is read
     committed_version = _validate_common_args(boq_name, sheet_name, committed_version)
     rows = frappe.get_all(
         _BCS,
@@ -465,6 +519,7 @@ def save_row_bcs_rates(boq_name=None, sheet_name=None, excel_row=None,
 
     Returns {ok, name, bcs_version, is_current, is_filled, froze_prior}.
     URL: /api/method/nirmaan_stack.api.boq.wizard.bcs.save_row_bcs_rates"""
+    _require_bcs_cost_access()  # BCS-3 (owner R2 "1a"): Admin and Estimates only, before anything is read
     committed_version = _validate_common_args(boq_name, sheet_name, committed_version)
     _require(excel_row, "excel_row")
     excel_row = _coerce_int(excel_row, "excel_row")

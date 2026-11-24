@@ -28,6 +28,85 @@ def _require_login():
         frappe.throw("Login required.", frappe.PermissionError)
 
 
+# ── BCS-3 (owner R2 "1a", P5b): the COST content of the two data services, for Admin and Estimates only ────────────────
+# Cost content, decided from the rate file's own data (no typed list of items):
+#   * every pipeline whose id names BCS (the same test the helper filters on, `pricingSheetHelper.isBcsPipelineId`);
+#   * the config keys that only cost reads -- the two BCS-2 keys of config_validation's allowlist (`bcs_default_margin`,
+#     `summary_inputs`) -- and a worked example's expectation for a cost pipeline;
+#   * a Pricing Input VALUE that only cost pipelines read (a `rate_ref` field no price pipeline of the discipline reads), and
+#     an input named only by `summary_inputs` (the BoQ summary's per-sqft installation cost). The miscellaneous `ratio` stays
+#     visible: the miscellaneous PRICE reads it.
+# WHO: `bcs.may_see_bcs_cost` -- Administrator + the pricing-access set (`api/pricing/workbook.py` PRICING_ACCESS_SET).
+# WHEN: only when THIS function is the HTTP endpoint being called. A Python caller inside the server (the match path's
+# `services/boq_rate_match/pricing_step.load_asset`, which hashes the catalogue into its asset version) always gets the full
+# content, so no stored match goes stale whoever runs the job.
+_BCS_CONFIG_KEYS = ("bcs_default_margin", "summary_inputs")
+
+
+def _is_cost_pipeline(pipeline_id) -> bool:
+    return "bcs" in str(pipeline_id).lower()
+
+
+def _withhold_cost(endpoint: str) -> bool:
+    """True when this request called `endpoint` over HTTP and the user may not see cost."""
+    req = getattr(frappe.local, "request", None)
+    path = getattr(req, "path", None) or ""
+    if "/method/" not in path or not path.rstrip("/").endswith("rate_master." + endpoint):
+        return False
+    from nirmaan_stack.api.boq.wizard.bcs import may_see_bcs_cost
+
+    return not may_see_bcs_cost()
+
+
+def _config_without_cost(config):
+    """A category config without its cost content (a copy; the stored config is untouched)."""
+    if not isinstance(config, dict):
+        return config
+    out = {k: v for k, v in config.items() if k not in _BCS_CONFIG_KEYS}
+    if isinstance(config.get("pipelines"), dict):
+        out["pipelines"] = {pid: pl for pid, pl in config["pipelines"].items() if not _is_cost_pipeline(pid)}
+    if isinstance(config.get("goldens"), list):
+        goldens = []
+        for g in config["goldens"]:
+            if isinstance(g, dict) and isinstance(g.get("expect"), dict):
+                g = {**g, "expect": {pid: v for pid, v in g["expect"].items() if not _is_cost_pipeline(pid)}}
+            goldens.append(g)
+        out["goldens"] = goldens
+    return out
+
+
+def _cost_only_inputs(discipline):
+    """((kind, item) -> {fields only cost pipelines read}, {summary-only input items}) for the discipline's live configs."""
+    price, cost, summary = set(), set(), set()
+    for row in frappe.get_all(CONFIG_DOCTYPE, filters={"discipline": discipline, "active": 1}, fields=["config"]):
+        cfg = _parse_json(row.get("config"), None) or {}
+        summary.update(str(x) for x in (cfg.get("summary_inputs") or []))
+        for pid, pl in (cfg.get("pipelines") or {}).items():
+            for step in (pl or {}).get("steps") or []:
+                ref = step.get("ref") if isinstance(step, dict) and step.get("step") == "rate_ref" else None
+                if isinstance(ref, dict):
+                    (cost if _is_cost_pipeline(pid) else price).add((ref.get("kind"), ref.get("item"), step.get("target")))
+    only = {}
+    for kind, item, field in cost - price:
+        only.setdefault((kind, item), set()).add(field)
+    return only, summary
+
+
+def _items_without_cost(discipline, rows):
+    only, summary = _cost_only_inputs(discipline)
+    out = []
+    for r in rows:
+        attrs = r.get("attributes") if isinstance(r.get("attributes"), dict) else {}
+        item = attrs.get("item")
+        if item is not None and str(item) in summary:
+            continue
+        drop = only.get((r.get("kind"), item))
+        if drop and isinstance(r.get("rates"), dict):
+            r = {**r, "rates": {k: v for k, v in r["rates"].items() if k not in drop}}
+        out.append(r)
+    return out
+
+
 def _parse_json(value, default):
     if value in (None, ""):
         return default
@@ -148,6 +227,8 @@ def get_rate_master_items(discipline=None, kind=None):
     for (uid, rate_key), val in computed.items():
         computed_rates.setdefault(uid, {})[rate_key] = val
 
+    if _withhold_cost("get_rate_master_items"):
+        rows = _items_without_cost(discipline, rows)   # BCS-3: a user outside Admin and Estimates gets no cost-only value
     return {
         "discipline": discipline,
         "kind": kind,
@@ -181,6 +262,8 @@ def get_rate_category_config(discipline=None, category_id=None):
 
     row = rows[0]
     row["config"] = _parse_json(row.get("config"), None)
+    if _withhold_cost("get_rate_category_config"):
+        row["config"] = _config_without_cost(row["config"])   # BCS-3: no cost pipeline, no cost key, outside Admin + Estimates
     return row
 
 

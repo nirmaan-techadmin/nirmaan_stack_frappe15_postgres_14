@@ -670,6 +670,11 @@ const SheetPricingPage = () => {
   // and % Margin blank, and still editable. That is the same class of confident falsehood
   // PE-SPIN-1 closed on three other fetches, and worse than all of them: a spinner is visibly
   // unfinished, this was finished-looking and wrong. See pricingLoadState.BCS_RATES_STATES.
+  // BCS-3 (owner R2 "1a"; answer 1 "1a"): cost is for Admin and Estimates only. For anyone else the cost read is never made,
+  // the BCS columns and the BCS switch do not show, and every cost service refuses on the server (bcs.py). "Loading" reads
+  // as no access until the role is known, so the block can only appear, never appear and vanish.
+  const { user_id: bcsViewer, role: bcsViewerRole } = useUserData();
+  const showBcsCost = canSeeBcsCost(bcsViewerRole, bcsViewer);
   const {
     data: bcsRatesData,
     error: bcsRatesFetchError,
@@ -683,7 +688,7 @@ const SheetPricingPage = () => {
       sheet_name: sheetName ?? "", // VERBATIM (#152)
       committed_version: liveCommitVersion ?? 0,
     },
-    boqId && sheetName && liveCommitVersion !== null ? undefined : null,
+    showBcsCost && boqId && sheetName && liveCommitVersion !== null ? undefined : null,
   );
 
   // HV-10: the per-row MULTI-ENGINE resolved verdicts for THIS sheet (get_sheet_categories_resolved).
@@ -1052,8 +1057,6 @@ const SheetPricingPage = () => {
   // `role` read + everything marked "G3b" when the override is removed (owner commitment: once
   // classification engines cover all disciplines).
   const { user_id: currentUser, role } = useUserData();
-  // BCS-3 (owner R2 "1a"): the cost side of the helper -- and the BCS box opener -- for Admin and Estimates only
-  const showBcsCost = canSeeBcsCost(role, currentUser);
   const showCategoryOverrideControl = isNirmaanAdmin(role, currentUser);
   const { call: acquirePricingLock } = useFrappePostCall(
     "nirmaan_stack.api.boq.wizard.pricing.acquire_pricing_lock",
@@ -2311,7 +2314,7 @@ const SheetPricingPage = () => {
   // so the block never flashes empty-then-fills. `stale` IS usable -- the last good costs stay on
   // screen and editable, flagged by the amber strip, the same trade the sheet and grid fetches make.
   const bcsBlockConfigured =
-    bcsToggle === "on" && bcsReady && !isViewingHistory && liveCommitVersion !== null;
+    showBcsCost && bcsToggle === "on" && bcsReady && !isViewingHistory && liveCommitVersion !== null;
   const bcsRatesLoad = bcsRatesLoadState({ data: bcsRatesData, error: bcsRatesFetchError });
   const bcsColumnsVisible = bcsBlockConfigured && bcsRatesLoad.isUsable;
   // BCS-3 (R-BCS-29, P3e): the rows whose installation cost box reads "On the BoQ summary" -- every row whose category's
@@ -4589,6 +4592,7 @@ const SheetPricingPage = () => {
               the guarantee at the same seam -- "unknown" is carried by DISABLED-ness, so an S3
               cost cell that renders unknown as an ordinary empty editable cell breaks it even
               though it changed no colour. Do not read the glyph as the distinction. */}
+          {showBcsCost && (
           <Button
             size="sm"
             variant={bcsToggle === "on" ? "default" : "outline"}
@@ -4612,6 +4616,7 @@ const SheetPricingPage = () => {
             )}
             BCS
           </Button>
+          )}
           {/* Confirmed -> a small clickable chip showing the chosen columns, mirroring the
               "Frozen · date · by" chip beside it. Clicking it reopens the card. It needs a
               payload to have arrived at all, so an unknown state shows nothing rather than a

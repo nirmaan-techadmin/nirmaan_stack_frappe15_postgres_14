@@ -67,7 +67,7 @@ import {
 import { SummaryPanel } from "./SummaryPanel";
 import { buildAndDownloadViewerWorkbook, type ViewerWorkbookSheet } from "./exportViewerXlsx";
 import { getFrappeError } from "@/utils/frappeErrors";
-import { canSeeBoqCommercials } from "./boqAccess";
+import { canSeeBcsCost, canSeeBoqCommercials } from "./boqAccess";
 import { SheetDataGrid } from "./SheetDataGrid";
 import {
   buildChildrenByParent,
@@ -148,6 +148,9 @@ export const SheetViewPage = () => {
   // why they cannot be split (a visible Amount beside a visible Quantity discloses the Rate).
   const { role, user_id } = useUserData();
   const showCommercials = canSeeBoqCommercials(role, user_id);
+  // BCS-3 (owner R2 "1a"; answer 1 "1a"): the BCS cost block is NARROWER than the commercials -- Admin and Estimates only. PMO
+  // and Billing keep the rates and amounts; the cost read is not made for them and the server refuses it anyway.
+  const showBcsCost = canSeeBcsCost(role, user_id);
 
   // ── Reads ────────────────────────────────────────────────────────────────────
   // The committed rows + their saved prices. Same endpoint the editor reads; this page
@@ -287,7 +290,7 @@ export const SheetViewPage = () => {
       sheet_name: sheetName ?? "", // VERBATIM (#152)
       committed_version: commitVersion ?? 0,
     },
-    boqId && sheetName && commitVersion !== null ? undefined : null,
+    showBcsCost && boqId && sheetName && commitVersion !== null ? undefined : null,
   );
 
   // THREE states, not two: `bcsToggleState` keeps "we have no payload" apart from "BCS is off",
@@ -307,6 +310,7 @@ export const SheetViewPage = () => {
   // falsehood. Absence of knowledge renders as NOTHING here, never as a blank that reads as zero.
   const bcsColumnsVisible =
     showCommercials &&
+    showBcsCost &&
     bcsToggle === "on" &&
     bcsReady &&
     commitVersion !== null &&

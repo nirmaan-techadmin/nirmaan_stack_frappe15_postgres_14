@@ -153,6 +153,8 @@ has_permission = {
     # Reimbursements (2026-10-22): your own claims, or every claim for Admin / HR / Accounts; writes only
     # through api/reimbursements.
     "Reimbursement": "nirmaan_stack.integrations.controllers.reimbursement.has_permission",
+    # BCS-3 (owner 2026-11-24 "2a"): BCS cost records -- Administrator + the pricing-access set (Admin, Estimates) only.
+    "BoQ Row BCS Rate": "nirmaan_stack.api.boq.wizard.bcs.has_bcs_rate_permission",
 }
 
 permission_query_conditions = {
@@ -164,6 +166,7 @@ permission_query_conditions = {
     "Work Order Items": "nirmaan_stack.integrations.controllers.work_order_items.get_permission_query_conditions",
     "Nirmaan Versions": "nirmaan_stack.integrations.controllers.nirmaan_versions.get_permission_query_conditions",
     "Reimbursement": "nirmaan_stack.integrations.controllers.reimbursement.get_permission_query_conditions",
+    "BoQ Row BCS Rate": "nirmaan_stack.api.boq.wizard.bcs.bcs_rate_query_conditions",
 }
 
 # DocType Class
