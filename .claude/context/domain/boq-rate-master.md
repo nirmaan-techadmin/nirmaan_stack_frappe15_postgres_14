@@ -4817,6 +4817,11 @@ invariants:
   `get_active_suggestion_run` / `record_rate_suggestion_event` /
   `get_suggestion_events`, gated by the shared D8 chain (not locked + formulas complete + category gate,
   REUSING the `pricing.py` predicates). The "already running?" marker lives in Redis keyed by (boq, sheet_name).
+- **A complete Suggest run switches BCS on (BCS-3S, owner R1):** after the run's own commit, `_suggest_worker` calls
+  `_switch_bcs_on_after_suggest`: when the model read at least one row filed as Electrical, the sheet's `bcs_enabled` goes on
+  (nothing else is written; it can never fail the run) and the operation's result carries `bcs_switched_on: true`, which the
+  completion modal turns into "BCS is switched on for this sheet.". The flag is ABSENT on every other run. Detail and the
+  invariants: `boq-pricing-editor.md` § "A Suggest run switches BCS on".
 - **SR-1 run resilience (owner-locked, MIGRATE-carrying; full as-built in `.claude/context/domain/boq-backend.md`):**
   a run is NO LONGER all-or-nothing. **The run doc IS the partial store** (never Redis — its TTL is the wrong
   lifetime): created up front at `status=running`/`active=0` and updated per completed batch via a

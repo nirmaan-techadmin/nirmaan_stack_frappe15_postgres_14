@@ -5,11 +5,19 @@ the commit message, not here.
 
 ## Active work
 
-The last recorded slice is **DU-3**, the fix slice from the DU-2 review of the Ducting rows. Its record
-is the last `## Slice DU-3` section of `boq-upload-plan.md`.
+The last recorded main-line slice is **DU-3**, the fix slice from the DU-2 review of the Ducting rows. Its
+record is the last `## Slice DU-3` section of `boq-upload-plan.md`.
 
-Nothing newer is recorded. The session that starts the next slice replaces this section with: the
-slice's name, what it must deliver, and what is left.
+**BCS lane (branch `feature/boq-bcs`, dev2):** slice **BCS-3S** took main in at `f48ed5b77` (upstream
+develop v2.11.61 + VAV-FIX, develop's background-operation rework of Suggest / Classify / Match) and built
+the BCS switch-on: a complete Suggest run that read a row filed as Electrical turns BCS on for its sheet and
+says "BCS is switched on for this sheet." (rules: `.claude/context/domain/boq-pricing-editor.md` § "A
+Suggest run switches BCS on"). Left for the BCS phase: slice 4 (a change carries across rate columns),
+slice 5 (the BoQ summary), slice 6 ("Previously priced" and the spreadsheet removal), then the final fix
+slice (the full test sets).
+
+The session that starts the next slice replaces this section with: the slice's name, what it must
+deliver, and what is left.
 
 ## Open and owed items
 

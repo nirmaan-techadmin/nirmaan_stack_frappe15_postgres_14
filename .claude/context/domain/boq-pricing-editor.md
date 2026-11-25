@@ -62,6 +62,29 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
       enabled on 24 Nov) no longer see the BCS columns or the BCS switch on the pricing page and the read-only view; their
       rates and amounts are unchanged. The UI gate is `boqAccess.canSeeBcsCost` (pinned equal to `canDownloadBcsExport`).
 
+### A Suggest run switches BCS on - BCS-3S (2026-11-25)
+- Owner R1 (2026-11-21 13:31 "1 yes"; 16:51 "all a"): when a Suggest run FINISHES (complete) and the rows its model read
+  include at least one row filed as Electrical, the server turns BCS on for that sheet's committed version -- no click, no
+  confirmation. Only such sheets (not every sheet a run covers). "The rows it read" = the pass's own `attempted_rows` (on a
+  selected-rows run, the ticked rows; carried rows were not read), each with the category the run reads
+  (`extraction.assemble_population`); "Electrical" = the classifier engine registry's discipline name
+  (`services/boq_category/engines.py`), never a literal list.
+- Where: `rate_master._suggest_worker` calls `_switch_bcs_on_after_suggest` AFTER the run's own commit and before the result is
+  published (server side, because the page may be closed when the run ends). It goes through
+  `bcs.enable_bcs_for_suggest(boq, sheet, committed_version)` -- not whitelisted, NO role check of its own (the ruled side effect
+  of a run; the five BCS services keep the BCS-3 check), non-committing, sharing `set_bcs_enabled`'s sheet lookup and locked-sheet
+  refusal (`bcs._writable_sheet_row`); the worker commits once after it.
+- ⚠️ **It writes ONLY `BoQ Sheet.bcs_enabled`** -- never a `BoQ Row BCS Rate`, a `BoQ Cell Pricing`, a Pricing Input or a formula.
+  The cost stays a suggestion until "Use this value" or typing (owner R2). Pinned by `test_bcs.test_suggest_switch_on_writes_no_cost_row`.
+- ⚠️ **It can NEVER fail the run:** any refusal or error (a sheet locked while the run worked) is rolled back and logged once
+  ("BoQ suggest: BCS not switched on"); the run's outcome is untouched.
+- BCS already on: nothing is written and nothing is said. A run that read no Electrical row, a halted or failed run, a fail-closed
+  run (the AI did not run): BCS unchanged. A new committed version still starts with BCS off (R3); its next Suggest run switches
+  it on again.
+- The run's result (the background operation's `result`) carries `bcs_switched_on: true` ONLY when this run switched it on; the
+  completion message then adds one line, "BCS is switched on for this sheet." (`RateSuggestProgressModal.suggestBcsLine`). The
+  BCS columns appear (empty) when the sheet is next loaded.
+
 ### BCS on screen in whole rupees - BCS-W (2026-11-25)
 - Owner R5 (2026-11-24 21:54 / 21:56 "1a"): every BCS FIGURE the helper panel and the calculator SHOW is whole rupees, ROUNDED UP,
   with a thousands separator (2009.6 -> 2,010; 441.6 -> 442); the stored and written value stays EXACT: "Use this value" from the BCS
