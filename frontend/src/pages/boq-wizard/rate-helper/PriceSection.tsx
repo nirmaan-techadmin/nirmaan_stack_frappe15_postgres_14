@@ -37,13 +37,15 @@ export interface PriceSectionProps {
   emphasised?: boolean;
   /** the figure the folded line shows (null/undefined = an em dash, never a 0) */
   foldedFigure?: number | null;
+  /** BCS-W: the folded figure as text, when the caller prints it its own way (a BCS figure: whole rupees, rounded up) */
+  figureText?: string;
   /** a tap on the folded line (or on an open section's tag line) -- absent = the section cannot fold */
   onToggle?: () => void;
   className?: string;
   children?: ReactNode;
 }
 
-export function PriceSection({ side, open, emphasised = false, foldedFigure, onToggle, className, children }: PriceSectionProps) {
+export function PriceSection({ side, open, emphasised = false, foldedFigure, figureText, onToggle, className, children }: PriceSectionProps) {
   const look = LOOK[side];
   const tag = <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none", look.tag)}>{SECTION_TAG[side]}</span>;
   if (!open) {
@@ -58,7 +60,7 @@ export function PriceSection({ side, open, emphasised = false, foldedFigure, onT
       >
         {tag}
         <span className="flex items-center gap-1 tabular-nums">
-          <span className="font-semibold text-foreground">{typeof foldedFigure === "number" ? moneyValue(foldedFigure) : "—"}</span>
+          <span className="font-semibold text-foreground">{figureText ?? (typeof foldedFigure === "number" ? moneyValue(foldedFigure) : "—")}</span>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
         </span>
       </button>

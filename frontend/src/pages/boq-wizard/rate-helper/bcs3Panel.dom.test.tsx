@@ -21,6 +21,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { RateHelperPanel } from "./RateHelperPanel";
 import { SECTION_TAG } from "./PriceSection";
+import { bcsExactText, bcsFigureText } from "./bcsSide";
 import { makePricingSheetHelper, type ItemListSuggestion } from "./pricingSheetHelper";
 import { mergeItemsByName } from "./rateHelperPlumbing";
 import type { ExtractionRow, RateHelperRowContext, Suggestion } from "./rateHelperTypes";
@@ -88,7 +89,9 @@ describe("BCS-3 the helper panel: both sections, the clicked column's open", () 
     expect(q("[data-testid='price-section-boq']")?.textContent).toContain(SECTION_TAG.boq);
     const folded = q("[data-testid='price-section-bcs-folded']");
     expect(folded?.textContent).toContain(SECTION_TAG.bcs);
-    expect(folded?.textContent).toContain(String(result.bcs!.values.supply_rate));
+    // MOVED at BCS-W (owner R5 "1a"; Question 2 answer 1a, 2026-11-25): a BCS figure prints in whole rupees, rounded up. BEFORE:
+    // toContain(String(result.bcs!.values.supply_rate))
+    expect(folded?.textContent).toContain(bcsFigureText(result.bcs!.values.supply_rate!));
     expect(q("[data-testid='price-section-bcs']")).toBeNull();
     expect(finalBox()).toBe(String(result.values.supply_rate));
   });
@@ -105,7 +108,8 @@ describe("BCS-3 the helper panel: both sections, the clicked column's open", () 
     mount(<RateHelperPanel variant="embedded" excelRow={7} col="BCS" kind="supply_rate" target="bcs" ctx={ctx} helpers={[helper]} onUse={onUse} showCost />);
     expect(q("[data-testid='price-section-bcs']")?.getAttribute("data-emphasised")).toBe("1");
     expect(q("[data-testid='price-section-boq-folded']")?.textContent).toContain(String(result.values.supply_rate));
-    expect(finalBox()).toBe(String(result.bcs!.values.supply_rate));
+    // MOVED at BCS-W (Question 2 answer 1a): the box shows the exact cost it will write, to the paisa. BEFORE: toBe(String(result.bcs!.values.supply_rate))
+    expect(finalBox()).toBe(bcsExactText(result.bcs!.values.supply_rate!));
     click([...host!.querySelectorAll("button")].find((b) => b.textContent === "Use this value")!);
     expect(onUse).toHaveBeenCalledTimes(1);
     expect(onUse.mock.calls[0][0]).toBe("BCS");
@@ -148,7 +152,8 @@ describe("BCS-3 the calculator: the BCS section under the BoQ boxes, Admin and E
     mount(<RateHelperPanel variant="calculator" excelRow={7} col="calculator" kind="supply_rate" ctx={ctx} helpers={[helper]} showCost />, false);
     const bcs = q("[data-testid='price-section-bcs']");
     expect(q("[data-testid='price-section-boq']")).not.toBeNull();
-    expect(bcs?.textContent).toContain(String(result.bcs!.values.supply_rate));
+    // MOVED at BCS-W (Question 2 answer 1a): whole rupees, rounded up. BEFORE: toContain(String(result.bcs!.values.supply_rate))
+    expect(bcs?.textContent).toContain(bcsFigureText(result.bcs!.values.supply_rate!));
     const labels = [...bcs!.querySelectorAll("span")].map((x) => x.textContent);
     expect(labels).toContain("Supply");
     expect(labels).not.toContain("Install");

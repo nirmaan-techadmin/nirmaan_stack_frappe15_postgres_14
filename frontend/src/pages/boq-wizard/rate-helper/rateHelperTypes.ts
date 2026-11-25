@@ -539,6 +539,8 @@ export interface BcsSide {
   values: Partial<Record<RateKind, number>>;
   /** one entry per block for the stacked header, only where the price side stacks (wiring) */
   headlines?: { label: string; values: Partial<Record<RateKind, number>> }[];
+  /** BCS-W (mockup board 3): the installation line, shown ONCE below the sections (no longer inside every cost block) */
+  installNote?: string;
 }
 
 /** A helper declined -- with an honest reason (rendered greyed). */

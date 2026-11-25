@@ -23,10 +23,39 @@ import type { Pipeline, PipelineResult, RateCategoryConfig, RateMasterItem, Step
 import { moneyValue } from "./attributeWorkingLines";
 import type { BcsSide, RateKind, WorkingsGroup } from "./rateHelperTypes";
 
-/** The line every cost block ends with (owner R-BCS-29: installation is one figure per BoQ, on the BoQ summary). */
+/** The line every cost block ends with (owner R-BCS-29: installation is one figure per BoQ, on the BoQ summary). BCS-W (owner 20:09
+ *  "ok"; mockup board 3): the panel DRAWS it once per panel / calculator result, below the sections (`BcsSide.installNote`), and
+ *  leaves it out of each drawn block; the helper's own blocks still end with it. */
 export const BCS_INSTALL_NOTE = "Installation cost is one figure for the whole BoQ, on the BoQ summary";
 /** The word in front of a cost block's figure. */
 export const BCS_SUPPLY_WORD = "BCS supply";
+
+/**
+ * BCS-W (owner R5, 24 Nov 21:54 / 21:56 "1a"): a BCS figure ON SCREEN is whole rupees, ROUNDED UP, thousands separated (2009.6 ->
+ * "2,010", 441.6 -> "442", 6090.6 -> "6,091"); the value stored and written stays exact (`bcsExactText`). The figure is first held
+ * to the paisa, so a float like 1568.0000000002 reads 1,568, not 1,569. Display only: no figure changes.
+ */
+export function bcsFigureText(v: number): string {
+  if (!Number.isFinite(v)) return String(v);
+  const paise = Math.round(v * 100) / 100;
+  return Math.ceil(paise - 1e-9).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+}
+
+/** BCS-W (owner "1a"): the EXACT figure "Use this value" writes, to the paisa, as the box beside it shows it (2,009.60). */
+export function bcsExactText(v: number): string {
+  return Number.isFinite(v) ? v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(v);
+}
+
+/** The value typed in the box beside "Use this value" on the BCS side, separators allowed ("2,009.60" -> 2009.6). */
+export function parseBcsValue(text: string): number {
+  return Number.parseFloat(String(text).replace(/,/g, ""));
+}
+
+/** A cost block's working line AS DRAWN (the panel maps each cost line through it; the helper's own lines stay exact): the figure
+ *  after "= " -- ending the line, or before ", rounded ..." -- shows whole, rounded up. */
+export function bcsLine(line: string): string {
+  return line.replace(/= (-?\d[\d,]*(?:\.\d+)?)(?=$|, rounded)/, (_m, n: string) => `= ${bcsFigureText(Number(n.replace(/,/g, "")))}`);
+}
 
 /** The supply output of a pipeline: the first output that is `supply` or `supply_<unit>`. */
 export function supplyOutputOf(pl: Pipeline | undefined): string | undefined {
@@ -176,10 +205,10 @@ export function computeBcsSide(
               : "The cost calculation could not run."),
       );
     }
-    lines.push(BCS_INSTALL_NOTE);
+    lines.push(BCS_INSTALL_NOTE); // the helper's block keeps it; the panel draws it ONCE below the sections (BCS-W, `installNote`)
     sections.push({ label: b.label, derivation: lines, finals, figures, figureKinds: ["supply_rate"] });
     headlines.push({ label: b.label, values: figures });
   }
   if (sections.length === 0) return undefined;
-  return { sections, values, ...(stacked ? { headlines } : {}) };
+  return { sections, values, installNote: BCS_INSTALL_NOTE, ...(stacked ? { headlines } : {}) };
 }

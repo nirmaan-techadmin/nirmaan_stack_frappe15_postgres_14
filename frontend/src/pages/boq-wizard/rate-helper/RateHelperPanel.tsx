@@ -5,7 +5,7 @@
  * overridable final-value field, and "Use this value"). Zero helper-specific rendering lives here,
  * so a new helper needs no panel change. Nothing persists (guardrail G2).
  */
-import { Fragment, useEffect, useId, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { Fragment, createContext, useContext, useEffect, useId, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { X, ChevronRight, ChevronDown, RotateCcw, Sparkles, CheckCircle2, Copy, Check, Plus, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,8 @@ import {
 import { moneyValue } from "./attributeWorkingLines";
 // BCS-3: the ONE section piece (tag, colour, open / folded) the panel and the calculator draw both sections with
 import { PriceSection } from "./PriceSection";
+import { BCS_INSTALL_NOTE, bcsExactText, bcsFigureText, bcsLine, parseBcsValue } from "./bcsSide";
+import { neverAskedDisplay } from "./pricingSheetHelper";
 import { ScopeBox } from "./ScopeBox";
 import { DoubleCountBlock, ReviewBlock, SharedItems } from "./SharedItemBlock";
 import { SHARES_OVERRIDE_KEY, applyShareEdit, type ShareEditOp } from "./vavSheetShares";
@@ -252,6 +254,15 @@ export function kindLabel(kind: string): string {
   return KIND_LABELS[kind] ?? kind;
 }
 
+/** BCS-W (owner R5 "1a"): how a figures row PRINTS inside the BCS section (whole rupees, rounded up); unset = as before. The copy
+ *  icon and "Use this value" keep the exact figure. */
+const FigureFormat = createContext<((v: number) => string) | undefined>(undefined);
+/** BCS-W (owner R5 "1a"; R6 "ok"): a cost block as DRAWN -- each line's figure in whole rupees, rounded up (`bcsLine`), and the
+ *  installation line left out (drawn once below the sections). A copy: the helper's own group is untouched. */
+function drawnCost(g: WorkingsGroup): WorkingsGroup {
+  return { ...g, derivation: g.derivation.filter((l) => l !== BCS_INSTALL_NOTE).map(bcsLine) };
+}
+
 /**
  * Calculator slice 1 (owner 2026-09-08, "place small copy icon besude each umber" / "bare number").
  * ONE figure's copy control: a 12-px icon that puts `bareNumberText(value)` on the clipboard -- the
@@ -315,6 +326,7 @@ function FiguresRow({ figures, copy = true, muted = false, stacked = false, unit
   unit?: string | null;
 }) {
   const label = typeof unit === "string" && unit.trim() !== "" ? unit.trim() : null;
+  const format = useContext(FigureFormat); // BCS-W: set only inside the BCS section
   return (
     <div className={stacked ? "mt-1 flex flex-col gap-y-0.5 text-xs" : "mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs"} data-testid={stacked ? "row-total-figures" : undefined}>
       {DISPLAY_RATE_KINDS.map((k) => {
@@ -324,7 +336,7 @@ function FiguresRow({ figures, copy = true, muted = false, stacked = false, unit
           <span key={k} className="inline-flex items-center gap-1 tabular-nums">
             <span className={muted ? "opacity-70" : "text-muted-foreground"}>{kindLabel(k)}</span>
             <span className="font-semibold text-foreground">
-              {typeof v === "number" ? moneyValue(v) : "—"}
+              {format && typeof v === "number" ? format(v) : typeof v === "number" ? moneyValue(v) : "—"}
             </span>
             {label && typeof v === "number" && (
               <span className={muted ? "opacity-70" : "text-muted-foreground"}>per {label}</span>
@@ -676,7 +688,8 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
       )}
       {hasSelection && !isCalculator && (
         <div className="border-b px-3 py-1.5 text-xs text-muted-foreground">
-          Row {excelRow} &middot; {kindLabel(kind!)} rate
+          {/* BCS-W (mockup board 3): opened from the BCS supply cost box, the scope line says so */}
+          Row {excelRow} &middot; {target === "bcs" ? "BCS supply cost" : `${kindLabel(kind!)} rate`}
         </div>
       )}
 
@@ -720,8 +733,11 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
           // BCS-3: a typed final value belongs to the side it was typed on, so a BoQ figure can never be used from the BCS box
           const finalKey = onBcs ? `${helper.id}|bcs` : helper.id;
           const finalStr =
-            finalOverride[finalKey] ?? (typeof shownFigure === "number" ? String(moneyValue(shownFigure)) : "");
-          const finalNum = Number.parseFloat(finalStr);
+            finalOverride[finalKey] ?? (typeof shownFigure === "number" ? (onBcs ? bcsExactText(shownFigure) : String(moneyValue(shownFigure))) : "");
+          // BCS-W (owner R5 "1a"): the box shows the EXACT cost it will write (2,009.60), so its separators are read off on the BCS side
+          const finalNum = onBcs ? parseBcsValue(finalStr) : Number.parseFloat(finalStr);
+          /** BCS-W (owner R5): a figure on the BCS side shows in whole rupees, rounded up; the BoQ side as before */
+          const shown = (v: number) => (onBcs ? bcsFigureText(v) : String(moneyValue(v)));
           // SLICE 6: an item-list suggestion renders its blocks instead of the flat attribute list, and "Use
           // this value" stays disabled until EVERY item priced (S4 -- all or nothing).
           const itemList = (result as ItemListSuggestion).itemList;
@@ -756,7 +772,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           <div key={`${h.label}-${hi}`} className="flex items-baseline gap-1.5">
                             <span className="text-[11px] text-muted-foreground">{h.label}</span>
                             <span className="text-sm font-semibold tabular-nums">
-                              {typeof hv === "number" ? moneyValue(hv) : "—"}
+                              {typeof hv === "number" ? shown(hv) : "—"}
                             </span>
                           </div>
                         );
@@ -764,7 +780,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                     </div>
                   ) : (
                     <span className="text-sm font-semibold tabular-nums">
-                      {typeof shownFigure === "number" ? moneyValue(shownFigure) : "—"}
+                      {typeof shownFigure === "number" ? shown(shownFigure) : "—"}
                     </span>
                   )}
                   {isOpen ? (
@@ -1096,7 +1112,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           {g.derivation.length > 0 && (
                             <ul className="mt-0.5 space-y-0.5 text-xs text-muted-foreground">
                               {g.derivation.map((line, i) => (
-                                <li key={i}>{line}</li>
+                                <li key={i}>{neverAskedDisplay(line, ctx?.discipline)}</li>
                               ))}
                             </ul>
                           )}
@@ -1153,7 +1169,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           {result.workings.derivation.length > 0 && (
                             <ul className="space-y-0.5 text-xs text-muted-foreground">
                               {result.workings.derivation.map((line, i) => (
-                                <li key={i}>{line}</li>
+                                <li key={i}>{neverAskedDisplay(line, ctx?.discipline)}</li>
                               ))}
                             </ul>
                           )}
@@ -1172,7 +1188,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           {result.workings.derivation.length > 0 && (
                         <ul className="space-y-0.5 text-xs text-muted-foreground">
                           {result.workings.derivation.map((line, i) => (
-                            <li key={i}>{line}</li>
+                            <li key={i}>{neverAskedDisplay(line, ctx?.discipline)}</li>
                           ))}
                         </ul>
                       )}
@@ -1197,13 +1213,20 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                             open={bcsOpen}
                             emphasised={!isCalculator && onBcs}
                             foldedFigure={bcs.values.supply_rate}
+                            figureText={typeof bcs.values.supply_rate === "number" ? bcsFigureText(bcs.values.supply_rate) : undefined}
                             onToggle={!isCalculator && !onBcs ? toggleOther : undefined}
                             className={isCalculator ? "order-1" : undefined}
                           >
                             <div className={isCalculator ? "grid gap-2" : "space-y-1.5"} style={sectionsStyle}>
-                              {bcs.sections.map(renderSection)}
+                              <FigureFormat.Provider value={bcsFigureText}>
+                                {bcs.sections.map((g, gi) => renderSection(drawnCost(g), gi))}
+                              </FigureFormat.Provider>
                             </div>
                           </PriceSection>
+                        )}
+                        {/* BCS-W (owner 20:09 "ok"; mockup board 3): the installation line ONCE, below the sections */}
+                        {bcs && bcsOpen && bcs.installNote && (
+                          <p className={cn("px-1 text-xs text-muted-foreground", isCalculator && "order-1")} data-testid="bcs-install-note">{bcs.installNote}</p>
                         )}
                       </>
                     );

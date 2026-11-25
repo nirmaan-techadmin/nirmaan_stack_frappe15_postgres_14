@@ -25,6 +25,11 @@ import { pricingInputReading } from "@/pages/boq-wizard/rate-helper/helperWordin
 import { parseFiniteInput } from "./rateMasterEdit";
 import { DOWNLOAD_COPY, downloadErrorMessage } from "./rateMasterDownload";
 import { RateMasterUploadDialog } from "./RateMasterUploadDialog";
+// BCS-W: the FORMULA cell's BoQ / BCS sections and the live Pricing Input remarks (Electrical); the section shell is BCS-3's
+import { columnNoteSections, formulaHintShownUnder, isElectricalConfig } from "./rateMasterFormulaSections";
+import { draftValues, isTemplate } from "./pricingInputRemarks";
+import { RemarkCell } from "./PricingInputRemarkCell";
+import { PriceSection } from "@/pages/boq-wizard/rate-helper/PriceSection";
 import { FREEZE_BLOCKED_MESSAGE } from "./rateMasterFreeze";
 import {
   gridColumnKeys, attrColKey, rateColKey,
@@ -357,6 +362,8 @@ export function RateMasterDataViewer({
   const unitOf = (it: RateMasterItem) => it.unit;
   // VAV-2c1 (R6 b): the plain reading beside a Pricing Input's value, from the live value -- HVAC's category only (`live_reading`)
   const liveReading = piMode && config?.live_reading === true;
+  // BCS-W: the FORMULA row's BoQ / BCS sections are Electrical's (owner R2 / R4); every other discipline is unchanged
+  const electricalFormula = !piMode && isElectricalConfig(config);
   // SLICE 12b(B): the ITEMS column exists only on a Pricing Inputs grid, and only once the page has
   // supplied both the reach map and the click handler -- so a caller that has not opted in sees the
   // grid exactly as before.
@@ -1212,6 +1219,10 @@ export function RateMasterDataViewer({
                       </TableCell>
                     );
                   }
+                  // BCS-W (owner R2 / R4; mockup board 1): on an Electrical category the cell's price lines sit in the green
+                  // BoQ section and its cost lines in the blue BCS section, each header once (BCS-3's section piece); a cell
+                  // with no cost line shows the BoQ section only. Every other discipline renders exactly as before.
+                  const sections = electricalFormula && config ? columnNoteSections(config, k, derivedCounts[k] ?? 0) : null;
                   return (
                     <TableCell
                       key={key}
@@ -1219,17 +1230,29 @@ export function RateMasterDataViewer({
                       // formula row ~250px and pushed the first item row off the screen. Same reasoning as
                       // the .xlsx, where the owner asked for three standard rows and no more.
                       className="max-w-[24rem] max-h-24 overflow-y-auto whitespace-pre-line text-left align-top text-[11px] italic text-sky-900"
-                      title={columnNote(config, k, derivedCounts[k] ?? 0)}
+                      title={sections ? [...sections.boq, ...sections.bcs].join("\n") : columnNote(config, k, derivedCounts[k] ?? 0)}
                       data-testid={`formula-note-${k}`}
                     >
-                      {columnNote(config, k, derivedCounts[k] ?? 0)}
+                      {sections ? (
+                        <div className="space-y-1 not-italic">
+                          <PriceSection side="boq" open className="py-1">
+                            <div className="whitespace-pre-line italic text-sky-900">{sections.boq.join("\n")}</div>
+                          </PriceSection>
+                          {sections.bcs.length > 0 && (
+                            <PriceSection side="bcs" open className="py-1">
+                              <div className="whitespace-pre-line italic text-sky-900">{sections.bcs.join("\n")}</div>
+                            </PriceSection>
+                          )}
+                        </div>
+                      ) : columnNote(config, k, derivedCounts[k] ?? 0)}
                     </TableCell>
                   );
                 }
                 if (key === COL_FORMULA_SUPPLY || key === COL_FORMULA_INSTALL) {
+                  // BCS-W (mockup board 1): ONCE per FORMULA row on an Electrical category (under Supply formula)
                   return (
                     <TableCell key={key} className="max-w-[22rem] whitespace-pre-line text-[11px] italic text-sky-900">
-                      {DERIVED_COPY.formulaRowHint}
+                      {formulaHintShownUnder(config, key === COL_FORMULA_SUPPLY ? "supply" : "install") ? DERIVED_COPY.formulaRowHint : null}
                     </TableCell>
                   );
                 }
@@ -1483,9 +1506,16 @@ export function RateMasterDataViewer({
               // ELR-1 (owner Q3 "a"): the remark in its own column, as the file writes it
               cells[COL_PI_REMARKS] = (
                     <TableCell key={COL_PI_REMARKS} className="align-top text-[11px] text-muted-foreground">
+                      {isTemplate(r.it.attributes?.remarks) ? (
+                        // BCS-W (owner Question 1 answer 1a; mockup board 2): a template remark is worked out from the row's
+                        // CURRENT values (the draft while the row is being edited), its price sentence in the BoQ section and
+                        // its cost sentence in the BCS section. A remark with no template mark is drawn as stored (below).
+                        <RemarkCell remark={r.it.attributes?.remarks} values={editing ? draftValues(r.it.rates, draftRates) : (r.it.rates ?? {})} />
+                      ) : (
                       <span className="line-clamp-3" title={String(r.it.attributes?.remarks ?? "")}>
                         {String(r.it.attributes?.remarks ?? "")}
                       </span>
+                      )}
                     </TableCell>
               );
               cells[COL_PI_USED_BY] = (

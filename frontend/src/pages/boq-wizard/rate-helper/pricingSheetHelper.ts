@@ -1372,6 +1372,21 @@ export function blanksWorkedOutNote(config: RateCategoryConfig): { attr: string;
   return null;
 }
 
+/** The never-asked default line's lead, as the helper writes it (2026-09-08). */
+export const NEVER_ASKED_LEAD = "(never asked at extraction -- config default applied; re-run the sheet to read it): ";
+
+/**
+ * BCS-W (owner Question 1 answer 4a, 2026-11-25 00:20; mockup board 4): the never-asked line AS DRAWN on an Electrical row --
+ * "Plate qty = 1 (not read from the BoQ; the usual default)". The helper's own line is unchanged (the replay and every pricing
+ * test read it as before); the panel and the calculator map each working line through this. Any other line, and any other
+ * discipline, is returned as it is.
+ */
+export function neverAskedDisplay(line: string, discipline: unknown): string {
+  if (String(discipline ?? "") !== "Electrical" || !line.startsWith(NEVER_ASKED_LEAD)) return line;
+  const entries = line.slice(NEVER_ASKED_LEAD.length).split(", ").filter(Boolean);
+  const pairs = entries.map((t) => { const at = t.indexOf("="); return at < 0 ? t : `${t.slice(0, at)} = ${t.slice(at + 1)}`; });
+  return `${pairs.join(", ")} (not read from the BoQ; the usual default${entries.length > 1 ? "s" : ""})`;
+}
 function readExtractionDefaults(config: RateCategoryConfig): Record<string, unknown> {
   // `extraction_defaults` is carried by the config but is not on the RateCategoryConfig type (out of
   // this slice's scope) -- read through `unknown`, the `readGroupLabel` precedent.
@@ -2185,7 +2200,7 @@ export function makePricingSheetHelper(deps: Deps): RateHelper {
     // section, the way the combined line is added to a single section above. Otherwise the badge would be
     // the only trace on screen and this sentence would exist only in tests.
     if (neverAskedTrace.length) {
-      const neverAskedLine = `(never asked at extraction -- config default applied; re-run the sheet to read it): ${neverAskedTrace.join(", ")}`;
+      const neverAskedLine = `${NEVER_ASKED_LEAD}${neverAskedTrace.join(", ")}`;
       flatDerivation.push(neverAskedLine);
       for (const s of sections) s.derivation.push(neverAskedLine);
     }

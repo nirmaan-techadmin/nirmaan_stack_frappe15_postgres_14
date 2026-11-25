@@ -111,17 +111,19 @@ const W = {
 /** ELR-4a: point wiring's, switches & sockets' and pop-up boxes' reasons, word for word as the owner approved them at
  *  the P6 stop (2026-10-29), with his three edits (the circuit-length reason without figures, the plate line's
  *  "reason not recorded", the bare-box reason). */
+// BCS-W (owner R1 / R7, 2026-11-24; Question 1, 2026-11-25): no answer code or ruling letter on the rules page ("2 v1", "ruling (a)");
+// the owner's own words and dates kept
 const E = {
   wires: "the wire-reading rule is your own rule text, given to the AI word for word (owner, c. 2026-08-08; rewritten 2026-09-03)",
   floor: "\"the number of conductors must ne coerced to 3 if the extraction reads less than 3 conductors, 3 core 1 run is also 3 conductors\"; \"if the wire given is 2 core then we have to add another wire 2 of 1 core and same thickness even if it results in higher install price\" (owner, 2026-09-03)",
   points: "\"Where the line names no count at all, record 1.\" (owner, c. 2026-08-08)",
   switch: "\"No 6A switch exists in the catalog. When a line states a 6A switch, select the 10A switch with the same other parameters\" (owner, c. 2026-08-06; the way-count and 16A rules likewise, no further reason recorded)",
-  quantities: "\"if the item is filled but qty is blank then it should be populated default 1. when item is none or blank it, the default qty rule sshould not be applied ... this should be included\" (owner, 2026-09-07); clearing None = work it out (owner, 2026-10-27, \"2 v1\")",
+  quantities: "\"if the item is filled but qty is blank then it should be populated default 1. when item is none or blank it, the default qty rule sshould not be applied ... this should be included\" (owner, 2026-09-07); clearing None = work it out (owner, 2026-10-27)",
   length: "\"if the line item mentions only Primary/ first or any synonym then length will be ['Point wiring - circuit length of the first point']. if it mentions only secondary/looping/ second/ third etc points then length will be ['Point wiring - circuit length per further point'] ... in case of confusion default to the formula\" (owner, 2026-09-01); n times: \"ok. still buid the mechanism\" (owner, 2026-09-05)",
   conduitIncluded: "\"slash alternation (existing conduit / raceway) | INCLUDE PVC -- genuinely ambiguous; silent on conduit | INCLUDE PVC\"; \"a NORMAL conduit named elsewhere | INCLUDE PVC -- ambiguous\"; \"conduit price EXPLICITLY EXCLUDED | DROP -- the document says so; outranks all inference\" (owner, 2026-09-01)",
   conduitType: "\"silent on conduit | INCLUDE PVC\" (owner, 2026-09-01; why PVC is not recorded)",
   circuitWiring: "\"we need to include only for positive cases ... the ciricuit wiring cost wil be added only to thr eprimary point rows or mixed rows and not secondary point rows\" (owner, 2026-09-02)",
-  install: "\"we are pricing the 2 wires separately\" (owner, 2026-09-03; the wire install, ruling (a) 2026-08-10); the rest: reason not recorded",
+  install: "\"we are pricing the 2 wires separately\" (owner, 2026-09-03; the wire install, owner 2026-08-10); the rest: reason not recorded",
   bareBox: "\"extraction should provide the higher count\" (owner, 2026-09-08); ranges: accepted as built, the higher-count rule not applied today (owner, 2026-09-08); the mm-only rows at 3M: \"this is ok\" (owner, 2026-09-07)",
   moduleWidths: "\"The owner's rule is 2 x (sockets) + 1 x (switches)\" (owner, c. 2026-08-06; per-item widths 2026-08-21)",
   includesModules: "\"if the user edits it to no, they should get the bare box price. if they set it to yes they should get price of box oplus components as [per the selction\" (owner, 2026-09-10)",
@@ -146,7 +148,8 @@ const B = {
   mcbPole: "\"TPN, TP+N, TP+NL, TP+2N, TP+2NL, 4P and Four Pole all mean FOUR POLE\" (owner, 2026-08-22); a single pole plus neutral means two pole (owner, 2026-09-05); the pin-count fallback: reason not recorded",
   mcbRating: "\"this is the correct outcome\" (owner, 2026-09-06; refusing rather than pricing the socket alone); the unread amperage: reason not recorded",
   earthItem: "\"handle by hand for now. earthing would need its own detailed fix later. currently it is not correct\" (owner, 2026-10-29); the match: reason not recorded",
-  busbar: "\"the D26 adder means ADD A BUS BAR\"; \"no positive bus-bar mention -> Without\" (owner, 2026-07-29 / 2026-07-30)",
+  // BCS-W (owner Question 1 answer 3a, 2026-11-25 00:20): "the D26 adder" quote dropped; the second quote word for word
+  busbar: "\"no positive bus-bar mention -> Without\" (owner, 2026-07-30); a bus bar is added only when one is stated (owner, 2026-07-29)",
   conduitSize: "\"we need to fix by implementing a match with next higher ladder in the catalog and giving the correct note as we did for cabletray width\" / \"my lean is towards seprating the arithmentic to the code side\" (owner, 2026-09-10)",
   trayMaterial: "\"These substitutions reflect what is actually supplied; the stated material in the document does not price.\" (owner, c. 2026-08-02)",
   trayDefaults: "\"silence -> Solid / cover No / cutting No / refilling No; installation Ceiling for cable tray, Floor when the text says RACEWAY\" (owner, 2026-07-30)",
