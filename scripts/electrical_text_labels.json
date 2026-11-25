@@ -1,0 +1,9 @@
+{
+  "about": "BCS-W (owner Question 1 answer 2a, 2026-11-25 00:20): the Electrical internal labels main's list (pricer_text_labels.json, untouched) does not catch -- 'ruling (iv)', 'ruling (x)', 'ruling (a)', '2 v1', 'x1 / x0' and the design-history note. Read TOGETHER with main's kinds by test_electrical_v75_bcsw.py, bcswTexts.test.ts and the BCS-W text inventory. The owner's own words and dates are never labels.",
+  "kinds": [
+    {"id": "e_ruling", "re": "\\bruling \\((?:[ivx]+|[a-z])\\)"},
+    {"id": "e_answer_code", "re": "\"?\\b\\d v\\d\\b\"?"},
+    {"id": "e_x1x0", "re": "\\bx[01]\\b(?![.\\d])"},
+    {"id": "e_design_note", "re": "\\*\\*\\*|\\bINVERSE OF THE ORIGINAL DESIGN\\b"}
+  ]
+}
