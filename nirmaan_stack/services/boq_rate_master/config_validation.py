@@ -550,6 +550,55 @@ def _active_section_items(discipline, kinds):
     return out
 
 
+def validate_catalogue_references(configs, items, discipline, label="Rate master import refused",
+                                  retired_kinds=(), retired_category_ids=()):
+    """CAT-1 THE REFERENCE GATE (CAT-D0 D5 G1, CAT-D1 E6 G-REF; owner 2026-11-26 00:06 / 00:10: "a rate-file load is REFUSED if
+    any reference names a missing item, with the place named"). Called by both loader paths BEFORE the first write (every mint's
+    own load runs it), next to `validate_delegated_sections`.
+
+    Checks the catalogue AS IT WILL STAND: the payload's configs and items, plus every active config / item of the discipline
+    outside the payload's scope and not retired -- so a load that drops the last SKU another config points at is refused too.
+    The rules and the reference-key registry live in `catalogue_gate.reference_problems` / `REFERENCE_KEYS`. Raises
+    frappe.ValidationError listing EVERY refusal as `<config> > <key path> <what is missing>`; returns the INFO lines (a stocked
+    value a list does not name; a pinned golden / impact example naming an unstocked value - listed, never refused)."""
+    from nirmaan_stack.services.boq_rate_master import catalogue_gate
+
+    payload_items = []
+    for it in items or []:
+        if isinstance(it, dict):
+            payload_items.append({"kind": (it.get("kind") or "").strip(), "brand": it.get("brand"), "unit": it.get("unit"),
+                                  "item_uid": it.get("item_uid"), "attributes": it.get("attributes") or {}, "active": 1})
+    payload_kinds = {i["kind"] for i in payload_items} | set(retired_kinds or ())
+    payload_cats = {(c.get("category_id") or "").strip() for c in configs if isinstance(c, dict)} | set(retired_category_ids or ())
+    standing_items = payload_items + [
+        {"kind": r.kind, "brand": r.brand, "unit": r.unit, "item_uid": r.item_uid, "active": 1,
+         "attributes": (frappe.parse_json(r.attributes) if isinstance(r.attributes, str) else r.attributes) or {}}
+        for r in frappe.get_all("BoQ Rate Master Item", filters={"discipline": discipline, "active": 1},
+                                fields=["kind", "brand", "unit", "item_uid", "attributes"])
+        if (r.kind or "").strip() not in payload_kinds]
+    standing_configs = [c for c in configs if isinstance(c, dict)] + _active_section_configs(discipline, payload_cats)
+    problems = catalogue_gate.reference_problems(standing_configs, standing_items, discipline=discipline)
+    refusals = [catalogue_gate.format_problem(p) for p in problems if p["severity"] == catalogue_gate.REFUSE]
+    if refusals:
+        shown = refusals[:40]
+        more = f"\n... and {len(refusals) - len(shown)} more" if len(refusals) > len(shown) else ""
+        frappe.throw(f"{label}: {len(refusals)} catalogue reference(s) do not resolve:\n" + "\n".join(shown) + more,
+                     frappe.ValidationError, title="Catalogue reference refused")
+    infos = [catalogue_gate.format_problem(p) for p in problems if p["severity"] == catalogue_gate.INFO]
+    # G-PROSE at import: a NEW typed mention of a multi-word catalogue value in the payload's wording is LISTED (the suite fails it)
+    import json as _json
+    import os as _os
+    try:
+        with open(_os.path.join(_os.path.dirname(catalogue_gate.__file__), catalogue_gate.PROSE_ALLOWLIST), encoding="utf-8") as fh:
+            frozen = (_json.load(fh) or {}).get("paths") or {}
+    except (OSError, ValueError):
+        frozen = {}
+    found = catalogue_gate.prose_mentions([c for c in configs if isinstance(c, dict)], standing_items)
+    infos += [f"INFO: G-PROSE {line}" for line in catalogue_gate.prose_drift(found, {k: v for k, v in frozen.items() if k in found})
+              if "a new mention" in line]
+    return infos
+
+
 def validate_delegated_sections(configs, items=None, label="config"):
     """SLICE 12e-3a (owner 2026-10-11: 'Add loader.py to scope'; the config editor's save also runs it) -- THE
     ONE CALL. `configs` is what is about to be written (a whole asset payload's configs, or the one config the

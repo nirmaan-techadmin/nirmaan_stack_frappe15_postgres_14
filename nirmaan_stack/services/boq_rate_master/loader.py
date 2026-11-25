@@ -335,6 +335,8 @@ def load_rate_master(payload=None, path=None, replace=False):
     # load path now runs it. (A config with no `list_spec.sections`, in a discipline where none declares one,
     # reads the discipline's active configs once and stops there.)
     config_validation.validate_delegated_sections([cfg], payload["items"], label="Rate master import refused")
+    # CAT-1: THE REFERENCE GATE -- every catalogue value / item the configs name resolves on the catalogue as it will stand
+    catalogue_info = config_validation.validate_catalogue_references([cfg], payload["items"], discipline)
 
     existing_active = _active_item_count(discipline)
     if existing_active and not replace:
@@ -418,6 +420,7 @@ def load_rate_master(payload=None, path=None, replace=False):
         "config_loaded": 1,
         "items_deactivated": items_deactivated,
         "configs_deactivated": configs_deactivated,
+        "catalogue_info": catalogue_info,   # CAT-1: the gate's INFO lines (listed, never refused)
     }
 
 
@@ -462,6 +465,11 @@ def _load_multi(payload, replace):
     retirement_reasons = _validated_retirement_reasons(
         payload.get("retirement_reasons"), retired_kinds, retired_cat_ids
     )
+    # CAT-1: THE REFERENCE GATE -- every catalogue value / item the configs name resolves on the catalogue as it will stand
+    # (this payload + whatever stays active outside its scope, the retired scope excluded), BEFORE the first write.
+    catalogue_info = config_validation.validate_catalogue_references(
+        [_loaded_config(c, discipline, goldens_by_cat) for c in configs], payload.get("items"), discipline,
+        retired_kinds=retired_kinds, retired_category_ids=retired_cat_ids)
 
     items = payload["items"]
     payload_kinds = sorted({it["kind"].strip() for it in items})
@@ -589,6 +597,7 @@ def _load_multi(payload, replace):
         "retirements_without_reason": retirements_recorded.get("unreasoned", 0),
         "retired_items_deactivated": retired_items_deactivated,
         "retired_configs_deactivated": retired_configs_deactivated,
+        "catalogue_info": catalogue_info,   # CAT-1: the gate's INFO lines (listed, never refused)
     }
 
 

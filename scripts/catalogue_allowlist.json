@@ -1,0 +1,611 @@
+{
+  "frontend/src/pages/boq-wizard/rate-helper/itemListPricing.ts": {
+    "24G Aluminium with Glass Cloth": {
+      "count": 1,
+      "reason": "cladding values typed in code: 'Glass Cloth with paint', '24G/26G Aluminium with Glass Cloth', 'GI Framework with perforated Al sheet'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "26G Aluminium with Glass Cloth": {
+      "count": 1,
+      "reason": "cladding values typed in code: 'Glass Cloth with paint', '24G/26G Aluminium with Glass Cloth', 'GI Framework with perforated Al sheet'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "ALUMINIUM": {
+      "count": 1,
+      "reason": "conductor / armour words: readCableKindWords writes ALUMINIUM / COPPER / ARMOURED / UNARMOURED",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "ARMOURED": {
+      "count": 1,
+      "reason": "conductor / armour words: readCableKindWords writes ALUMINIUM / COPPER / ARMOURED / UNARMOURED",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "COPPER": {
+      "count": 1,
+      "reason": "conductor / armour words: readCableKindWords writes ALUMINIUM / COPPER / ARMOURED / UNARMOURED",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "CPVC": {
+      "count": 1,
+      "reason": "pipe types 'CPVC' / 'PVC' typed in code",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "GI Framework with perforated Al sheet": {
+      "count": 1,
+      "reason": "cladding values typed in code: 'Glass Cloth with paint', '24G/26G Aluminium with Glass Cloth', 'GI Framework with perforated Al sheet'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Glass Cloth with paint": {
+      "count": 1,
+      "reason": "cladding values typed in code: 'Glass Cloth with paint', '24G/26G Aluminium with Glass Cloth', 'GI Framework with perforated Al sheet'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "PVC": {
+      "count": 1,
+      "reason": "pipe types 'CPVC' / 'PVC' typed in code",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "UNARMOURED": {
+      "count": 1,
+      "reason": "conductor / armour words: readCableKindWords writes ALUMINIUM / COPPER / ARMOURED / UNARMOURED",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    }
+  },
+  "frontend/src/pages/boq-wizard/rate-helper/pricingSheetHelper.ts": {
+    "2-Way Valve": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Automatic Air Vent": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Balancing Valve": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Ball Valve": {
+      "count": 2,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Dual Plate": {
+      "count": 2,
+      "reason": "NRV 'Dual Plate' typed in code (the d2 line)",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "MS Angle Base Frame Structure": {
+      "count": 1,
+      "reason": "VRF frame families + the central controller family typed in code",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "MS frame / stand for ODU": {
+      "count": 1,
+      "reason": "VRF frame families + the central controller family typed in code",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Modulating": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "NRV / Check Valve": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "PIBCV": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Pressure Gauge": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Sluice / Gate Valve": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Strainer": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Temperature Gauge / Thermometer": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Test Plug / Thermowell": {
+      "count": 1,
+      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Touch Screen Central Controller": {
+      "count": 1,
+      "reason": "VRF frame families + the central controller family typed in code",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    }
+  },
+  "frontend/src/pages/pricing/electricalRuleCases.ts": {
+    "10A SP MCB C CURVE": {
+      "count": 1,
+      "reason": "pinned Electrical rules-page cases",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 4: the pinned Electrical rules-page cases stay out by design)"
+    },
+    "63A FP MCB C CURVE": {
+      "count": 2,
+      "reason": "pinned Electrical rules-page cases",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 4: the pinned Electrical rules-page cases stay out by design)"
+    },
+    "6A/16A 3-Pin Socket": {
+      "count": 3,
+      "reason": "pinned Electrical rules-page cases",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 4: the pinned Electrical rules-page cases stay out by design)"
+    },
+    "Danger Board": {
+      "count": 1,
+      "reason": "pinned Electrical rules-page cases",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 4: the pinned Electrical rules-page cases stay out by design)"
+    },
+    "GI": {
+      "count": 1,
+      "reason": "pinned Electrical rules-page cases",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 4: the pinned Electrical rules-page cases stay out by design)"
+    },
+    "IP67 - Water Proof": {
+      "count": 1,
+      "reason": "pinned Electrical rules-page cases",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 4: the pinned Electrical rules-page cases stay out by design)"
+    },
+    "PVC": {
+      "count": 10,
+      "reason": "pinned Electrical rules-page cases",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 4: the pinned Electrical rules-page cases stay out by design)"
+    },
+    "SPN DB 12WAY": {
+      "count": 1,
+      "reason": "pinned Electrical rules-page cases",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 4: the pinned Electrical rules-page cases stay out by design)"
+    },
+    "Switch": {
+      "count": 6,
+      "reason": "pinned Electrical rules-page cases",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 4: the pinned Electrical rules-page cases stay out by design)"
+    },
+    "UNARMOURED": {
+      "count": 2,
+      "reason": "pinned Electrical rules-page cases",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 4: the pinned Electrical rules-page cases stay out by design)"
+    }
+  },
+  "frontend/src/pages/pricing/pricingHelpers.ts": {
+    "COPPER": {
+      "count": 1,
+      "reason": "inside a trailing comment",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    }
+  },
+  "frontend/src/pages/pricing/rate-master/itemListRuleOrder.ts": {
+    "26G": {
+      "count": 1,
+      "reason": "rules-page prose example naming '26G'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "ARMOURED": {
+      "count": 1,
+      "reason": "rules-page line gated on the def carrying ARMOURED + UNARMOURED",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Bus bar": {
+      "count": 1,
+      "reason": "rules-page line gated on the def carrying 'Bus bar'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Paint": {
+      "count": 1,
+      "reason": "rules-page fallback family 'Paint' when the config names none",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Switch": {
+      "count": 1,
+      "reason": "rules-page heading word 'Switch'",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "UNARMOURED": {
+      "count": 1,
+      "reason": "rules-page line gated on the def carrying ARMOURED + UNARMOURED",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    }
+  },
+  "frontend/src/pages/pricing/rate-master/pricingInputReach.ts": {
+    "Indoor": {
+      "count": 1,
+      "reason": "Pricing Inputs reach page: 'Indoor' / 'Outdoor' display words equal to VRF group values",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Outdoor": {
+      "count": 1,
+      "reason": "Pricing Inputs reach page: 'Indoor' / 'Outdoor' display words equal to VRF group values",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    }
+  },
+  "frontend/src/pages/pricing/rate-master/rateMasterRegistry.ts": {
+    "Misc": {
+      "count": 1,
+      "reason": "category list labels",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "VAV Box": {
+      "count": 1,
+      "reason": "category list labels",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "Valve Package": {
+      "count": 1,
+      "reason": "category list labels",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    }
+  },
+  "nirmaan_stack/services/boq_category/prompts/boq_composite_decomposition_prompt.md": {
+    "bus bar": {
+      "count": 1,
+      "reason": "decomposition prompt guidance naming 'enclosure box' / 'bus bar'",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "enclosure box": {
+      "count": 1,
+      "reason": "decomposition prompt guidance naming 'enclosure box' / 'bus bar'",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    }
+  },
+  "nirmaan_stack/services/boq_category/prompts/boq_rate_attr_extraction_prompt.md": {
+    "ALUMINIUM": {
+      "count": 2,
+      "reason": "prompt hint words",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "ARMOURED": {
+      "count": 4,
+      "reason": "prompt hint words",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "COPPER": {
+      "count": 3,
+      "reason": "prompt hint words",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "UNARMOURED": {
+      "count": 3,
+      "reason": "prompt hint words",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "aluminium": {
+      "count": 1,
+      "reason": "prompt hint words",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    }
+  },
+  "nirmaan_stack/services/boq_category/prompts/boq_rate_item_list_prompt.md": {
+    "1200MM X300MM": {
+      "count": 1,
+      "reason": "prompt guidance examples naming ADP families / variants",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "3 Slot": {
+      "count": 1,
+      "reason": "prompt guidance examples naming ADP families / variants",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "actuator": {
+      "count": 3,
+      "reason": "prompt guidance examples naming ADP families / variants",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "control panel": {
+      "count": 2,
+      "reason": "prompt guidance examples naming ADP families / variants",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "fire damper": {
+      "count": 1,
+      "reason": "prompt guidance examples naming ADP families / variants",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "motorised": {
+      "count": 3,
+      "reason": "prompt guidance examples naming ADP families / variants",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "square diffuser": {
+      "count": 1,
+      "reason": "prompt guidance examples naming ADP families / variants",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "with sleeve": {
+      "count": 1,
+      "reason": "prompt guidance examples naming ADP families / variants",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    }
+  },
+  "nirmaan_stack/services/boq_category/prompts/boq_rate_item_list_review_prompt.md": {
+    "control panel": {
+      "count": 1,
+      "reason": "review prompt example",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    }
+  },
+  "nirmaan_stack/services/boq_rate_master/csv_importer.py": {
+    "3 Pin / 2P+E": {
+      "count": 1,
+      "reason": "a code word matched against BoQ text or a catalogue value; it moves to a config reference or a label in CAT-2 / CAT-3a",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "6A/16A 3-Pin Socket": {
+      "count": 1,
+      "reason": "a code word matched against BoQ text or a catalogue value; it moves to a config reference or a label in CAT-2 / CAT-3a",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "70 x 6 MM Earth Strip": {
+      "count": 1,
+      "reason": "a code word matched against BoQ text or a catalogue value; it moves to a config reference or a label in CAT-2 / CAT-3a",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "IP44/54 - Splash Proof": {
+      "count": 1,
+      "reason": "a code word matched against BoQ text or a catalogue value; it moves to a config reference or a label in CAT-2 / CAT-3a",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    }
+  },
+  "nirmaan_stack/services/boq_rate_master/extraction.py": {
+    "ALUMINIUM": {
+      "count": 1,
+      "reason": "display-only regex corroborator `_MATERIAL_RE` / `_INSULATION_RE` writes COPPER / ALUMINIUM / ARMOURED / UNARMOURED",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "ARMOURED": {
+      "count": 1,
+      "reason": "display-only regex corroborator `_MATERIAL_RE` / `_INSULATION_RE` writes COPPER / ALUMINIUM / ARMOURED / UNARMOURED",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "COPPER": {
+      "count": 1,
+      "reason": "display-only regex corroborator `_MATERIAL_RE` / `_INSULATION_RE` writes COPPER / ALUMINIUM / ARMOURED / UNARMOURED",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "DB": {
+      "count": 1,
+      "reason": "board words matched against BoQ text (`_BOARD_WORDS_AFTER_DEVICE`); not a catalogue reference",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "DP": {
+      "count": 1,
+      "reason": "pole_plus_neutral_families: stated / counted pole values TP FP SP DP typed in code",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "FP": {
+      "count": 1,
+      "reason": "pole_plus_neutral_families: stated / counted pole values TP FP SP DP typed in code",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "SP": {
+      "count": 1,
+      "reason": "pole_plus_neutral_families: stated / counted pole values TP FP SP DP typed in code",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "TP": {
+      "count": 1,
+      "reason": "pole_plus_neutral_families: stated / counted pole values TP FP SP DP typed in code",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    },
+    "UNARMOURED": {
+      "count": 1,
+      "reason": "display-only regex corroborator `_MATERIAL_RE` / `_INSULATION_RE` writes COPPER / ALUMINIUM / ARMOURED / UNARMOURED",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    }
+  },
+  "nirmaan_stack/services/boq_rate_master/spec_reader.py": {
+    "9/10 NM": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "GI oval": {
+      "count": 1,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "GI rectangular": {
+      "count": 1,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "NRD": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "UL": {
+      "count": 1,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "VCD": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "access door": {
+      "count": 3,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "actuator": {
+      "count": 3,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "aluminium": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "butterfly damper": {
+      "count": 3,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "canvas connection": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "collar damper": {
+      "count": 3,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "control panel": {
+      "count": 4,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "cross-talk": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "curved grille": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "disc valve": {
+      "count": 3,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "door grille": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "double-skin plenum": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "fire damper": {
+      "count": 5,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "flexible duct": {
+      "count": 3,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "floor grille": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "intake louvre": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "jet / eyeball diffuser": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "linear grille": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "mixing box / LP plenum": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "motorised": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "round diffuser": {
+      "count": 3,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "slot diffuser": {
+      "count": 4,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "sound attenuator": {
+      "count": 3,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "spigot": {
+      "count": 4,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "square diffuser": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "with sleeve": {
+      "count": 1,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    },
+    "without sleeve": {
+      "count": 2,
+      "reason": "the WRITE-side spec reader (S-c): turns an ADP SKU's own name + detail into its attributes; it PRODUCES catalogue values, so it is a declared place, not a reader",
+      "ruling": "owner 2026-11-26 00:53 (QR-SCOPE-3 (a): spec_reader.py a declared allow-list place + a guard on its family list)"
+    }
+  },
+  "nirmaan_stack/services/boq_rate_match/card_prompt.txt": {
+    "MCCB": {
+      "count": 1,
+      "reason": "historical-match card prompt: locked byte for byte (R-H2AH); guard allow-list",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "aluminium": {
+      "count": 1,
+      "reason": "historical-match card prompt: locked byte for byte (R-H2AH); guard allow-list",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    },
+    "butterfly valve": {
+      "count": 1,
+      "reason": "historical-match card prompt: locked byte for byte (R-H2AH); guard allow-list",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    }
+  },
+  "nirmaan_stack/services/boq_rate_match/judge_prompt.txt": {
+    "aluminium": {
+      "count": 1,
+      "reason": "historical-match judge prompt: locked byte for byte (R-H2AH); guard allow-list",
+      "ruling": "owner 2026-11-26 00:22 (ANSWER 1 item 1: prompt hint words = a GUARD only) and 00:53 (QR-SCOPE-1 (a))"
+    }
+  },
+  "nirmaan_stack/services/boq_rate_match/match_text.py": {
+    "aluminium": {
+      "count": 1,
+      "reason": "historical-match text normaliser: BoQ text spelling",
+      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
+    }
+  }
+}
