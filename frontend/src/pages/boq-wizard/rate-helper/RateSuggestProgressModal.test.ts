@@ -18,6 +18,8 @@ import {
   suggestPercent,
   serverRefusalText,
   SUGGEST_BADGES_LINE,
+  SUGGEST_BCS_ON_LINE,
+  suggestBcsLine,
   type SuggestModalSummary,
 } from "./RateSuggestProgressModal";
 
@@ -270,5 +272,25 @@ describe("SR-1 K3/K4 the page passes the whole done payload to the modal", () =>
     const block = src.slice(src.indexOf("interface SuggestRunResult {"), src.indexOf("interface PartialSuggestRun"));
     expect(block).toContain("first_selected_run?: boolean;");
     expect(block).toContain("pass_attempted_count?: number;");
+  });
+});
+
+describe("BCS-3S suggestBcsLine (owner R1): the line only when THIS run switched BCS on", () => {
+  it("POSITIVE: a complete run whose result says bcs_switched_on -> the owner's exact words", () => {
+    expect(SUGGEST_BCS_ON_LINE).toBe("BCS is switched on for this sheet.");
+    expect(suggestBcsLine({ ...scopedComplete, bcs_switched_on: true })).toBe("BCS is switched on for this sheet.");
+    expect(suggestBcsLine({ ...wholeSheetComplete, bcs_switched_on: true })).toBe(SUGGEST_BCS_ON_LINE);
+  });
+  it("NEGATIVE: no flag (BCS already on / no Electrical row read / a locked sheet) -> nothing", () => {
+    expect(suggestBcsLine(scopedComplete)).toBe("");
+    expect(suggestBcsLine({ ...scopedComplete, bcs_switched_on: false })).toBe("");
+    expect(suggestBcsLine(null)).toBe("");
+  });
+  it("NEGATIVE: a halted or failed run never says it, whatever its payload carries", () => {
+    expect(suggestBcsLine({ ...scopedHalted, bcs_switched_on: true })).toBe("");
+    expect(suggestBcsLine({ status: "error", run_status: "failed", bcs_switched_on: true })).toBe("");
+  });
+  it("the count line is unchanged by the flag (the BCS line is its own line)", () => {
+    expect(suggestCompletionLine({ ...scopedComplete, bcs_switched_on: true })).toBe(suggestCompletionLine(scopedComplete));
   });
 });

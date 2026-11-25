@@ -45,6 +45,9 @@ export interface SuggestModalSummary {
   pass_attempted_count?: number;
   /** SR-1 C10: true on a fresh selected run that carried nothing (a first selected run). Absent on older payloads. */
   first_selected_run?: boolean;
+  /** BCS-3S (owner R1): true only when THIS run switched BCS on for the sheet (the server's worker did it, because the
+   *  run read a row filed as Electrical). Absent on every other run. */
+  bcs_switched_on?: boolean;
 }
 
 /** The three outcomes a completion message may report. `null` = not applicable to this run shape
@@ -120,6 +123,16 @@ const rowWord = (n: number) => (n === 1 ? "row" : "rows");
 /** The one line users read where the message says "badges are on the rate cells" -- KEPT as its own
  *  second line (it is the genuinely useful half: it says where to look). */
 export const SUGGEST_BADGES_LINE = "Badges are on the rate cells.";
+
+/** BCS-3S (owner R1, 21 Nov 13:31): the one extra line of a run that switched BCS on for the sheet. */
+export const SUGGEST_BCS_ON_LINE = "BCS is switched on for this sheet.";
+
+/** PURE. The BCS line for a COMPLETE run whose result says it switched BCS on; "" on every other run (BCS already on, a
+ *  run that read no Electrical row, a halted or failed run). */
+export function suggestBcsLine(s: SuggestModalSummary | null): string {
+  const complete = s?.status === "success" && s?.run_status !== "partial";
+  return complete && s?.bcs_switched_on === true ? SUGGEST_BCS_ON_LINE : "";
+}
 
 /**
  * PURE. The completion message's COUNT line. Returns "" when nothing can be said honestly.
@@ -352,6 +365,7 @@ export function RateSuggestProgressModal({
   const pct = suggestPercent(progress);
   // SELROW: what actually RAN this pass -- never `results.length`, which is the whole document.
   const outcomeLine = suggestCompletionLine(summary);
+  const bcsLine = suggestBcsLine(summary);
   const warn = suggestAiStatusWarning(summary?.ai_status);
 
   return (
@@ -410,6 +424,7 @@ export function RateSuggestProgressModal({
               {outcomeLine}
             </p>
             <p className="text-muted-foreground">{SUGGEST_BADGES_LINE}</p>
+            {bcsLine && <p className="text-muted-foreground" data-testid="suggest-bcs-on">{bcsLine}</p>}
             {warn && <p className="text-amber-700 dark:text-amber-300">{warn}</p>}
           </div>
         )}

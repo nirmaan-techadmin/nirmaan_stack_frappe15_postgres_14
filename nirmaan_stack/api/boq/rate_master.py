@@ -891,6 +891,43 @@ def _start_match_after_suggest(boq, sheet_name, run_id, scope, resume_run_id):
         return None
 
 
+def _switch_bcs_on_after_suggest(boq, sheet_name, committed_version, read_rows):
+    """BCS-3S (owner R1, 21 Nov 13:31 "1 yes", 16:51 "all a"): when a finished Suggest run read at least one row the user
+    filed as Electrical, BCS goes on for that sheet -- no click, no confirmation. True only when THIS call switched it on.
+
+    `read_rows` is the pass's own `attempted_rows` (on a selected-rows run, the ticked rows; carried rows were not read).
+    A row's category is the one the run reads (`extraction.assemble_population`, the same population the run took), and
+    "Electrical" is the discipline name of the classifier's engine registry (`boq_category.engines`, the single source the
+    product names its disciplines from) -- no literal list here. Writes only `BoQ Sheet.bcs_enabled`, through
+    `bcs.enable_bcs_for_suggest` (no cost, R2), then commits once. NEVER raises: a refusal (a sheet locked while the run
+    worked) or any error is rolled back, logged once, and the run's own outcome is untouched."""
+    try:
+        read = {int(x) for x in read_rows or []}
+        if not read:
+            return False
+        from nirmaan_stack.services.boq_category import engines
+
+        electrical = (engines.get_engine("electrical") or {}).get("discipline")
+        _cv, population = extraction.assemble_population(boq, sheet_name)
+        if not electrical or not any(
+            int(r["excel_row"]) in read and r.get("discipline") == electrical for r in population
+        ):
+            return False
+        from nirmaan_stack.api.boq.wizard import bcs
+
+        if not bcs.enable_bcs_for_suggest(boq, sheet_name, committed_version):
+            return False
+        frappe.db.commit()
+        return True
+    except Exception:  # noqa: BLE001 -- the switch-on is a side effect: it must never fail the run
+        try:
+            frappe.db.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+        frappe.log_error(title="BoQ suggest: BCS not switched on", message=frappe.get_traceback())
+        return False
+
+
 def _suggest_worker(boq=None, sheet_name=None, resume_run_id=None, only_rows=None):
     """The suggest operation's work (runs as its owner, under `background_ops.run`; #1667): run
     extraction, WRITE the Suggestion Run doc (prior active -> active=0) at terminal SUCCESS, commit,
@@ -998,6 +1035,11 @@ def _suggest_worker(boq=None, sheet_name=None, resume_run_id=None, only_rows=Non
             )
 
         frappe.db.commit()  # the operation reads "finished" only after this commit
+        # BCS-3S (owner R1): a COMPLETE run whose model read at least one row filed as Electrical switches BCS on for this
+        # sheet, after the run's own commit above and before the result is published. It can never fail the run.
+        bcs_switched_on = complete and ai_status == "ran" and _switch_bcs_on_after_suggest(
+            boq, sheet_name, cv, env.get("attempted_rows")
+        )
         payload = {
             "status": "success" if complete else "partial",
             "boq": boq,
@@ -1026,6 +1068,10 @@ def _suggest_worker(boq=None, sheet_name=None, resume_run_id=None, only_rows=Non
             "only_rows": sorted(int(x) for x in only_rows) if only_rows else None,
             "resumed_run_id": resume_run_id or None,
         }
+        if bcs_switched_on:
+            # BCS-3S: ONLY when THIS run switched BCS on; the completion message then adds "BCS is switched on for this
+            # sheet." (RateSuggestProgressModal.suggestBcsLine). Absent on every other run.
+            payload["bcs_switched_on"] = True
         # DEV2-B4 SEQUENCE (owner G1): historical matching follows a COMPLETE run -- after the commit above, outside
         # this run's transaction, as its own background operation. Switch OFF -> None and the payload is untouched.
         if complete:

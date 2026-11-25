@@ -69,6 +69,7 @@ BoQ Cell Pricing exactly; a cost row is never overwritten in place.
 
 Public API:
   set_bcs_enabled(...)      -> dict   [whitelisted POST]
+  enable_bcs_for_suggest(...) -> bool [internal, NOT whitelisted: a finished Suggest run's switch-on (BCS-3S)]
   confirm_bcs_columns(...)  -> dict   [whitelisted POST]
   get_bcs_state(...)        -> dict   [whitelisted, GET-capable]
   get_sheet_bcs_rates(...)  -> dict   [whitelisted, GET-capable]
@@ -186,6 +187,15 @@ def _resolve_sheet_row(boq_name, sheet_name, committed_version) -> str:
     return name
 
 
+def _writable_sheet_row(boq_name, sheet_name, committed_version) -> str:
+    """The current committed BoQ Sheet row, refusing a deliberately-locked sheet: the sheet lookup and the lock refusal
+    that `set_bcs_enabled` and `enable_bcs_for_suggest` share (BCS-3S), so the two switch-on paths cannot drift."""
+    sheet_row = _resolve_sheet_row(boq_name, sheet_name, committed_version)
+    # A deliberately-locked sheet is read-only for EVERY save path, this one included.
+    _guard_sheet_not_locked(boq_name, sheet_name, committed_version)
+    return sheet_row
+
+
 def _validate_common_args(boq_name, sheet_name, committed_version) -> int:
     _require(boq_name, "boq_name")
     _require(sheet_name, "sheet_name")
@@ -297,10 +307,7 @@ def set_bcs_enabled(boq_name=None, sheet_name=None, committed_version=None, enab
     # `enabled` is required but 0/"0"/False are all VALID (they mean disable) -- _require
     # rejects only None and "", never a falsy-but-present value.
     _require(enabled, "enabled")
-    sheet_row = _resolve_sheet_row(boq_name, sheet_name, committed_version)
-
-    # A deliberately-locked sheet is read-only for EVERY save path, this one included.
-    _guard_sheet_not_locked(boq_name, sheet_name, committed_version)
+    sheet_row = _writable_sheet_row(boq_name, sheet_name, committed_version)
 
     flag = 1 if frappe.utils.cint(enabled) else 0
     frappe.db.set_value(_BOQ_SHEET, sheet_row, "bcs_enabled", flag, update_modified=False)
@@ -310,6 +317,27 @@ def set_bcs_enabled(boq_name=None, sheet_name=None, committed_version=None, enab
         "bcs_enabled": flag,
         "is_ready": bcs_is_ready(boq_name, sheet_name, committed_version),
     }
+
+
+def enable_bcs_for_suggest(boq_name, sheet_name, committed_version) -> bool:
+    """BCS-3S (owner R1, 21 Nov 13:31 "1 yes"): switch BCS ON for one committed sheet+version as the side effect of a
+    finished Suggest run (`rate_master._switch_bcs_on_after_suggest`). Returns True only when it turned BCS on now; False
+    when it was already on (nothing written).
+
+    NOT whitelisted and NO role check of its own: it is the ruled side effect of a run, run by the worker (BCS-D0 P2f); the
+    five BCS services keep BCS-3's check. Shares set_bcs_enabled's sheet lookup and locked-sheet refusal
+    (`_writable_sheet_row`), so a locked sheet THROWS here exactly as it does there, and the caller catches it.
+
+    Writes ONLY `BoQ Sheet.bcs_enabled` -- no BoQ Row BCS Rate, no Pricing Input, no formula seed (as set_bcs_enabled) -- and
+    does NOT commit: the worker commits once after it. set_value, not doc.save, for set_bcs_enabled's reason (BoQ Sheet's
+    list-valued area_dimensions JSON); skipping doc_events is correct: BoQ Sheet has none, and nothing is derived from the
+    flag (readiness is computed on read by bcs_is_ready)."""
+    committed_version = _coerce_int(committed_version, "committed_version")
+    sheet_row = _writable_sheet_row(boq_name, sheet_name, committed_version)
+    if frappe.utils.cint(frappe.db.get_value(_BOQ_SHEET, sheet_row, "bcs_enabled")):
+        return False
+    frappe.db.set_value(_BOQ_SHEET, sheet_row, "bcs_enabled", 1, update_modified=False)
+    return True
 
 
 @frappe.whitelist(methods=["POST"])

@@ -34,9 +34,19 @@ Coverage:
 sheet_name carries a trailing space (#152) throughout.
 """
 import json
+import uuid
+from unittest import mock
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
+
+from nirmaan_stack.api.background_ops import get_status
+from nirmaan_stack.api.boq import rate_master, rate_match
+from nirmaan_stack.api.boq.test_rate_suggest import _insert_cat
+from nirmaan_stack.api.boq.wizard.test_classify import _new_boq, _new_sheet, _node
+from nirmaan_stack.services import background_ops
+from nirmaan_stack.services.boq_rate_master import extraction
+from nirmaan_stack.services.test_operation_marker import new_request
 
 from nirmaan_stack.api.boq.wizard.bcs import (
     bcs_is_ready,
@@ -1889,3 +1899,201 @@ class TestBcsCostCarryLayer(FrappeTestCase):
             committed_carry.carry_bcs_rows(self.boq, self.SHEET, 2, [])
         with self.assertRaises(TypeError):
             committed_carry.carry_bcs_rows(self.boq, self.SHEET, 2, [], source_boq=self.boq)
+
+
+# ── BCS-3S: a Suggest run switches BCS on (owner R1, 21 Nov 13:31 "1 yes" / 16:51 "all a"; R2: never a cost) ─────────────
+_SWITCH_ELECTRICAL = ("Electrical", "wiring_cabling")
+_SWITCH_HVAC = ("HVAC", "hvac_piping")
+
+
+def _switch_extract(boq, sheet_name, only_rows=None, **kwargs):
+    """The extraction edge of a COMPLETE run: rows 2 and 3 read (the AI ran), one attribute naming each row."""
+    rows = only_rows or [2, 3]
+    return {
+        "committed_version": 1, "ai_status": "ran", "halt_reason": None, "complete": True,
+        "results": [{"excel_row": r, "description": "d", "category_id": "x", "attributes": {"tag": {"value": f"r{r}"}}}
+                    for r in rows],
+        "attempted_rows": list(rows), "population_rows": [2, 3],
+    }
+
+
+def _switch_extract_fails(*args, **kwargs):
+    raise RuntimeError("BCS-3S fixture: the extraction stopped")
+
+
+class TestSuggestSwitchesBcsOn(FrappeTestCase):
+    """BCS-3S (owner R1): a Suggest run that FINISHES having read at least one row filed as Electrical switches BCS on for
+    its sheet -- no click, no confirmation -- and says so once in its result (`bcs_switched_on: true`), which the
+    completion message turns into "BCS is switched on for this sheet.". It writes NOTHING else (R2: no cost in any box --
+    no BoQ Row BCS Rate, no BoQ Cell Pricing). Nothing switches it in the other cases: BCS already on (nothing written, no
+    flag), a run that read no Electrical row, a sheet locked while the run worked (the run still completes), a failed run.
+
+    Each case drives the REAL worker (`rate_master._suggest_worker`) under develop's operation wrapper
+    (`background_ops.run`, #1667) exactly as test_suggest_operations does: the queue is faked, the extraction edge is
+    faked, and the AI client REFUSES (`anthropic.Anthropic` raises), so a missed patch can never reach the network."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.project = _make_project()
+        cls.boq = _new_boq(cls.project.name, f"BCS3S_{frappe.generate_hash(length=6)}")
+        cls.sheet_docs = {}
+        for key, (disc, cat) in {
+            "elec": _SWITCH_ELECTRICAL, "nocost": _SWITCH_ELECTRICAL, "already": _SWITCH_ELECTRICAL,
+            "hvac": _SWITCH_HVAC, "locked": _SWITCH_ELECTRICAL, "failed": _SWITCH_ELECTRICAL,
+        }.items():
+            sheet = f"BCS3S {key} "  # VERBATIM trailing space (#152)
+            doc = _new_sheet(cls.boq, sheet, commit_version=1)
+            header = _node(cls.boq, doc, "Preamble", 1, None, "MADE-UP SECTION", 1)
+            _node(cls.boq, doc, "Line Item", 2, header, "made-up line two", 2, qty=1)
+            _node(cls.boq, doc, "Line Item", 3, header, "made-up line three", 3, qty=1)
+            frappe.db.commit()
+            _insert_cat(cls.boq, sheet, 1, 2, cat, discipline=disc)
+            _insert_cat(cls.boq, sheet, 1, 3, cat, discipline=disc)
+            _categorise_fixture_eligible_rows(cls.boq, sheet, 1, discipline=disc)
+            frappe.db.commit()
+            cls.sheet_docs[key] = (sheet, doc)
+
+    @classmethod
+    def tearDownClass(cls):
+        frappe.db.rollback()
+        for dt in ("BoQ Rate Suggestion Run", "BoQ Row BCS Rate", "BoQ Cell Pricing", "BoQ Row Category", "BOQ Nodes",
+                   "BoQ Sheet"):
+            try:
+                frappe.db.delete(dt, {"boq": cls.boq})
+                frappe.db.commit()
+            except Exception as e:  # noqa: BLE001 -- report, keep cleaning the other scopes
+                frappe.db.rollback()
+                print(f"cleanup of {dt} failed: {e}")
+        _cleanup_project(cls.project.name)
+        super().tearDownClass()
+
+    def setUp(self):
+        frappe.set_user("Administrator")
+        self.queued = []
+
+    def tearDown(self):
+        frappe.set_user("Administrator")
+        for sheet, _doc in self.sheet_docs.values():
+            frappe.cache().delete_value(rate_master._s_marker_key(self.boq, sheet))
+        new_request()
+
+    # ── the edges (test_suggest_operations' shape) ───────────────────────────────────────────────────────────────
+    def _press(self, sheet):
+        op_id = str(uuid.uuid4())
+        new_request()
+        with mock.patch.object(frappe, "enqueue", side_effect=lambda method, **kw: self.queued.append(kw)):
+            rate_master.start_suggest(boq=self.boq, sheet_name=sheet, op_id=op_id)
+            frappe.db.commit()
+        return op_id
+
+    def _work(self, op_id, extract=_switch_extract):
+        """Run the queued operation as a worker does; returns (its status record, the frappe.log_error mock)."""
+        job = next(j for j in self.queued if j["op_id"] == op_id)
+        with mock.patch.object(extraction, "run_extraction", side_effect=extract), \
+                mock.patch("anthropic.Anthropic", side_effect=AssertionError("BCS-3S tests never call the model")), \
+                mock.patch.object(rate_match, "match_enabled", return_value=False), \
+                mock.patch.object(frappe, "enqueue", side_effect=lambda method, **kw: self.queued.append(kw)), \
+                mock.patch("frappe.log_error") as log_error:
+            frappe.set_user("Guest")
+            new_request()
+            background_ops.run(op_id=job["op_id"], work=job["work"], work_kwargs=job["work_kwargs"])
+        frappe.set_user("Administrator")
+        new_request()
+        return get_status(op_id=op_id), log_error
+
+    def _bcs_on(self, key):
+        return frappe.utils.cint(frappe.db.get_value("BoQ Sheet", self.sheet_docs[key][1], "bcs_enabled"))
+
+    def _cost_counts(self):
+        return (frappe.db.count("BoQ Row BCS Rate", {"boq": self.boq}),
+                frappe.db.count("BoQ Cell Pricing", {"boq": self.boq}))
+
+    def _run(self, key, extract=_switch_extract):
+        before = self._cost_counts()
+        status, log_error = self._work(self._press(self.sheet_docs[key][0]), extract=extract)
+        self.assertEqual(self._cost_counts(), before, "a Suggest run never writes a cost (R2)")
+        return status, log_error
+
+    # ── the tests ────────────────────────────────────────────────────────────────────────────────────────────────
+    def test_a_finished_run_that_read_an_electrical_row_switches_bcs_on_and_says_so(self):
+        """(+) R1: no click, no confirmation -- the finished run turned BCS on and its result says so."""
+        self.assertEqual(self._bcs_on("elec"), 0)
+        status, _log = self._run("elec")
+        self.assertEqual(status["state"], "finished", status.get("error"))
+        self.assertEqual(status["result"]["status"], "success")
+        self.assertIs(status["result"].get("bcs_switched_on"), True)
+        self.assertEqual(self._bcs_on("elec"), 1)
+
+    def test_suggest_switch_on_writes_no_cost_row(self):
+        """(-) R2: the switch-on writes ONLY the sheet's flag -- BoQ Row BCS Rate and BoQ Cell Pricing counts unchanged
+        (checked inside `_run`), while the flag did go on (so the switch-on really ran)."""
+        status, _log = self._run("nocost")
+        self.assertIs(status["result"].get("bcs_switched_on"), True)
+        self.assertEqual(self._bcs_on("nocost"), 1)
+        self.assertEqual(self._cost_counts(), (0, 0), "the fixture BoQ holds no cost and no client rate at all")
+
+    def test_bcs_already_on_nothing_written_and_no_flag(self):
+        """(-) BCS already on: nothing is written (the sheet row is not touched) and the result carries no flag."""
+        sheet, doc = self.sheet_docs["already"]
+        frappe.db.set_value("BoQ Sheet", doc, "bcs_enabled", 1, update_modified=False)  # fixture: the user turned it on
+        frappe.db.commit()
+        with mock.patch("frappe.db.set_value", wraps=frappe.db.set_value) as set_value:
+            status, _log = self._run("already")
+        self.assertEqual(status["result"]["status"], "success", status.get("error"))
+        self.assertNotIn("bcs_switched_on", status["result"])
+        self.assertEqual(self._bcs_on("already"), 1)
+        self.assertFalse([c for c in set_value.call_args_list if c.args[:1] == ("BoQ Sheet",) and "bcs_enabled" in c.args],
+                         "BCS already on: the flag is not written again")
+
+    def test_a_run_that_read_no_electrical_row_leaves_bcs_off(self):
+        """(-) R1 Q1 (a), not (b): a sheet whose run read only HVAC rows is unchanged."""
+        status, _log = self._run("hvac")
+        self.assertEqual(status["result"]["status"], "success", status.get("error"))
+        self.assertNotIn("bcs_switched_on", status["result"])
+        self.assertEqual(self._bcs_on("hvac"), 0)
+
+    def test_a_sheet_locked_while_the_run_worked_completes_with_bcs_off(self):
+        """(-) The lock refusal is the same as set_bcs_enabled's; it is caught and logged once, and the run still
+        completes -- the switch-on can never fail a run."""
+        sheet, doc = self.sheet_docs["locked"]
+        op_id = self._press(sheet)  # the gate refuses a locked sheet at the start, so it is locked after the press
+        frappe.db.set_value("BoQ Sheet", doc, "is_locked", 1, update_modified=False)
+        frappe.db.commit()
+        before = self._cost_counts()
+        status, log_error = self._work(op_id)
+        self.assertEqual(self._cost_counts(), before)
+        self.assertEqual(status["state"], "finished", status.get("error"))
+        self.assertEqual(status["result"]["status"], "success")
+        self.assertNotIn("bcs_switched_on", status["result"])
+        self.assertEqual(self._bcs_on("locked"), 0)
+        titles = [c.kwargs.get("title") for c in log_error.call_args_list]
+        self.assertEqual(titles.count("BoQ suggest: BCS not switched on"), 1, titles)
+
+    def test_a_failed_run_leaves_bcs_off(self):
+        """(-) A run that stops unexpectedly ends failed in its own words; BCS stays off."""
+        status, _log = self._run("failed", extract=_switch_extract_fails)
+        self.assertEqual(status["state"], "failed")
+        self.assertIn("stopped unexpectedly", status["error"])
+        self.assertEqual(self._bcs_on("failed"), 0)
+
+    def test_enable_bcs_for_suggest_turns_bcs_on_once_writes_no_commit_and_refuses_a_locked_sheet(self):
+        """The helper itself: True only when it turned BCS on now, False when it was already on; a locked sheet
+        throws the same refusal as set_bcs_enabled; it never commits (the worker does)."""
+        from nirmaan_stack.api.boq.wizard.bcs import enable_bcs_for_suggest
+
+        sheet, doc = self.sheet_docs["elec"]
+        frappe.db.set_value("BoQ Sheet", doc, "bcs_enabled", 0, update_modified=False)
+        frappe.db.commit()
+        with mock.patch("frappe.db.commit") as commit:
+            self.assertIs(enable_bcs_for_suggest(self.boq, sheet, 1), True)
+            self.assertIs(enable_bcs_for_suggest(self.boq, sheet, 1), False)
+        commit.assert_not_called()
+        frappe.db.rollback()
+        self.assertEqual(self._bcs_on("elec"), 0, "nothing was committed by the helper")
+        frappe.db.set_value("BoQ Sheet", doc, "is_locked", 1, update_modified=False)
+        try:
+            with self.assertRaises(frappe.ValidationError):
+                enable_bcs_for_suggest(self.boq, sheet, 1)
+        finally:
+            frappe.db.rollback()
