@@ -2014,6 +2014,21 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
         `the item is priced in its own unit (${list(classes.map((c) => String(pr.unit_words?.[c] ?? c)))}) and its delegated sections in the same unit; the row shows the bar '${String(pr.blank_unit_bar.line)}'; with no quantity it carries a rate only`,
         "blank_unit_bar");
   }
+  // ── 13n. CAT-1 (CAT-D0 D8; owner 2026-11-26 01:14 "2 ok", bundled 2026-11-25 13:42): a rule source whose own words are a ruled
+  // sentence carries it as `rules_page_line`, shown AS WRITTEN (the owner approved each word for word) -- one line per entry, ADDED LAST
+  // so every earlier line keeps its number. Generic: any category, any of these four keys; a config without the field adds nothing.
+  const pageLine = (v: unknown): string | null => (v && typeof v === "object" && typeof (v as { rules_page_line?: unknown }).rules_page_line === "string"
+    && (v as { rules_page_line: string }).rules_page_line.trim() ? (v as { rules_page_line: string }).rules_page_line : null);
+  for (const [a, rd] of Object.entries((pr.numbers ?? {}) as Record<string, unknown>)) {
+    const t = pageLine(rd);
+    if (t) add(t, undefined, `numbers.${a}`);
+  }
+  for (const k of ["stream_heading_default", "companion_items", "sheet_heading_notes"] as const) {
+    for (const e of (Array.isArray(pr[k]) ? pr[k] : []) as unknown[]) {
+      const t = pageLine(e);
+      if (t) add(t, undefined, k);
+    }
+  }
   // ── 14. ADP-4a (owner A1 / D1): WHY -- each line's reason on the plain wording, at the end of its detail ──
   if (plain) {
     const rulings = DERIVATION_RULINGS[String(pr.kind ?? "")] ?? {};
@@ -2749,7 +2764,7 @@ const ELECTRICAL_TEXT: { [K in ElcKey]: (f: NonNullable<ElcFacts[K]>) => [string
 
 // ── VAV-2b1: the shared-item lines (R1 - R10) -- every count and rate read from the config and the catalogue, never written here ──
 
-type SsPart = { id?: unknown; label?: unknown; per_label?: unknown; per_input?: unknown; sku?: { kind?: unknown; attr?: unknown; value?: unknown } };
+type SsPart = { id?: unknown; label?: unknown; per_label?: unknown; per_input?: unknown; sku?: { kind?: unknown; attr?: unknown; value?: unknown; item_uid?: unknown } };
 type SsShare = { id?: unknown; label?: unknown; parts?: SsPart[]; bcs_of?: unknown; replaces?: unknown };
 
 /** VAV-2b1 (R12). PURE. The band above the band of `cfm` ("3200" -> the band after the one 3200 falls in, by the edge rule). */
@@ -2858,8 +2873,13 @@ function sheetSharesLines(pr: Record<string, unknown>, items: ReadonlyArray<Rule
     const v = Number((it?.rates as { factor?: unknown } | undefined)?.factor);
     return `the Pricing Input '${pricingInputLabel(String(id ?? ""), items)}'${Number.isFinite(v) ? ` (${String(v)} today)` : ""}`;
   };
-  const sku = (p: SsPart) => items.find((x) => String(x.kind ?? "") === String(p.sku?.kind ?? "")
-    && (x.attributes as Record<string, unknown> | undefined)?.[String(p.sku?.attr ?? "")] === p.sku?.value);
+  // CAT-1 (owner 2026-11-26 00:06): a share part names its SKU by item_uid and the name is read LIVE from `attr`; the typed form stays
+  const sku = (p: SsPart) => (p.sku?.item_uid ? items.find((x) => (x as { item_uid?: unknown }).item_uid === p.sku?.item_uid)
+    : items.find((x) => String(x.kind ?? "") === String(p.sku?.kind ?? "")
+      && (x.attributes as Record<string, unknown> | undefined)?.[String(p.sku?.attr ?? "")] === p.sku?.value));
+  const skuName = (p: SsPart | undefined) => (p?.sku?.item_uid
+    ? String((sku(p)?.attributes as Record<string, unknown> | undefined)?.[String(p.sku.attr ?? "")] ?? p.sku.item_uid)
+    : String(p?.sku?.value ?? ""));
   const rates = (p: SsPart) => {
     const r = (sku(p)?.rates ?? {}) as Record<string, unknown>;
     const n = (k: string) => Number(r[k]);
@@ -2882,11 +2902,11 @@ function sheetSharesLines(pr: Record<string, unknown>, items: ReadonlyArray<Rule
       if (typeof sh.bcs_of === "string") {
         const own = parts.find((p) => p.id === sh.bcs_of);
         const o = own ? rates(own) : null;
-        sum = `BCS supply = ${parts.map((p) => `${String(p.label ?? "").toLowerCase()} x ${String(rates(p).bcsS)} (the ${String(p.sku?.value ?? "")} SKU's supply)`).join(" + ")}, x ${o ? String(1 + o.ms) : "-"}; BCS installation = ${String(own?.label ?? "").toLowerCase()} x ${o ? String(o.bcsI) : "-"}, x ${o ? String(1 + o.mi) : "-"} (the ${String(own?.sku?.value ?? "")} SKU's markups); each rounded up to the rupee`;
+        sum = `BCS supply = ${parts.map((p) => `${String(p.label ?? "").toLowerCase()} x ${String(rates(p).bcsS)} (the ${skuName(p)} SKU's supply)`).join(" + ")}, x ${o ? String(1 + o.ms) : "-"}; BCS installation = ${String(own?.label ?? "").toLowerCase()} x ${o ? String(o.bcsI) : "-"}, x ${o ? String(1 + o.mi) : "-"} (the ${skuName(own)} SKU's markups); each rounded up to the rupee`;
       } else {
         const p = parts[0];
         const r = p ? rates(p) : null;
-        sum = `total = ${String(p?.label ?? "").toLowerCase()} x the ${String(p?.sku?.value ?? "")} SKU (${r ? `${String(r.qs)} + ${String(r.qi)} quoted` : "-"}), supply and installation`;
+        sum = `total = ${String(p?.label ?? "").toLowerCase()} x the ${skuName(p)} SKU (${r ? `${String(r.qs)} + ${String(r.qi)} quoted` : "-"}), supply and installation`;
       }
       const repl = Array.isArray(sh.replaces) ? (sh.replaces as unknown[]).map((id) => String(ss.shares!.find((x) => x.id === id)?.label ?? id)) : [];
       out.push({ key: "sheet_shares", title: `The ${label} spreads the ${named} over every VAV box of the sheet`, detail: [counts, sum,

@@ -9,6 +9,7 @@ import { pathToFileURL } from "url";
 import type { RateCategoryConfig } from "../../pricing/rate-master/rateMasterTypes";
 import { readJsonFixture } from "../../pricing/calculatorPanelParity.harness";
 import { undoVavfix } from "./vavfixEdits.harness";
+import { undoCat1 } from "./cat1Edits.harness";
 
 type Edit = { c: string; p: Array<string | number>; from: unknown; to: unknown };
 const EDITS87 = readJsonFixture<{ configs: Edit[] }>(pathToFileURL(path.resolve(__dirname, "__fixtures__/vav2c3dEdits.json")));
@@ -25,7 +26,7 @@ const holds = (cfg: unknown, e: Edit, v: unknown): boolean => {
  *  REMOVES is absent from older files too, so it never counts as a sign of v87. */
 export function undoVav2c3d(cfg0: RateCategoryConfig): RateCategoryConfig {
   // VAV-FIX (PIN VAVFIX F-B, accepted ANSWER 3): v88's edits undone first, so a v88 config reads as v86 (and on down the chain)
-  const cfg = undoVavfix(cfg0);
+  const cfg = undoVavfix(undoCat1(cfg0));   // CAT-1 (PIN CAT1 P-D): v89's edits undone first, then v88's
   const id = (cfg as unknown as { category_id: string }).category_id;
   const mine = EDITS87.configs.filter((e) => e.c === id);
   if (!mine.length || mine.every((e) => holds(cfg, e, e.from)) || !mine.some((e) => e.to !== null && holds(cfg, e, e.to))) return cfg;

@@ -26,8 +26,10 @@ import { countWords, fill, notAddedLines, rowsNamed, type NotAddedBy, type Separ
 import { shareSkuOf, shareSum, skuUnitFigures, up } from "./vavShareSums";
 export { countWords, notAddedLines, shareSkuOf, skuUnitFigures, type NotAddedBy, type SeparateRowBy };
 
-/** A SKU a share reads live: the catalogue item of `kind` whose attribute `attr` is `value`. */
-export interface ShareSku { kind: string; attr: string; value: string }
+/** A SKU a share reads live. CAT-1 (CAT-D1 E2 R-A; owner 2026-11-26 00:06 "share items by REFERENCE"): named by its `item_uid`, its
+ * display name read LIVE from the attribute `attr` (a rename keeps working, a removed SKU refuses the rate-file load); the typed form
+ * (the catalogue item of `kind` whose attribute `attr` is `value`) is kept for the older files. */
+export type ShareSku = { item_uid: string; attr: string; kind?: undefined; value?: undefined } | { kind: string; attr: string; value: string; item_uid?: undefined };
 
 /** One counted part of a share: the count = VAVs / `per_input` rounded up, priced at `sku`. */
 export interface SharePart {

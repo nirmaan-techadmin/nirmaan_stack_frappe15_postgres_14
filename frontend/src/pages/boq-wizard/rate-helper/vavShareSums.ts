@@ -13,9 +13,18 @@ export type ShareSum = { figures: { supply_rate: number; install_rate: number } 
 export const fig = (n: number) => formatToRoundedIndianRupee(n).replace(/^₹/, "");
 export const up = (x: number) => Math.ceil(x - 1e-9);
 
-/** PURE. The catalogue item a share reads (live), or null. */
+/** PURE. The catalogue item a share reads (live), or null -- by `item_uid` (CAT-1), else by the typed kind / attr / value. */
 export function shareSkuOf(items: readonly RateMasterItem[], sku: ShareSku): RateMasterItem | null {
+  if (sku.item_uid) return items.find((it) => it.item_uid === sku.item_uid) ?? null;
   return items.find((it) => it.kind === sku.kind && it.attributes?.[sku.attr] === sku.value) ?? null;
+}
+
+/** PURE. CAT-1: the name a share's SKU is shown by -- read LIVE from the item (`attr`) for an item_uid reference; the typed value
+ * otherwise. A uid that resolves to nothing has no name (the reference gate refuses such a rate file at load). */
+export function shareSkuName(items: readonly RateMasterItem[], sku: ShareSku): string {
+  if (!sku.item_uid) return sku.value ?? "";
+  const v = shareSkuOf(items, sku)?.attributes?.[sku.attr];
+  return v === undefined || v === null ? sku.item_uid : String(v);
 }
 
 /** PURE. One unit of a SKU as the Rate Master prices it: ROUNDUP(BCS x (1 + markup), 0), supply and install (the family pipeline). */
@@ -80,7 +89,7 @@ export function shareSum(s: SheetShareDef, parts: readonly PricedPart[], vavs: n
   w?: { w: ShareWholeDef; prefillLine: string | null }):
   ShareSum {
   const missingSku = parts.find((x) => !x.sku);
-  if (missingSku) return { sumLines: [], figures: null, reason: fill(L.no_sku, { item: missingSku.p.sku.value }) };
+  if (missingSku) return { sumLines: [], figures: null, reason: fill(L.no_sku, { item: missingSku.p.sku.value ?? missingSku.p.sku.item_uid }) };
   if (w) return wholeSum(s, parts, vavs, L, w.w, w.prefillLine);
   if (vavs === null || !(vavs > 0) || parts.some((x) => x.count === null)) {
     return { sumLines: [], figures: null, reason: L.need_vavs };

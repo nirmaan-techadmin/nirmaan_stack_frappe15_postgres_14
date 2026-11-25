@@ -28,7 +28,8 @@ const sectionsOf = (cfg: Cfg): Record<string, Cfg> => Object.fromEntries((cfg?.l
 
 /** the categories held to 0 / 0 (owner: Valve Package and Ducting before DONE; Misc through the Valve Package's section) */
 // VAV-1 (HVAC v76; owner R8 2026-11-15 13:39 / 13:41): VAV Box joins GUARDED with its mint, and Sensors (borrow-only) as Misc did
-const GUARDED = ["hvac_valve_package", "hvac_misc", "hvac_ducting", "hvac_vav_box", "hvac_sensors"];
+// CAT-1 (HVAC v89; owner 2026-11-26 01:14 "2 ok", R6): ADP and Piping join GUARDED with the four ruled rules-page lines (`rules_page_line`)
+const GUARDED = ["hvac_valve_package", "hvac_misc", "hvac_ducting", "hvac_vav_box", "hvac_sensors", "hvac_adp", "hvac_piping"];
 
 describe(`DU-1 THE GUARD on ${latest}: MISSING / ORPHAN = 0`, () => {
   for (const id of GUARDED) {

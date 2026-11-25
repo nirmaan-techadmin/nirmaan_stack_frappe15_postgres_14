@@ -544,9 +544,10 @@ def _active_section_items(discipline, kinds):
         return out
     for row in frappe.get_all("BoQ Rate Master Item",
                               filters={"discipline": discipline, "active": 1, "kind": ["in", sorted(kinds)]},
-                              fields=["kind", "unit", "attributes"]):
+                              fields=["kind", "unit", "attributes", "item_uid"]):
         attrs = frappe.parse_json(row.attributes) if isinstance(row.attributes, str) else row.attributes
-        out.append({"kind": row.kind, "unit": row.unit, "attributes": attrs or {}})
+        # CAT-1: item_uid carried, so a share part named by item_uid resolves against the standing catalogue too
+        out.append({"kind": row.kind, "unit": row.unit, "attributes": attrs or {}, "item_uid": row.item_uid})
     return out
 
 
@@ -889,9 +890,11 @@ def _validate_stream_heading_default(rules, by_id, choice_attrs, fams, defaults)
         rloc = f"{loc}[{i}]"
         if not isinstance(r, dict):
             _vthrow(f"{rloc} must be an object.")
-        unk = set(r) - _PRICING_STREAM_HEADING_KEYS
+        unk = set(r) - _PRICING_STREAM_HEADING_KEYS - {"rules_page_line"}   # CAT-1: the optional ruled rules-page sentence
         if unk:
             _vthrow(f"{rloc}: unknown key(s): {', '.join(sorted(unk))}.")
+        if "rules_page_line" in r:
+            _sentence(r, "rules_page_line", rloc)
         if _PRICING_STREAM_HEADING_KEYS - set(r):
             _vthrow(f"{rloc} must carry {' / '.join(sorted(_PRICING_STREAM_HEADING_KEYS))}.")
         if r["attr"] not in choice_attrs:
@@ -1287,8 +1290,12 @@ def _validate_sheet_shares(ss, spec):
             for k in ("id", "label", "per_label", "per_input"):
                 if not _nonempty_str(pt[k]):
                     _vthrow(f"{pw}.{k} must be a non-empty string.")
-            if not isinstance(pt["sku"], dict) or set(pt["sku"]) != {"kind", "attr", "value"} or not all(_nonempty_str(v) for v in pt["sku"].values()):
-                _vthrow(f"{pw}.sku needs exactly kind, attr, value (non-empty strings).")
+            # CAT-1 (CAT-D1 E2 R-A; owner 2026-11-26 00:06 "share items by REFERENCE"): a part's SKU is named by its item_uid and
+            # the attribute its name is read from ({item_uid, attr}: the name is read LIVE, never copied); the typed form
+            # {kind, attr, value} stays valid for the older files. Either way the reference gate refuses one that resolves to nothing.
+            sku = pt["sku"]
+            if not isinstance(sku, dict) or set(sku) not in ({"kind", "attr", "value"}, {"item_uid", "attr"})                     or not all(_nonempty_str(v) for v in sku.values()):
+                _vthrow(f"{pw}.sku needs exactly item_uid, attr (or the typed kind, attr, value) - non-empty strings.")
             pids.append(pt["id"])
         if len(set(pids)) != len(pids):
             _vthrow(f"{w}.parts ids must be unique.")
@@ -1673,9 +1680,11 @@ def _validate_companion_items(rules, by_id, fams, ucls, family_attr):
         rloc = f"{loc}[{i}]"
         if not isinstance(r, dict):
             _vthrow(f"{rloc} must be an object.")
-        unk = set(r) - _PRICING_COMPANION_KEYS
+        unk = set(r) - _PRICING_COMPANION_KEYS - {"rules_page_line"}   # CAT-1: the optional ruled rules-page sentence
         if unk:
             _vthrow(f"{rloc}: unknown key(s): {', '.join(sorted(unk))}.")
+        if "rules_page_line" in r:
+            _sentence(r, "rules_page_line", rloc)
         if _PRICING_COMPANION_KEYS - set(r):
             _vthrow(f"{rloc} must carry {' / '.join(sorted(_PRICING_COMPANION_KEYS))}.")
         if not isinstance(r["families"], list) or not r["families"] or not all(f in fams for f in r["families"]):
@@ -2144,6 +2153,8 @@ _DERIVATION_REASON_KEYS = {"rule", "title", "why"}
 _PRICING_NUMBER_KEYS = _PRICING_NUMBER_KEYS | {"typed_dn"}
 # DU-1 (Ducting DR2 / DR3 / DR4 / DR12): `gauge` -- a sheet-gauge axis (see `_validate_gauge`). ABSENT => the reader as before.
 _PRICING_NUMBER_KEYS = _PRICING_NUMBER_KEYS | {"gauge"}
+# CAT-1 (CAT-D0 D8; owner 2026-11-26 01:14 "2 ok"): a number reader's ruled rules-page sentence (ADP's square neck), shown as written
+_PRICING_NUMBER_KEYS = _PRICING_NUMBER_KEYS | {"rules_page_line"}
 _EXTRAS_OPTIONAL_KEYS = {"from_model"}
 _EXTRAS_OPTIONAL_LINES = {"boq_note"}
 _EXTRAS_FROM_MODEL_KEYS = {"includes", "yes", "copper_size", "insulation_thickness", "cable_spec", "comm_words", "length"}
@@ -2943,8 +2954,11 @@ def _validate_sheet_heading_notes(notes, loc):
         _vthrow(f"{loc} must be a non-empty list.")
     for i, n in enumerate(notes):
         w = f"{loc}[{i}]"
-        if not isinstance(n, dict) or not ({"pattern", "category", "with_rows", "none", "rule"} <= set(n) <= {"pattern", "category", "with_rows", "none", "cap", "rule"}):
-            _vthrow(f"{w} needs exactly pattern, category, with_rows, none and rule (and optionally cap).")
+        if not isinstance(n, dict) or not ({"pattern", "category", "with_rows", "none", "rule"} <= set(n)
+                                           <= {"pattern", "category", "with_rows", "none", "cap", "rule", "rules_page_line"}):
+            _vthrow(f"{w} needs exactly pattern, category, with_rows, none and rule (and optionally cap, rules_page_line).")
+        if "rules_page_line" in n:   # CAT-1: the ruled rules-page sentence, shown as written
+            _sentence(n, "rules_page_line", w)
         _pattern(n["pattern"], f"{w}.pattern")
         if not _nonempty_str(n["category"]):
             _vthrow(f"{w}.category must be a category id.")
@@ -3213,10 +3227,18 @@ def scope_problems(configs, items):
                 sku = pt.get("sku") if isinstance(pt, dict) else None
                 if not isinstance(sku, dict):
                     continue
-                n = sum(1 for it in items or [] if isinstance(it, dict) and it.get("kind") == sku.get("kind")
-                        and (it.get("attributes") or {}).get(sku.get("attr")) == sku.get("value"))
+                if sku.get("item_uid"):   # CAT-1: by item_uid (the name read live from `attr`)
+                    hits = [it for it in items or [] if isinstance(it, dict) and (it.get("item_uid") or "").strip() == sku["item_uid"]]
+                    n = len(hits)
+                    if n == 1 and (hits[0].get("attributes") or {}).get(sku.get("attr")) in (None, ""):
+                        out.append(f"'{c.get('category_id')}' sheet_shares: the SKU {sku['item_uid']} carries no '{sku.get('attr')}' name.")
+                    shown = sku["item_uid"]
+                else:
+                    n = sum(1 for it in items or [] if isinstance(it, dict) and it.get("kind") == sku.get("kind")
+                            and (it.get("attributes") or {}).get(sku.get("attr")) == sku.get("value"))
+                    shown = sku.get("value")
                 if n != 1:
-                    out.append(f"'{c.get('category_id')}' sheet_shares: the SKU '{sku.get('value')}' matches {n} items (one needed).")
+                    out.append(f"'{c.get('category_id')}' sheet_shares: the SKU '{shown}' matches {n} items (one needed).")
     return out
 
 
@@ -4183,6 +4205,8 @@ def _validate_list_pricing(spec, by_id, family_vals, cfg):
             _validate_number_units(nid, rd["units"], by_id)
         if unk:
             _vthrow(f"list_spec.pricing.numbers['{nid}']: unknown key(s): {', '.join(sorted(unk))}.")
+        if "rules_page_line" in rd:   # CAT-1: the ruled rules-page sentence, shown as written
+            _sentence(rd, "rules_page_line", f"list_spec.pricing.numbers['{nid}']")
         frm = rd.get("from")
         if "typed_only" in rd and rd["typed_only"] is not True:
             _vthrow(f"list_spec.pricing.numbers['{nid}'].typed_only must be exactly true, or be omitted.")
