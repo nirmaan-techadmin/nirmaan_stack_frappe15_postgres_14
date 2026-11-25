@@ -61,3 +61,14 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
     - **Who lost what (owner answer 1 "1a"):** PMO Executive and Procurement Lead users (and Billing / Project Lead, none
       enabled on 24 Nov) no longer see the BCS columns or the BCS switch on the pricing page and the read-only view; their
       rates and amounts are unchanged. The UI gate is `boqAccess.canSeeBcsCost` (pinned equal to `canDownloadBcsExport`).
+
+### BCS on screen in whole rupees - BCS-W (2026-11-25)
+- Owner R5 (2026-11-24 21:54 / 21:56 "1a"): every BCS FIGURE the helper panel and the calculator SHOW is whole rupees, ROUNDED UP,
+  with a thousands separator (2009.6 -> 2,010; 441.6 -> 442); the stored and written value stays EXACT: "Use this value" from the BCS
+  box writes 2009.6, and the box beside it shows the exact 2,009.60 (`bcsSide.bcsFigureText` / `bcsExactText` / `parseBcsValue`).
+  BoQ figures print as before. This is the owner's ruling for BCS display; the general money rule (round to nearest) is unchanged.
+- The scope line reads "Row <n> · BCS supply cost" when the BCS supply cost box opened the panel.
+- The installation line ("Installation cost is one figure for the whole BoQ, on the BoQ summary") shows ONCE per panel / calculator
+  result, below the sections (`BcsSide.installNote`), no longer inside every cost block (owner 20:09 "ok").
+- Electrical rows only (answer 4a): the never-asked default reads "Plate qty = 1 (not read from the BoQ; the usual default)"
+  (`pricingSheetHelper.neverAskedWords`); any other discipline keeps the old words.

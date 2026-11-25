@@ -702,6 +702,19 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
       An Electrical row's installation cost box reads "On the BoQ summary" (placeholder + title) and stays editable.
     - **The pages (owner answer 1 "1a"):** for a user outside Admin and Estimates the pricing page and the read-only view never
       make the cost read (`get_sheet_bcs_rates`'s key is null), and show neither the BCS columns nor the BCS switch.
+    - **BCS-W (owner R5 "1a", R6 "ok", answer 4a; mockup boards 3 / 4): how the cost side PRINTS.** Every BCS figure shown --
+      the folded line, the headline from the BCS box, a cost block's lines and figures row, the calculator's BCS section -- is
+      whole rupees ROUNDED UP with a thousands separator (`bcsSide.bcsFigureText`; a cost block's step line ending "= n" through
+      `bcsLine`); the copy icon and "Use this value" keep the EXACT figure, and the final-value box on the BCS side shows it to
+      the paisa ("2,009.60", read back by `parseBcsValue`). BoQ figures print as before. The scope line reads "Row <n> · BCS
+      supply cost" from the BCS box. The installation line is `BcsSide.installNote`, drawn ONCE below the sections
+      (`data-testid="bcs-install-note"`), no longer inside each cost block. The never-asked default line on an Electrical row
+      reads "<field> = <value> (not read from the BoQ; the usual default)" (`pricingSheetHelper.neverAskedWords`).
+    - **Rate Master (BCS-W, owner R2 / R4):** an Electrical FORMULA cell draws its price lines in the BoQ section and its cost
+      lines in the BCS section (the same `PriceSection`, open, no fold; `rateMasterFormulaSections.columnNoteSections`); the
+      explanation-row line shows once (under Supply formula); a template Pricing Input remark is drawn by
+      `PricingInputRemarkCell` from the row's current values (the draft while editing), price sentence in BoQ, cost sentence in
+      BCS. Every other discipline's Rate Master is unchanged.
 
 ### Filters, selection and Suggest rates
 

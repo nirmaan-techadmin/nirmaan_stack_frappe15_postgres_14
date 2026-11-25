@@ -52388,3 +52388,22 @@ by fast-forward to c2bf7d076; HVAC v81 loaded; Electrical v73 minted and loaded.
 - Open: the installation box's "On the BoQ summary" is cut to "On the Bo..." by the 80 px box (cert C8, Question 5); HVAC Cables gets
   the lines and the cost side when HVAC gets its BCS; the panel's scope line still reads "Supply rate" when the BCS box opened it.
 - BCS-3S builds on this: Suggest switching BCS on and its run; the cost side is already in every Electrical suggestion (`bcs`).
+
+## Slice BCS-W (dev2) - the Electrical wording: plain words on the FORMULA row, BoQ / BCS sections, live Pricing Input remarks, BCS figures in whole rupees on screen (Electrical v75) - 2026-11-24 / 25
+- Owner R1 / R2 (2026-11-24 13:09 - 13:12), R4 (mockup approved 23:33), R5 ("1a": BCS on screen whole rupees rounded up, exact when
+  written), R6 ("ok": the installation line once); Question 1 answers 1a (remark templates), 2a (an Electrical label list beside
+  main's), 3a (the D26 quote dropped), 4a (the never-asked words, Electrical only); Question 2 answers 1a (three bcs3Panel display
+  pins moved), 2a.
+- Commits: K1 8a6469b0c (v75, the mint, bcs_derive wording, the Electrical label list, tests, the test_rate_master pin + normaliser),
+  K2 d5222ffac (the screens and their tests), K3 this docs commit; --no-verify for rule S1 only (owner Question 3 "a").
+- Main 01c16f0e8 already in (nothing to merge). Electrical v75 = v74 + texts only (123), minted by mint_electrical_v75_bcsw.py from
+  electrical_v75_bcsw_edits.json, exact guard 14,528 / 0, loaded on dev2 (live == file).
+- Screens: rateMasterFormulaSections.ts (the FORMULA cell's sections over the unchanged columnNote), pricingInputRemarks.ts +
+  PricingInputRemarkCell.tsx (remarks worked out from the row's current values), bcsSide bcsFigureText / bcsExactText / bcsLine and
+  the panel's draw-time mapping (the helper's output unchanged: replay byte-equal), the scope line "BCS supply cost", the
+  installation line once, neverAskedDisplay; itemListRuleOrder.ts Electrical "why" texts without answer codes or ruling letters.
+- Proof: replay 33,346 rows byte-equal; cost harness equal on all four populations; T1: labels 11 -> 0, fixed rupee examples 33 -> 0,
+  input factors 5 -> 0, cost-line repeats 2 -> 0; one stale figure named (the lug remark's Rs 60.19, today Rs 66.64); 9 switch-offs red.
+- Cert C1 - C11 PASS on dev2 :8180 (2026-11-25 10:12 - 10:28): row 73 BCS 2,010 on screen / 2,009.60 in the box; row 124 Use writes
+  6,664.6, then 2,927 restored; calculator W4a BCS supply 6,091; HVAC Rate Master and helper unchanged.
+- Open: the downloaded rate file keeps the old gland band text in its formula row and the remark templates as stored.
