@@ -1901,6 +1901,17 @@ per-sheet, per-committed-version switch), `bcs_qty_source` + `bcs_amount_source`
 CONFIRMED column sources, stored as re-resolvable dicts rather than re-guessed), and
 `bcs_confirmed_by` / `bcs_confirmed_at` (who last confirmed the two columns, and when).
 
+**`BoQ Row Helper Edit`** (BCS-4) — standalone, `track_changes: 0`, autoname `BRHE-.YY.-.#####`: a field the user changed in
+a row's rate helper, saved for the row so every view of it (Supply / Install / Combined / BCS supply) starts from it. Per-row
+identity like `BoQ Row BCS Rate` (no `col_letter`), freeze-and-supersede (`edit_version` / `is_current` / `edited_at`),
+`edits` JSON `{attr_id: {value, from_kind, by, at}}`. Endpoints in `api/boq/wizard/helper_edits.py`:
+`get_row_helper_edits` (GET), `save_row_helper_edit` / `clear_row_helper_edits` (POST); `supersede_edits_for_rows` is
+internal (the Suggest worker's call, owner R-BCS-140). It holds no price and no cost. Rules: `boq-pricing-editor.md` § "A
+change carries to the row's other helpers". ⚠️ Its read index is created with an EXPLICIT name
+(`boq_row_helper_edit_sheet_row_index`): Postgres index names are schema-wide, and `frappe.db.add_index`'s default name
+(built from the field names alone) is the one `BoQ Row BCS Rate`'s index already holds, so `CREATE INDEX IF NOT EXISTS`
+skipped it silently on the first migrate.
+
 ### Endpoints — `api/boq/wizard/bcs.py`
 
 | Endpoint | Kind |

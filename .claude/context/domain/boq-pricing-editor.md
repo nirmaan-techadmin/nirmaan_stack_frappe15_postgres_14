@@ -104,3 +104,31 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   the item-list lines and the row total. Every category (the helper and the calculator are shared).
 - Display only: the box beside "Use this value" still shows 2925, "Use this value" writes 2925, a figure's copy icon copies the bare
   2925; the helper's output, the grid's stored rates and every amount are unchanged (`bcsSide.boqFigureText` / `boqLine`).
+
+### A change carries to the row's other helpers - BCS-4 (2026-11-26)
+- Owner R1 (2026-11-21, R-BCS-31 / 32): a field the user changes in ANY view of a row's rate helper -- the panel opened from the
+  row's Supply, Install or Combined rate box, or from its BCS supply cost box -- is SAVED for that row and shows in every other view
+  of the same row, after a page reload too. Stored in `BoQ Row Helper Edit` (`api/boq/wizard/helper_edits.py`): per ROW, keyed
+  (boq, sheet_name VERBATIM, excel_row, committed_version), `edits` = {attr_id: {value, from_kind, by, at}} for every key the
+  panel's `setAttr` takes (plain attributes and the JSON keys `__items__`, `__shares__`, `__row_unit__`, `__row_qty__`,
+  `__includes__`, `__scope__`); `from_kind` = the view it was made in (supply / install / combined / bcs_supply).
+  Freeze-and-supersede, one current record per row; clearing every key ends it.
+- ⚠️ **Only SUGGESTIONS change (owner R2).** The panel seeds the opened row's attribute overrides from the saved edits before its
+  first compute, and the compute already prefers an override to the extraction -- there is no new pricing path. Nothing reaches
+  `save_cell_price` or `save_row_bcs_rates`: a value already in a cell, typed or accepted, is never altered; a typed final value is
+  never saved; the user still clicks "Use this value" or types in the cell.
+- The tags: a field whose value came from an edit reads "changed by you" in the view it was made in, and "carried from the
+  <Supply / Install / Combined / BCS> helper" in the row's other views -- the panel's own view labels, the same chip as "from BoQ".
+- ⚠️ **A fresh Suggest run REPLACES the saved edits of the rows it writes** (owner R-BCS-140, 2026-11-26 00:37, "yes replcae" --
+  it SUPERSEDES R-BCS-45 of 21 Nov, "a fresh run keeps the saved change"). `rate_master._suggest_worker`, after the run's own commit
+  and beside the BCS switch-on, calls `helper_edits.supersede_edits_for_rows` with the pass's own `attempted_rows` (complete or
+  partial): their current records are frozen (history, never deleted); rows the run did not write keep theirs. Only when the pass's
+  model ran (`ai_status == "ran"`, the same test as the switch-on): a fail-closed pass (AI off / no key) writes all-null rows but has
+  no AI output to overwrite with, so it keeps every edit (chat-Claude's call on the ruling, 2026-11-26 00:51). It never fails the
+  run (rolled back and logged once, "BoQ suggest: helper edits not replaced"). Revert in the panel also clears the row's edits.
+- Versions (owner R4): a new committed version reads no edit of an older one -- rates are copied to the next version explicitly.
+- Who may save: the backend wizard set (`create_from_template._WIZARD_ROLE_PROFILES`, imported; Administrator allowed). A user
+  outside it is refused with "You are not permitted to change the rate helper on this sheet." (no cost is stored here, so this is
+  not the cost gate). A Billing user can open the page but is outside that set: their change works in the open panel and is not
+  kept. The other refusals (no committed cell, locked sheet, another editor's lock) are `save_row_bcs_rates`' own; the BCS readiness
+  gate is not run (an edit is not a cost). A save also takes the single-editor pricing lock, as every pricing write does.

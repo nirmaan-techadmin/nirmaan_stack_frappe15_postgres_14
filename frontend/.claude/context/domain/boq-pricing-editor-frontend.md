@@ -567,6 +567,19 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
   memo shield holds; classic stays byte-identical). Same shape as the page-owned CategoryVerdictPicker's IO close. The
   grid-level `shouldCloseOverlay` mounted-set effect stays only as the remark BACKSTOP. Closing discards any unsaved draft
   (owner-accepted). EXEMPT: a popover in the STICKY `<th>` header (AmountFormulaBuilder) never scrolls off -> no observer.
+- **A change carries to the row's other helpers (BCS-4; rules: `.claude/context/domain/boq-pricing-editor.md` § "A change
+  carries to the row's other helpers").** `SheetPricingPage` reads the sheet's saved edits ONCE per sheet + committed version
+  (`helper_edits.get_row_helper_edits`, the BCS-rates load's shape) and passes the opened row's to BOTH panel mounts as
+  `savedEdits`, laid under this session's `helperEditOverlay` (`helperEditsForRow`) so another view of the row, or the
+  full-screen panel, carries a change before its post returns. `RateHelperPanel` reads `seededOverrides(savedEdits)` IN PLACE
+  OF the empty map for a row with no edit in this mount yet -- structurally, like the row-scoping, never by an effect -- so the
+  first compute already uses the saved change; `setAttr` hands each change up (`onSaveEdit(attrId, value, view)`, the page
+  waits PricingGrid's 1 s autosave pause, then queues the post per row), `resetAttr` / Revert hand up a clear
+  (`onClearEdits`), and Revert sets an EMPTY state scoped to the row (the row-less empty state would read the seed again). The
+  view is `helperViewOf(kind, target)`; the tag is `carryTagText` ("changed by you" / "carried from the <view> helper") in the
+  "from BoQ" chip, on plain fields and on edited item fields (`ItemListBlocks` `editTag`). ⚠️ Nothing here reaches `onUse`
+  (applyRate) and a typed final value is never handed up. A locked / taken-over / history view saves nothing. A finished
+  Suggest run re-reads the edits (owner R-BCS-140: the server replaced the rows it read) through `helperEditsAfterRunRef`.
 
 ### BCS cost block
 
