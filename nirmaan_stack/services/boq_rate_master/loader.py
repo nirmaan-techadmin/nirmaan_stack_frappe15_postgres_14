@@ -30,7 +30,7 @@ import json
 
 import frappe
 
-from nirmaan_stack.services.boq_rate_master import config_validation, retirement
+from nirmaan_stack.services.boq_rate_master import catalogue_lists, config_validation, retirement
 
 ITEM_DOCTYPE = "BoQ Rate Master Item"
 CONFIG_DOCTYPE = "BoQ Rate Category Config"
@@ -402,6 +402,9 @@ def load_rate_master(payload=None, path=None, replace=False):
     # It also catches a missing base and a cycle, which is where acceptance item 8's "refused loudly
     # at mint" actually lands: the mint's own load is what runs this.
     _verify_derived_consistent(discipline)
+    # CAT-1 (owner 2026-11-24 19:18 "rebuilt whenever the catalogue changes by any route"): THE LOAD CHOKE POINT -- the
+    # catalogue lists rebuilt from what this load leaves standing, cached when this transaction commits.
+    catalogue_lists.rebuild_after_write(discipline)
 
     frappe.db.commit()
 
@@ -561,6 +564,9 @@ def _load_multi(payload, replace):
     # It also catches a missing base and a cycle, which is where acceptance item 8's "refused loudly
     # at mint" actually lands: the mint's own load is what runs this.
     _verify_derived_consistent(discipline)
+    # CAT-1 (owner 2026-11-24 19:18 "rebuilt whenever the catalogue changes by any route"): THE LOAD CHOKE POINT -- the
+    # catalogue lists rebuilt from what this load leaves standing, cached when this transaction commits.
+    catalogue_lists.rebuild_after_write(discipline)
 
     frappe.db.commit()
 
@@ -615,6 +621,10 @@ def recompute_derived_after_write(discipline, batch=None):
     leaving half a catalogue -- acceptance item 8. A declaration that cannot be computed is a defect,
     never a cell to skip.
     """
+    # CAT-1: THE OTHER CHOKE POINT -- every Rate Master write route (edit / add / deactivate) and the CSV upload call this after
+    # their write, so the catalogue lists are rebuilt here, BEFORE the early return below (an Electrical write declares no derived
+    # cell). The derived re-insert that follows writes the same content, so it cannot move the stamp.
+    catalogue_lists.rebuild_after_write(discipline)
     configs = [
         c["config"] if isinstance(c["config"], dict) else json.loads(c["config"] or "{}")
         for c in frappe.get_all(CONFIG_DOCTYPE,

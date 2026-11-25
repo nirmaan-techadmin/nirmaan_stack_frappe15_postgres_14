@@ -495,7 +495,11 @@ def _load_active_configs(disciplines=None):
     for r in rows:
         cfg = r["config"] if isinstance(r["config"], dict) else json.loads(r["config"] or "{}")
         out[(r["discipline"], r["category_id"])] = cfg
-    return out
+    # CAT-1 (owner 2026-11-24 19:35 / 2026-11-26 00:06): THE REQUEST READ POINT -- every catalogue choice list rebuilt from the
+    # live catalogue (stamp checked on every call, rebuilt first when stale) and the wording placeholders filled, through the ONE
+    # merge `catalogue_lists.serve_configs`. Every Suggest request, `_group_context` and the mints' request proofs read here.
+    from nirmaan_stack.services.boq_rate_master import catalogue_lists
+    return catalogue_lists.serve_configs(out, fresh=True)
 
 
 def load_configs_with_alias_targets(disciplines=None):
@@ -631,6 +635,11 @@ def _row_attributes(row):
     return project_item_columns(a, row)
 
 
+# CAT-1 (CAT-D1 E10 caveat 1): the order of the two live catalogue reads below. It is frappe.get_all's default made explicit plus a
+# tie-break -- NOT a sort: a content order would change 46 of 48 lists' request text (a deliberate, paid change for later).
+CATALOGUE_READ_ORDER = "modified desc, name asc"
+
+
 def catalog_values(discipline, cfg):
     """The identity attribute's CATALOG: the distinct identity-attr values across this category's
     active master items (kinds from the config). Empty when the config declares no identity
@@ -645,6 +654,9 @@ def catalog_values(discipline, cfg):
         _MASTER_ITEM,
         filters={"discipline": discipline, "kind": ["in", kinds], "active": 1},
         fields=_item_read_fields("attributes"),
+        # CAT-1 (CAT-D1 E10 caveat 1): today's order PINNED -- frappe's default `modified desc` (48 / 48 live lists, 0 ties),
+        # with `name` as the tie-break, so the request text stays byte-identical and is deterministic
+        order_by=CATALOGUE_READ_ORDER,
     )
     out = []
     seen = set()
@@ -677,6 +689,7 @@ def values_from_catalog(discipline, spec):
         _MASTER_ITEM,
         filters={"discipline": discipline, "kind": kind, "active": 1},
         fields=_item_read_fields("attributes"),
+        order_by=CATALOGUE_READ_ORDER,   # CAT-1: pinned, as catalog_values
     )
     out, seen = [], set()
     for r in rows:

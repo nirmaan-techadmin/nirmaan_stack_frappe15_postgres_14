@@ -204,6 +204,12 @@ _KNOWN_CONFIG_KEYS = {
     "impact_examples",
     # VAV-2c1 (R6 b, owner 2026-11-22 12:47 "a"): a Pricing Inputs category's page shows each value's plain reading, from the live value
     "live_reading",
+    # CAT-1 (CAT-D0 D3c; owner 2026-11-26 00:13 "ok for both"): the two DECLARATIONS the catalogue-list rebuild reads
+    # (`catalogue_lists.py`), each {question id: [values]}. `unstocked_answers` = a value OFFERED although no SKU stocks it, so the
+    # row refuses by name (Valve Package `operation` "On-Off", VP-1); `catalogue_excludes` = a SKU value NEVER offered (a SKU-side
+    # placeholder such as Electrical colour "NA"). Validated by `_validate_catalogue_declarations`; the reference gate checks each
+    # declaration against the catalogue (an unstocked answer a SKU does stock is refused).
+    "unstocked_answers", "catalogue_excludes",
     # SLICE 12d-2 (owner S1, 2026-10-07): `calculator_only` is RETIRED. It was the 12c FINISH / FA7
     # temporary calculator admission (one category, one slice), with a declared removal condition --
     # "the slice that makes the category fully eligible REMOVES this key in the same change, so there
@@ -5293,6 +5299,27 @@ def _validate_params(params, where):
             _vthrow(f"{where}: parameter '{k}' must be a finite number.")
 
 
+def _validate_catalogue_declarations(cfg):
+    """CAT-1: `unstocked_answers` / `catalogue_excludes` = {question id: [non-empty strings]}, each question one the config
+    asks (a top-level or list_spec attribute definition)."""
+    ls = cfg.get("list_spec") if isinstance(cfg.get("list_spec"), dict) else {}
+    asked = {d.get("id") for d in (cfg.get("attribute_definitions") or []) + (ls.get("attribute_definitions") or [])
+             if isinstance(d, dict)}
+    for key in ("unstocked_answers", "catalogue_excludes"):
+        if key not in cfg:
+            continue
+        v = cfg[key]
+        if not isinstance(v, dict) or not v:
+            _vthrow(f"{key} must be a non-empty object {{question id: [values]}}.")
+        for q, vals in v.items():
+            if q not in asked:
+                _vthrow(f"{key}.{q}: the config asks no question '{q}'.")
+            if not isinstance(vals, list) or not vals or not all(isinstance(x, str) and x.strip() for x in vals):
+                _vthrow(f"{key}.{q} must be a non-empty list of non-empty strings.")
+            if len(set(vals)) != len(vals):
+                _vthrow(f"{key}.{q} names a value twice.")
+
+
 def _validate_config(cfg):
     """Full structural validation of a whole category config. Returns the map of attribute id ->
     referencing-locations (for the reference guard). Raises a named frappe.ValidationError on the first
@@ -5310,6 +5337,7 @@ def _validate_config(cfg):
     _validate_rate_composition(cfg)   # SLICE 12a: the cost-parts composition; a no-op without the key
     _validate_column_order(cfg)       # SLICE 12c FINISH: the presentation order; a no-op without the key
     _validate_impact_examples(cfg)    # ELR-3a: the impact panel's worked examples; a no-op without the key
+    _validate_catalogue_declarations(cfg)   # CAT-1: unstocked_answers / catalogue_excludes shape; a no-op without the keys
 
     # attribute_definitions ------------------------------------------------------------------
     defs = cfg.get("attribute_definitions")
