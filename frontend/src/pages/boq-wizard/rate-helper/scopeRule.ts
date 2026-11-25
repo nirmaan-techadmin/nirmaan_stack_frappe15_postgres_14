@@ -45,6 +45,14 @@ export interface ScopeRuleSpec {
   threshold_input: string;
   /** point 4: the model's answer that the item needs no installing, and its reason */
   needs_installing?: { attr: string; no: string; reason_attr: string };
+  /** VAV-2c3 FIX-2 (E, owner 2026-11-24 19:53 "fix anyway"): note B also where the row's NEAREST HEADING starts with installation work
+   *  ("ITC of VAVs ...", "Installation of ... CAV Boxes") and neither the heading nor the row's own text matches these supply words --
+   *  still Supply + installation. ABSENT => note B reads the row's own text only, as before. */
+  install_heading_not?: string;
+  /** VAV-2c3 (R5 F4, chat-Claude's call under the owner's 2026-11-23 13:46 word): an INSTALLATION row's own wording of the box-row notes it
+   *  carries -- each key one of INSTALL_ROW_TEXT_PATHS, its text in place of that text on an installation row only (`installRowSpec`).
+   *  ABSENT => the box-row wording everywhere, as before. */
+  install_row_texts?: Record<string, string>;
   notes: {
     A: string; B: string; C: string; C_qty: string; D: string; E: string; E_qty: string; F: string; G: string; words_supply_only: string;
     /** F's {said} by the case: "existing", "refix", "by_others", "install_only" */
@@ -144,6 +152,10 @@ export function scopeRuleOf(i: ScopeRuleInput): ScopeRuleOutcome | null {
   // 5. the default
   if (rx(rule.supply_of)?.test(own)) return { value: V.both, note: N.A };
   if (installStart) return { value: V.both, note: N.B };
+  // VAV-2c3 FIX-2 (E): the installation words sit in the nearest heading, and no supply word is in the heading or the row
+  if (rule.install_heading_not && rx(rule.install_start)?.test(i.heading) && !rx(rule.install_heading_not)?.test(`${own} | ${i.heading}`)) {
+    return { value: V.both, note: N.B };
+  }
   return { value: V.both };
 }
 
@@ -156,7 +168,7 @@ type RuleSpec = { family_attribute_id?: string; scope?: { options: string[]; sup
   existing_boxes?: { kinds: Array<{ id: string; words: string }> }; no_sku_named_by?: string };
 
 /** PURE. A Pricing Input's factor by its id (a finite number >= 0), else null -- as the scope's own uplift reads it. */
-function inputFactor(items: readonly RateMasterItem[], id: string): number | null {
+export function inputFactor(items: readonly RateMasterItem[], id: string): number | null {
   const it = items.find((x) => /_pricing_input$/.test(String(x?.kind ?? "")) && String(x?.attributes?.item ?? "") === id);
   const raw = (it?.rates as Record<string, unknown> | undefined)?.factor;
   const f = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() !== "" ? Number(raw) : NaN;
@@ -199,4 +211,28 @@ export function installRowItems<T extends RuleItem>(spec: RuleSpec, extItems: re
     return { ...it, attributes: { [fa]: { value: rule.install_family, confidence: 1 }, ...(spec.no_sku_named_by ? { [spec.no_sku_named_by]: { value: rule.install_family, confidence: 1 } } : {}),
       [ma]: { value: spec.scope!.install_only, confidence: 1 } } } as T;
   });
+}
+
+/** VAV-2c3 (R5 F4): the texts an installation row words for itself -- the sheet's blank box rows, the integrator cabling a separate row
+ *  prices, and the share block's "per box" labels (true on a box row, out of place on an installation row: VAV-2c2 review F4). */
+export const INSTALL_ROW_TEXT_PATHS = ["sheet_shares.lines.blank_rows", "integrator_cabling.lines.priced_separately", "sheet_shares.labels.per_box",
+  "sheet_shares.labels.typed"] as const;
+
+/** PURE. The pricing spec an INSTALLATION row is priced with: `spec` with each `scope.rule.install_row_texts` text in place of the text at
+ *  its path (only INSTALL_ROW_TEXT_PATHS, only where the spec holds a text there). No text declared => `spec` itself, untouched. Texts only:
+ *  every figure, rule and item stays the box rows'. */
+export function installRowSpec<T>(spec: T): T {
+  const texts = (spec as { scope?: { rule?: { install_row_texts?: Record<string, string> } } }).scope?.rule?.install_row_texts;
+  if (!texts) return spec;
+  const out = structuredClone(spec) as unknown as Record<string, unknown>;
+  for (const path of INSTALL_ROW_TEXT_PATHS) {
+    const t = texts[path];
+    if (typeof t !== "string") continue;
+    const keys = path.split(".");
+    let node = out as Record<string, unknown> | undefined;
+    for (const k of keys.slice(0, -1)) node = node?.[k] as Record<string, unknown> | undefined;
+    const last = keys[keys.length - 1];
+    if (node && typeof node[last] === "string") node[last] = t;
+  }
+  return out as unknown as T;
 }

@@ -6,7 +6,7 @@
  *  T3 CALCULATOR CASES: the VAV-D0 D2 case (BOQ-26-00383 r30) and its add / remove variants; the two integrator lines; installation.
  *  T4 LIVE BORROW (block 85, owner 2026-11-13 00:19 "... read these directly ... and not keep a second copy"): a Misc and a Sensors rate
  *     changed in the items -> the VAV section follows with no VAV change; VAV holds no figure of the five borrowed items.
- *  T6 NEGATIVES: "none of these" refuses by name; Lot / Job refuses; a blank unit refuses; a box missing a fact refuses (never a pick);
+ *  T6 NEGATIVES: "none of these" refuses by name; Lot / Job refuses; a blank unit is priced per Nos with the warning (v86); a box missing a fact refuses (never a pick);
  *     a map without hvac_sensors breaks the Sensors cases.
  */
 import { describe, expect, it } from "vitest";
@@ -181,7 +181,9 @@ describe(`VAV-1 T6 negatives on ${LATEST}`, () => {
     const v = view(calc({ items: [blk("none of these", { vav_item_as_written: "VAV software" })] }));
     expect(v?.rowPriced).toBe(false);
   });
-  it("Lot / Job refuses; a blank unit refuses", () => {
+  // VAV-2c3 FIX-2 (PIN FIX2-D; owner 2026-11-24 20:00 "[no unit] price it by number and mention it clearly in notes. the notes should be a stronger
+  // warning"): a blank unit no longer refuses -- HVAC v86 prices it per Nos with the warning bar (`blank_unit_bar`); the Lot / Job half is kept
+  it("Lot / Job refuses; a blank unit is priced per Nos with the warning bar", () => {
     // the calculator's unit choices for VAV Box are Nos and Lot (the lot units' representative): Lot refuses with the config's sentence
     const lot = view(calc(D2, surfaceMap(), ITEMS, "Lot"));
     expect(lot?.rowPriced).toBe(false);
@@ -189,19 +191,34 @@ describe(`VAV-1 T6 negatives on ${LATEST}`, () => {
     // a Job row is a lot unit by the config (the BoQ row's refusal; the calculator cannot pick it)
     const lu = (BY_ID.get(VAV) as unknown as { list_spec: { pricing: { lot_units: { units: string[] } } } }).list_spec.pricing.lot_units.units;
     expect(lu).toEqual(expect.arrayContaining(["Lot", "Job", "LS", "Lumpsum"]));
-    // a blank unit and a unit VAV does not stock refuse on a BoQ row (the calculator offers neither): the config says so
-    const pr = (BY_ID.get(VAV) as unknown as { list_spec: { pricing: { blank_unit_refuses: boolean; unit_classes: Record<string, string[]>; unit_refusal: string } } }).list_spec.pricing;
-    expect(pr.blank_unit_refuses).toBe(true);
+    // a unit VAV does not stock refuses on a BoQ row (the calculator offers none); a blank unit is priced per Nos with the bar: the config says so
+    const pr = (BY_ID.get(VAV) as unknown as { list_spec: { pricing: { blank_unit_refuses?: boolean; blank_unit_bar?: { line: string }; unit_classes: Record<string, string[]>; unit_refusal: string } } }).list_spec.pricing;
+    expect(pr.blank_unit_refuses).toBeUndefined();
+    // VAV-FIX (PIN VAVFIX F-D (2), ANSWER 5; S3 one warning): BEFORE "WARNING: The BoQ gives no unit for this row. Priced per number (Nos). Check the unit before using this rate."
+    expect(pr.blank_unit_bar?.line).toBe("The BoQ gives no unit for this row. It is priced per number (Nos). Check the unit before using this rate.");
     expect(Object.keys(pr.unit_classes)).toEqual(["count"]);
     expect(pr.unit_refusal).toMatch(/is not a VAV unit/);
   });
-  it("a box missing a match fact refuses, naming it -- never a pick among the 84", () => {
-    for (const k of ["shape", "vav_type", "integrator_included", "cfm_range"]) {
+  // VAV-2c3 FIX (PIN FIX-D; owner 2026-11-24 16:52 "if payload does not me tion integrator - we use integrator = No"; 2026-11-18 23:53 pt 10;
+  // 22:16 ruling B): a box missing shape / type / integrator now prices on the ruled default (HVAC v85 `defaults`, marked); a box missing its
+  // band (no airflow, no inlet) still refuses (23:53 pt 4) -- never a pick among the 84
+  // VAV-FIX (PIN VAVFIX F-D (1), ANSWER 5 - INVERTED, mechanical authority; owner 2026-11-20 17:53 "a", 2026-11-25 00:37: every CALCULATOR field
+  // starts blank and a blank withholds the price; the ruled defaults are for BoQ rows only, HVAC v88 `boq_rows_only`). This check prices on the
+  // Calculator (calc -> calculatorCtx, no BoQ row). BEFORE: rowPriced true and the field defaulted. The BoQ-row side is vavfix.test.ts (silent BoQ).
+  it("INVERTED (VAV-FIX S1): in the CALCULATOR a box missing a fact WITH a ruled default refuses, the field blank and needed; missing the band still refuses -- never a pick among the 84", () => {
+    for (const k of ["shape", "vav_type", "integrator_included"]) {
       const attrs = { ...D2_BOX.attrs }; delete (attrs as Record<string, string>)[k];
       const v = view(calc({ items: [blk("VAV box", attrs)] }));
       expect(v?.rowPriced, k).toBe(false);
-      expect(v?.items?.[0]?.figures?.supply_rate ?? null, k).toBeNull();
+      const f = (v?.items?.[0]?.fields as Array<{ id: string; value: string; defaulted?: boolean; required?: true }> | undefined)?.find((x) => x.id === k);
+      expect(f?.defaulted, k).toBe(false);
+      expect(f?.value, k).toBe("");
+      expect(f?.required, k).toBe(true);
     }
+    const attrs = { ...D2_BOX.attrs }; delete (attrs as Record<string, string>).cfm_range;
+    const v = view(calc({ items: [blk("VAV box", attrs)] }));
+    expect(v?.rowPriced, "cfm_range").toBe(false);
+    expect(v?.items?.[0]?.figures?.supply_rate ?? null, "cfm_range").toBeNull();
   });
   it("VACUITY (a surface without hvac_sensors): the Sensors cases break; with it they price", () => {
     const state = { items: [D2_BOX], sections: { sensors: [blk("CO2 Sensor")] } };

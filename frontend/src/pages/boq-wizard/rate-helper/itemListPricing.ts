@@ -327,6 +327,55 @@ export interface DefaultSpec {
    *  the default (Outdoor Unit: discharge not stated + below the smallest Top unit of the brand -> Side). The line names that
    *  smallest size (`{n}`, `{unit}`). A STATED value always wins. ABSENT => the default as before. */
   below_smallest?: { size_attr: string; then: string; rule: string };
+  /** VAV-2c3 FIX-2 (D1, owner 2026-11-24 19:53 "fix"): the note the field shows when this default was taken ("... (assumed)").
+   *  ABSENT => the field shows no note for the default, as before. */
+  note?: string;
+  /** VAV-FIX (S1, owner 2026-11-20 17:53 "a", re-confirmed 2026-11-25 00:37): the default applies to BoQ ROWS only -- where there is
+   *  no row (the Calculator) its `absent_as_none` is not read, so the field starts blank, carries its "*" and a blank withholds the
+   *  price (`boqRowsOnlyDefaultsOff`). ABSENT => the default reads the same way on every surface, as before. */
+  boq_rows_only?: boolean;
+}
+
+/**
+ * VAV-FIX (S1, owner 2026-11-20 17:53 "a": every Calculator field starts blank; "shape not stated -> Rectangular (assumed)" is for
+ * BoQ rows only). PURE. The spec a row WITHOUT a BoQ row (the Calculator) prices on: every default declaring `boq_rows_only` loses
+ * its `absent_as_none`, so an answer nobody gave stays blank -- no ruled value, no "default" tag, no note -- and is asked for (the
+ * "*" reads the same flag, `itemFieldDefs`). A spec with no such default is returned AS IS (the same object), so every other
+ * category, and every BoQ row, is untouched.
+ */
+export function boqRowsOnlyDefaultsOff(spec: ItemListPricingSpec): ItemListPricingSpec {
+  const ds = spec.defaults;
+  if (!ds || !Object.values(ds).some((d) => d?.boq_rows_only === true && d.absent_as_none === true)) return spec;
+  const defaults = Object.fromEntries(Object.entries(ds).map(([k, d]) =>
+    [k, d?.boq_rows_only === true && d.absent_as_none === true ? { ...d, absent_as_none: false } : d]));
+  return { ...spec, defaults };
+}
+
+/**
+ * VAV-2c3 FIX-2 (owner 2026-11-24 19:53 A1 / A2, 20:00 B2-1) -- AN ANSWER SET FROM THE ROW'S OWN WORDS, BEFORE PRICING.
+ * A WORD CHECK IN CODE ON THE STORED PAYLOAD (no new reading): where `words` match in the row's chain (the row, every heading above it
+ * and each heading's note rows -- never the sheet-wide notes) or, with `from_attr`, in the item's own copied words, a MODEL answer that
+ * is one of `when` (null = not answered) becomes `value`, and the field carries `line` ({said} = the words, {where} = where they sit).
+ * `unless` words anywhere in that text stop it; `not_if_row_has` stops it where another model item of the row already holds that value.
+ * Only the model's answers: a pricer's own pick (an edit) still wins. `family` / `section` narrow the items. The Calculator has no row:
+ * the chain is empty and nothing fires.
+ */
+export interface ChainValueRule {
+  id: string;
+  /** the items: of these families (the family attribute's value) ... */
+  families?: string[];
+  /** ... or of this delegated section ("misc") */
+  section?: string;
+  attr: string;
+  words: string;
+  unless?: string;
+  /** read the item's own copied words in this attribute instead of the row's chain */
+  from_attr?: string;
+  /** the model answers it replaces; null = not answered (absent, null or "None") */
+  when: Array<string | null>;
+  not_if_row_has?: { attr: string; value: string };
+  value: string;
+  line: string;
 }
 
 /**
@@ -800,6 +849,11 @@ export interface ItemListPricingSpec {
   /** VP-1 (N2, owner UNIT ruling 2026-11-11, all categories): a row with NO unit refuses ("no unit on this row") instead of being
    *  priced in the item's own unit -- the rule VRF already has through `vrf10On`. ABSENT => the 12c-U default unit, as before. */
   blank_unit_refuses?: boolean;
+  /** VAV-2c3 FIX-2 (B2-3, owner 2026-11-24 20:00 "price it by number and mention it clearly in notes. the notes should be a stronger
+   *  warning"): a row with NO unit that the 12c-U default unit prices shows this orange bar. ABSENT => no bar, as before. */
+  blank_unit_bar?: { title: string; line: string };
+  /** VAV-2c3 FIX-2 (A1 / A2 / B2-1): answers set from the row's chain words before pricing. See `ChainValueRule`. ABSENT => none. */
+  chain_values?: ChainValueRule[];
   /** ADP-5d (owner R6b): the default replaces an answer the row's stream cannot decide. ABSENT => every answer stands. */
   stream_heading_default?: StreamHeadingDefault[];
   /** ADP-5d (owner R4): an item code adds beside a named one. ABSENT => nothing is added. See `CompanionItem`. */
@@ -1156,6 +1210,10 @@ export interface ScopeSpec {
    *  Calculator's, where no BoQ said it -- "BoQ says" stays only where the helper read the scope from the BoQ. A key absent here keeps its
    *  `lines` text; the whole key ABSENT => `lines` everywhere, as before. */
   chosen_lines?: Record<string, string>;
+  /** VAV-2c3 (R5 F3, chat-Claude's call under the owner's 2026-11-23 13:46 word): in the CALCULATOR under Supply only, the Scope box's own
+   *  line ("Installation is not in scope: 0 on every line below.") is the only one -- the supply-only note is not repeated under it.
+   *  ABSENT => the note shows as before (Ducting, Valve Package, VRF; every BoQ row). */
+  calculator_scope_box_only?: true;
   /** VAV-2c2 (R1 / R2, owner 2026-11-23 13:52 - 13:57; QR-SURE / QR-WORDS / QR-ASK 2026-11-24): THE SCOPE RULE (`scopeRule.ts`) -- the row's
    *  scope from the rule, with its note, on a BoQ row with its sheet. ABSENT => the model's scope answer, as before. */
   rule?: ScopeRuleSpec;
@@ -2189,7 +2247,9 @@ export interface ExtractedListItem {
     cleared?: boolean;
     /** ADP-1: a section's size MIRRORED from the item above it -- the size that item READ, in mm (12e-3a D3b), entered
      * as a typed cell. It carries no unit of its own, and is not a bare number the BoQ wrote: F1 never reads it so. */
-    mirrored?: boolean }>;
+    mirrored?: boolean;
+    /** VAV-2c3 FIX-2: `applyChainValues` set this answer from the row's own words; the line the field says. Absent on every other answer. */
+    chain_line?: string }>;
   /** SLICE 6 (T4, the owner's unit-rate ruling): how many of this item ONE row unit pays for. Absent => 1.
    * Blank / non-numeric / non-positive => the item refuses ("quantity per row unit is blank"). */
   qtyPerRowUnit?: number | string | null;
@@ -5610,6 +5670,17 @@ function priceOneItem(
    * shows the value priced with the line under it. Only a MODEL answer that differs from the default: "not mentioned"
    * already takes it, and a pricer's own pick (typed) is theirs.
    */
+  // VAV-2c3 FIX-2 (A1 / A2 / B2-1): an answer `chain_values` set from the row's own words before pricing (`applyChainValues`) is
+  // shown as an override -- the field holds the value priced and says why, in the config's words; a pricer's pick is never marked
+  for (const [a, raw] of Object.entries(item.attributes ?? {})) {
+    const line = (raw as { chain_line?: unknown } | undefined)?.chain_line;
+    if (typeof line !== "string" || (raw as { typed?: unknown }).typed === true) continue;
+    // the family attribute (B2-1's Misc item) is not in `read`: it is the family this item prices as
+    const now = a === familyAttr(spec) ? family : read[a];
+    if (String(now ?? "") !== String((raw as { value?: unknown }).value ?? "")) continue;
+    out.overrides.push({ attr: a, value: String(now), display: String(now), rule: line });
+    overridden.push(line);
+  }
   for (const rule of spec.stream_heading_default ?? []) {
     if (!rule.families.includes(family) || noneSaid.has(rule.attr)) continue;
     if (item.attributes?.[rule.attr]?.typed === true) continue;
@@ -5903,9 +5974,13 @@ function priceOneItem(
   // missing one -- the dropdowns narrow on these, and a block that refuses must still narrow.
   out.readValues = { ...read };
   // SLICE 12e-5 (AC1): the "None" answers already read into their ruled defaults, held on a refusal below
-  const held = (n: string): Pick<ItemPriceResult, "heldDefaults"> => {
+  // VAV-FIX (S5, inside the owner's 2026-11-24 16:52 / 16:58 rulings): an item of a band family (`band_from`: the VAV box) refusing here
+  // -- above the largest box, no airflow -- SHOWS the defaults it read, exactly as the same box shows them when it prices; the row
+  // stays refused with its own reason. Every other family keeps them held only (a delegated section shows them, 12e-5).
+  const bandFamily = !!spec.band_from && family !== null && spec.band_from.families.includes(family);
+  const held = (n: string): Pick<ItemPriceResult, "heldDefaults"> & Partial<Pick<ItemPriceResult, "defaulted">> => {
     const d = readDefaulted.filter((x) => needs.includes(x.attr) && !(x.attr in spec.numbers));
-    return d.length ? { heldDefaults: { need: n, defaulted: d } } : {};
+    return d.length ? { heldDefaults: { need: n, defaulted: d }, ...(bandFamily ? { defaulted: d } : {}) } : {};
   };
   // (4) the needs (R7-R10, R2): only the needed facts reach the matcher.
   // ADP-3a (U3): EVERY missing need is named, not only the first ("no width and height stated"), each one's box
@@ -7637,4 +7712,42 @@ export function sizeFieldHelp(
       + `or ${sizeText(smallest)}+${sizeText(smallest)} for two layers.`
     : `Type the ${name} the BoQ states, in ${reader.unit ?? "mm"} (e.g. ${egs}).`;
   return { note, lines };
+}
+
+/**
+ * VAV-2c3 FIX-2 (A1 / A2 / B2-1; see `ChainValueRule`). PURE. The model's items with each `chain_values` rule applied: a matching item's
+ * answer becomes the rule's value, carrying `chain_line` so the pricer shows it as an override with its line. `chain` = the row's chain
+ * (`chainRows`, nearest first); the sheet-wide notes are never read. No rule, no chain, or nothing matching => the SAME array back.
+ */
+export function applyChainValues(spec: ItemListPricingSpec, items: readonly ExtractedListItem[],
+  chain: ReadonlyArray<{ where: string; text: string }> | undefined): ExtractedListItem[] {
+  const rules = spec.chain_values ?? [];
+  if (!rules.length || !items.length) return items as ExtractedListItem[];
+  const rowChain = (chain ?? []).filter((c) => !/^sheet note/i.test(c.where) && c.text.trim() !== "");
+  const famOf = (it: ExtractedListItem) => { const v = it.attributes?.[familyAttr(spec)]?.value; return v === null || v === undefined ? null : String(v); };
+  const said = (it: ExtractedListItem, a: string): string | null => {
+    const v = it.attributes?.[a]?.value;
+    return v === null || v === undefined || String(v).trim() === "" || String(v) === "None" ? null : String(v);
+  };
+  let changed = false;
+  const out = items.map((it) => {
+    let next = it;
+    for (const r of rules) {
+      if (r.section !== undefined ? it.section !== r.section : (it.section !== undefined || !(r.families ?? []).includes(famOf(it) ?? "\u0000"))) continue;
+      const now = said(next, r.attr);
+      if (!r.when.includes(now)) continue;
+      if (r.not_if_row_has && items.some((o) => o !== it && o.section === it.section && said(o, r.not_if_row_has!.attr) === r.not_if_row_has!.value)) continue;
+      let re: RegExp, unless: RegExp | null;
+      try { re = new RegExp(r.words, "i"); unless = r.unless ? new RegExp(r.unless, "i") : null; } catch { continue; }
+      const texts = r.from_attr !== undefined ? [{ where: "this item", text: String(it.attributes?.[r.from_attr]?.value ?? "") }] : rowChain;
+      if (unless && texts.some((t) => unless!.test(t.text))) continue;
+      const hit = texts.map((t) => ({ t, m: re.exec(t.text) })).find((x) => x.m);
+      if (!hit) continue;
+      const line = r.line.split("{said}").join(hit.m![0].trim()).split("{where}").join(hit.t.where);
+      next = { ...next, attributes: { ...next.attributes, [r.attr]: { value: r.value, confidence: 1, chain_line: line } } };
+      changed = true;
+    }
+    return next;
+  });
+  return changed ? out : (items as ExtractedListItem[]);
 }
