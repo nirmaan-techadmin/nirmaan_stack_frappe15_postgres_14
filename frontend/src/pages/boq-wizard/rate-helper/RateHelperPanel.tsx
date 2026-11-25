@@ -20,6 +20,7 @@ import {
   ITEM_LIST_OVERRIDE_KEY,
   itemsOnScreen,
   needPersonSentence,
+  PRICING_SHEET_HELPER_ID,
   ROW_UNIT_OVERRIDE_KEY,
   ROW_QTY_OVERRIDE_KEY,
   EXTRAS_INCLUDES_KEY,
@@ -254,6 +255,65 @@ export function kindLabel(kind: string): string {
   return KIND_LABELS[kind] ?? kind;
 }
 
+// ── BCS-4 (owner R1 / R2 / R3, design BCS-D0 P3, mockup screen 2): A CHANGE CARRIES TO THE ROW'S OTHER HELPERS ──────────
+// A field changed in any view of a row's helper (Supply, Install, Combined or the BCS supply box) is SAVED for the row
+// (`BoQ Row Helper Edit`, api/boq/wizard/helper_edits.py) and every view of that row SEEDS its attribute overrides from it
+// before its first compute -- the compute already prefers an override to the extraction, so there is no new pricing path and
+// a new Suggest run's extraction is still outranked by the saved change. Only SUGGESTIONS change: nothing here reaches
+// "Use this value" (onUse), a typed final value is never saved, and a cell's value is never touched.
+
+/** The view of a row's helper an edit was made in -- the stored `from_kind` of `BoQ Row Helper Edit`. */
+export type HelperView = "supply" | "install" | "combined" | "bcs_supply";
+/** One saved field of a row, as get_row_helper_edits returns it: the text setAttr took and the view it was typed in. */
+export interface SavedHelperEdit {
+  value: string;
+  from_kind: string;
+  by?: string;
+  at?: string;
+}
+export type SavedHelperEdits = Record<string, SavedHelperEdit>;
+
+/** The BCS supply box's view, and its name in a tag beside KIND_LABELS' three (the scope line says "BCS supply cost"). */
+const BCS_VIEW: HelperView = "bcs_supply";
+const BCS_VIEW_LABEL = "BCS";
+/** The carry tag's chip: the same chip as an item field's "from BoQ" source tag (UI CHANGE CONTROL: the same style). */
+const EDIT_TAG_CLASS = "rounded bg-emerald-100 px-1 text-[9px] font-medium leading-none text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
+
+/** PURE. The view the panel is open in: the BCS supply box, else the rate kind's own word. Null with no known kind. */
+export function helperViewOf(kind: string | undefined, target: "rate" | "bcs" = "rate"): HelperView | null {
+  if (target === "bcs") return BCS_VIEW;
+  if (!kind || !(kind in KIND_LABELS)) return null;
+  return kind.replace(/_rate$/, "") as HelperView;
+}
+
+/** PURE. A view's name as the panel's own labels say it: KIND_LABELS for the three rate views, "BCS" for the cost box. */
+export function helperViewLabel(view: string): string {
+  return view === BCS_VIEW ? BCS_VIEW_LABEL : kindLabel(`${view}_rate`);
+}
+
+/** PURE. The tag on a field whose value came from an edit (mockup screen 2, rule 3): made in THIS view -> "changed by you";
+ *  made in another view of the row -> "carried from the <Supply / Install / Combined / BCS> helper". */
+export function carryTagText(fromView: string, currentView: HelperView | null): string {
+  return fromView === currentView ? "changed by you" : `carried from the ${helperViewLabel(fromView)} helper`;
+}
+
+/** PURE. The panel's override map seeded from a row's saved edits. Every key goes under the pricing-sheet helper -- the one
+ *  helper with editable fields (the static helpers decline) -- including the JSON keys (__items__, __shares__, ...). */
+export function seededOverrides(saved: SavedHelperEdits | undefined): Record<string, Record<string, string>> {
+  if (!saved) return EMPTY_ATTR_MAP;
+  const keys = Object.keys(saved);
+  if (keys.length === 0) return EMPTY_ATTR_MAP;
+  return { [PRICING_SHEET_HELPER_ID]: Object.fromEntries(keys.map((k) => [k, saved[k].value])) };
+}
+
+/** PURE. Which view each saved key was made in (the tag's source). */
+export function seededViews(saved: SavedHelperEdits | undefined): Record<string, string> {
+  if (!saved) return EMPTY_VIEW_MAP;
+  const keys = Object.keys(saved);
+  if (keys.length === 0) return EMPTY_VIEW_MAP;
+  return Object.fromEntries(keys.map((k) => [k, saved[k].from_kind]));
+}
+
 /** BCS-W (owner R5 "1a"): how a figures row PRINTS inside the BCS section (whole rupees, rounded up); unset = as before. The copy
  *  icon and "Use this value" keep the exact figure. */
 const FigureFormat = createContext<((v: number) => string) | undefined>(undefined);
@@ -418,6 +478,17 @@ interface RateHelperPanelProps {
    * the config without its cost pipelines to such a viewer, so the result has no cost to show in the first place.
    */
   showCost?: boolean;
+  /**
+   * BCS-4 (owner R1): the OPENED row's saved helper edits (get_row_helper_edits). The panel seeds its attribute overrides
+   * from them before its first compute, so every view of the row -- and a fresh mount after a reload -- computes from the same
+   * overrides. Absent (the calculator, a viewer the read refused) = nothing seeded, exactly as before.
+   */
+  savedEdits?: SavedHelperEdits;
+  /** BCS-4: save one field the user changed, with the view it was changed in. The page debounces and posts it; the panel
+   *  never waits on it. Absent = edits stay in the panel session, as before. */
+  onSaveEdit?: (attrId: string, value: string, fromView: HelperView) => void;
+  /** BCS-4: clear the row's saved edits -- one field (its undo) or every field (Revert). */
+  onClearEdits?: (attrId?: string) => void;
 }
 
 /**
@@ -444,6 +515,9 @@ const EMPTY_ATTR_MAP: Record<string, Record<string, string>> = {};
 const EMPTY_FINAL_MAP: Record<string, string> = {};
 const EMPTY_ATTR_STATE: RowScoped<Record<string, Record<string, string>>> = { row: null, byHelper: EMPTY_ATTR_MAP };
 const EMPTY_FINAL_STATE: RowScoped<Record<string, string>> = { row: null, byHelper: EMPTY_FINAL_MAP };
+// BCS-4: which view each override of the row was made in (keyed by attribute id, as the saved edits are)
+const EMPTY_VIEW_MAP: Record<string, string> = {};
+const EMPTY_VIEW_STATE: RowScoped<Record<string, string>> = { row: null, byHelper: EMPTY_VIEW_MAP };
 
 /**
  * SLICE 2c. PURE. Does the CURRENT row carry any panel-session edit?
@@ -470,7 +544,7 @@ export function hasSessionEdits(
   return anyAttr || Object.keys(finals).length > 0;
 }
 
-export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onClose, variant = "embedded", calculatorBlocks, fieldColumns, blockColumns, target = "rate", showCost = false }: RateHelperPanelProps) {
+export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onClose, variant = "embedded", calculatorBlocks, fieldColumns, blockColumns, target = "rate", showCost = false, savedEdits, onSaveEdit, onClearEdits }: RateHelperPanelProps) {
   // RM-3b: a row is loaded iff we have its context. Absent => the empty-state placeholder.
   const hasSelection = ctx != null && excelRow != null && col != null && kind != null;
   // Panel-session state ONLY (never persisted): per-helper attribute edits, which card is expanded,
@@ -507,11 +581,21 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
   const [otherOpenKey, setOtherOpenKey] = useState<string | null>(null);
   const otherOpen = otherOpenKey === foldKey;
   const toggleOther = () => setOtherOpenKey((k) => (k === foldKey ? null : foldKey));
-  // What the CURRENT row may see. A different row (or none) sees nothing -- never the previous row's.
-  const attrOverrides = overridesForRow(attrOverrideState, excelRow, EMPTY_ATTR_MAP);
+  // BCS-4: the view this panel is open in, and the opened row's SAVED edits as an override map. The seed is what a row
+  // with no edit in this mount yet reads -- in place of the empty map -- so the very first compute already uses the saved
+  // change: there is no effect and no render in which the row computes without it. Never persisted from here: the
+  // page saves (onSaveEdit) and passes the result back as `savedEdits`.
+  const view = helperViewOf(kind, target);
+  const seedAttr = useMemo(() => seededOverrides(savedEdits), [savedEdits]);
+  const seedViews = useMemo(() => seededViews(savedEdits), [savedEdits]);
+  const [editViewState, setEditViewState] = useState<RowScoped<Record<string, string>>>(EMPTY_VIEW_STATE);
+  // What the CURRENT row may see. A different row (or none) sees ITS saved edits only -- never the previous row's.
+  const attrOverrides = overridesForRow(attrOverrideState, excelRow, seedAttr);
   const finalOverride = overridesForRow(finalOverrideState, excelRow, EMPTY_FINAL_MAP);
-  // SLICE 2c: arms the Revert button. Same row-scoping rule as the two reads above.
-  const sessionEdited = hasSessionEdits(attrOverrideState, finalOverrideState, excelRow);
+  const editViews = overridesForRow(editViewState, excelRow, seedViews);
+  // SLICE 2c: arms the Revert button. Same row-scoping rule as the two reads above; BCS-4: a seeded edit arms it too
+  // (Revert clears it).
+  const sessionEdited = hasSessionEdits({ row: excelRow ?? null, byHelper: attrOverrides }, finalOverrideState, excelRow);
 
   // Defect 1c: scroll-into-view GUARD on open / when the target cell changes -- but ONLY when the
   // panel is genuinely off-screen. A sticky embedded panel deep in a scrolled sheet is already pinned
@@ -579,13 +663,21 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
   const setAttr = (helperId: string, attrId: string, value: string) => {
     if (excelRow == null) return; // nothing selected -> nothing to scope the edit to
     setAttrOverrideState((prev) => {
-      // A different row's edits are DISCARDED here, not merged -- same rule as the read.
-      const base = prev.row === excelRow ? prev.byHelper : EMPTY_ATTR_MAP;
+      // A different row's edits are DISCARDED here, not merged -- same rule as the read. BCS-4: the base for this row is
+      // its saved edits (the seed), so a new change joins the carried ones instead of dropping them.
+      const base = prev.row === excelRow ? prev.byHelper : seedAttr;
       return {
         row: excelRow,
         byHelper: { ...base, [helperId]: { ...(base[helperId] ?? {}), [attrId]: value } },
       };
     });
+    // BCS-4: the change is made in THIS view (its tag), and saved for the row. Only the helper's input is saved -- never a
+    // final value, never a cell.
+    setEditViewState((prev) => {
+      const base = prev.row === excelRow ? prev.byHelper : seedViews;
+      return { row: excelRow, byHelper: { ...base, [attrId]: view ?? "" } };
+    });
+    if (view) onSaveEdit?.(attrId, value, view);
     // An attribute change invalidates a stale final-value override -> re-prefill from the recompute.
     setFinalOverrideState((prev) => {
       // BCS-3: both sides' typed values (`<id>` and `<id>|bcs`) go stale together
@@ -613,13 +705,23 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
   const resetAttr = (helperId: string, attrId: string) => {
     if (excelRow == null) return;
     setAttrOverrideState((prev) => {
-      if (prev.row !== excelRow) return prev;
-      const forHelper = prev.byHelper[helperId];
+      // BCS-4: a row with no edit in this mount yet reads its saved edits -- undoing one of those starts from them.
+      const byHelper = prev.row === excelRow ? prev.byHelper : seedAttr;
+      const forHelper = byHelper[helperId];
       if (!forHelper || forHelper[attrId] === undefined) return prev;
       const nextForHelper = { ...forHelper };
       delete nextForHelper[attrId];
-      return { row: excelRow, byHelper: { ...prev.byHelper, [helperId]: nextForHelper } };
+      return { row: excelRow, byHelper: { ...byHelper, [helperId]: nextForHelper } };
     });
+    // BCS-4: the field's saved change is cleared for the row too (every view goes back to the extraction / its default).
+    setEditViewState((prev) => {
+      const base = prev.row === excelRow ? prev.byHelper : seedViews;
+      if (base[attrId] === undefined) return prev;
+      const next = { ...base };
+      delete next[attrId];
+      return { row: excelRow, byHelper: next };
+    });
+    if (seedAttr[helperId]?.[attrId] !== undefined || attrOverrides[helperId]?.[attrId] !== undefined) onClearEdits?.(attrId);
     setFinalOverrideState((prev) => {
       // BCS-3: both sides' typed values (`<id>` and `<id>|bcs`) go stale together
       if (prev.row !== excelRow || (prev.byHelper[helperId] === undefined && prev.byHelper[`${helperId}|bcs`] === undefined)) return prev;
@@ -806,6 +908,9 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                     <PriceSection side="boq" open className={isCalculator ? "order-2" : undefined}>
                       <ItemListBlocks
                         view={itemList}
+                        // BCS-4: the item fields the user changed carry the tag of the view their change was made in
+                        editTag={attrOverrides[helper.id]?.[ITEM_LIST_OVERRIDE_KEY] !== undefined && editViews[ITEM_LIST_OVERRIDE_KEY]
+                          ? carryTagText(editViews[ITEM_LIST_OVERRIDE_KEY], view) : null}
                         onEdit={(op) => setAttr(helper.id, ITEM_LIST_OVERRIDE_KEY, JSON.stringify(applyItemEdit(itemList.editState, op)))}
                         onUnit={(u) => setAttr(helper.id, ROW_UNIT_OVERRIDE_KEY, u)}
                         onRowQty={(q) => setAttr(helper.id, ROW_QTY_OVERRIDE_KEY, q)}
@@ -929,6 +1034,13 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                                 title="Filled from a config default -- the row text gave no positive identification"
                               >
                                 default
+                              </span>
+                            )}
+                            {/* BCS-4 (mockup screen 2, rule 3): a value from an edit says where it came from -- "changed by you"
+                                (this view) or "carried from the <view> helper" -- in the same chip as "from BoQ" */}
+                            {attrOverrides[helper.id]?.[a.id] !== undefined && editViews[a.id] && (
+                              <span className={EDIT_TAG_CLASS} data-testid="helper-edit-tag">
+                                {carryTagText(editViews[a.id], view)}
                               </span>
                             )}
                             {attrOverrides[helper.id]?.[a.id] !== undefined && (
@@ -1304,8 +1416,14 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           : "No edits to discard"
                       }
                       onClick={() => {
-                        setAttrOverrideState(EMPTY_ATTR_STATE);
+                        // BCS-4: an EMPTY state scoped to THIS row (not the row-less EMPTY state, which would read the
+                        // saved edits again as the seed) -- and the row's saved edits are cleared, in every view (R3:
+                        // kept "unless they clear it").
+                        const hadSaved = Object.keys(seedViews).length > 0 || Object.keys(editViews).length > 0;
+                        setAttrOverrideState(excelRow == null ? EMPTY_ATTR_STATE : { row: excelRow, byHelper: EMPTY_ATTR_MAP });
+                        setEditViewState(excelRow == null ? EMPTY_VIEW_STATE : { row: excelRow, byHelper: EMPTY_VIEW_MAP });
                         setFinalOverrideState(EMPTY_FINAL_STATE);
+                        if (hadSaved) onClearEdits?.();
                       }}
                     >
                       Revert
@@ -1551,8 +1669,11 @@ function ItemListBlocks({
   onScope,
   onShares,
   section,
+  editTag = null,
 }: {
   view: ItemListView;
+  /** BCS-4: the tag for a field the user changed ("changed by you" / "carried from the ... helper"); null = none */
+  editTag?: string | null;
   onEdit: (op: ItemEditOp) => void;
   onUnit: (unit: string) => void;
   /** VRF-3a K2 (QR-1 (a), U9): the calculator's "BoQ quantity of this row" */
@@ -1583,6 +1704,7 @@ function ItemListBlocks({
     <div key={`${sv.sectionId}-${sv.pipe ?? "x"}-${sv.index}`} className="ml-3 border-l-2 border-muted-foreground/30 pl-2" data-testid="item-section">
       <ItemListBlocks
         view={sv.view}
+        editTag={editTag}
         onEdit={(inner) => onEdit({ op: "section", section: sv.sectionId, pipe: sv.pipe, index: sv.index, inner })}
         onUnit={() => undefined}
         section={{
@@ -1990,6 +2112,12 @@ function ItemListBlocks({
                         data-testid="item-field-source-tag"
                       >
                         {f.sourceTag}
+                      </span>
+                    )}
+                    {/* BCS-4 (mockup screen 2): a field the user changed says in which view of the row */}
+                    {f.userEdited && editTag && (
+                      <span className={EDIT_TAG_CLASS} data-testid="item-field-edit-tag">
+                        {editTag}
                       </span>
                     )}
                     {f.mirrorTag && (

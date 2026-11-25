@@ -210,7 +210,7 @@ import {
   rateKindOfDescriptor,
   rateKindsOf,
 } from "./rate-helper/rateSuggestionModel";
-import { RateHelperPanel, type UseMeta } from "./rate-helper/RateHelperPanel";
+import { RateHelperPanel, type HelperView, type SavedHelperEdit, type SavedHelperEdits, type UseMeta } from "./rate-helper/RateHelperPanel";
 import { buildHelperList, makePreviouslyPricedHelper, type MatchRunData } from "./rate-helper/rateHelperRegistry";
 import type { MatchDetail, PreviousMatch } from "./rate-helper/rateHelperTypes";
 import { canOpenBoqHub, canSeeBcsCost } from "./boqAccess";
@@ -404,6 +404,44 @@ interface PartialSuggestRun {
   status: string;
   halt_reason?: string | null;
   attempted_count?: number;
+}
+
+/** BCS-4: get_row_helper_edits -- the sheet's current saved rate-helper edits, by Excel row (JSON keys arrive as strings). */
+interface GetRowHelperEditsResponse {
+  boq: string;
+  sheet_name: string;
+  committed_version: number;
+  rows: Record<string, SavedHelperEdits>;
+}
+
+/** BCS-4: this page session's changes laid over the read, per row and field -- an edit, or null for a cleared field;
+ *  `cleared` = the whole row was cleared (Revert) after the read. */
+export interface HelperEditOverlayRow {
+  cleared?: boolean;
+  fields: Record<string, SavedHelperEdit | null>;
+}
+
+/** BCS-4: the pause before a helper change is sent -- PricingGrid's AUTOSAVE_MS (1 s), the page's other debounced save. */
+export const HELPER_EDIT_SAVE_PAUSE_MS = 1000;
+const EMPTY_HELPER_EDIT_OVERLAY: Record<number, HelperEditOverlayRow> = {};
+
+/** BCS-4. PURE. One row's saved edits as the panel should see them: the read, then this session's overlay on top (a
+ *  cleared row drops the read; a null field drops that key). Returns `undefined` for a row with nothing, and the READ's
+ *  own object when nothing is laid over it, so the panel's seed memo keeps its reference. */
+export function helperEditsForRow(
+  read: Record<string, SavedHelperEdits> | undefined,
+  overlay: Record<number, HelperEditOverlayRow>,
+  excelRow: number,
+): SavedHelperEdits | undefined {
+  const base = read?.[String(excelRow)];
+  const over = overlay[excelRow];
+  if (!over) return base && Object.keys(base).length > 0 ? base : undefined;
+  const merged: SavedHelperEdits = over.cleared ? {} : { ...(base ?? {}) };
+  for (const [k, v] of Object.entries(over.fields)) {
+    if (v === null) delete merged[k];
+    else merged[k] = v;
+  }
+  return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 /** DEV2-B5 S4 (G14 (a)): the `?row=` value as an Excel row, or null (absent, not a whole number, or below 1). Pure. */
@@ -1252,9 +1290,13 @@ const SheetPricingPage = () => {
   // A match the finished suggest could not start (another match holds the sheet): its reason, shown as failed.
   const [matchNotStarted, setMatchNotStarted] = useState<string | null | undefined>(undefined);
   // The finished suggest operation's result (#1667): handled once, for the operation this sheet's slot follows.
+  // BCS-4 (R-BCS-140): set by the helper-edits block below; a finished run reads the sheet's saved edits again
+  const helperEditsAfterRunRef = useRef<() => void>(() => undefined);
   const onSuggestFinished = useCallback(
     (raw: unknown) => {
       const msg = (raw ?? {}) as SuggestRunResult;
+      // BCS-4 (owner R-BCS-140): the run (complete or partial) replaced the saved helper edits of the rows its model read
+      helperEditsAfterRunRef.current();
       // SR-1 K3/K4: pass the WHOLE result through. A field-by-field copy dropped first_selected_run (AC5 C2) and
       // pass_attempted_count (SR-1 QR-1 call 6), so every additive worker key silently never reached the modal. The
       // modal reads named keys only; the extra keys (committed_version, match, only_rows) are harmless there.
@@ -1953,6 +1995,94 @@ const SheetPricingPage = () => {
   // gate), so withholding the save callbacks below collapses EVERY mutation path to read-only by
   // construction. The history payload also reports editable=false (server belt to this suspenders).
   const locked = editable === false || takenOver || isLocked || isViewingHistory;
+
+  // ── BCS-4 (owner R1 / R2 / R-BCS-140; design BCS-D0 P3, mockup screen 2): the rate helper's SAVED per-row edits ─────
+  // ONE read per sheet + committed version (the BCS-rates load's shape; a new version reads none of the old one's, R4).
+  // The panel seeds the opened row's overrides from it before its first compute. A change is laid over the read AT ONCE
+  // (`helperEditOverlay`, so another view of the row -- or the full-screen panel -- carries it before the post returns),
+  // then saved after the grid's autosave pause, queued per row so a save and a clear never cross. Writes go ONLY to
+  // helper_edits -- never save_cell_price / save_row_bcs_rates -- and a typed final value is never sent. A locked,
+  // taken-over or history view saves nothing (the server refuses as well); the change then stays in the panel session.
+  const { data: helperEditsData, mutate: mutateHelperEdits } = useFrappeGetCall<{ message: GetRowHelperEditsResponse }>(
+    "nirmaan_stack.api.boq.wizard.helper_edits.get_row_helper_edits",
+    { boq_name: boqId ?? "", sheet_name: sheetName ?? "", committed_version: commitVersion ?? 0 }, // sheet_name VERBATIM (#152)
+    RATE_HELPER_ENABLED && boqId && sheetName && commitVersion !== null ? undefined : null,
+  );
+  const helperEditScope = `${boqId ?? ""}|${sheetName ?? ""}|${commitVersion ?? ""}`;
+  const [helperEditOverlay, setHelperEditOverlay] = useState<{ scope: string; rows: Record<number, HelperEditOverlayRow> }>(
+    () => ({ scope: helperEditScope, rows: {} }),
+  );
+  // another sheet or version starts from its own read alone (no effect: the stale overlay is never read)
+  const overlayRows = helperEditOverlay.scope === helperEditScope ? helperEditOverlay.rows : EMPTY_HELPER_EDIT_OVERLAY;
+  const setOverlayRow = useCallback((row: number, next: (prev: HelperEditOverlayRow | undefined) => HelperEditOverlayRow) => {
+    setHelperEditOverlay((o) => {
+      const rowsNow = o.scope === helperEditScope ? o.rows : EMPTY_HELPER_EDIT_OVERLAY;
+      return { scope: helperEditScope, rows: { ...rowsNow, [row]: next(rowsNow[row]) } };
+    });
+  }, [helperEditScope]);
+  const { call: saveHelperEditCall } = useFrappePostCall("nirmaan_stack.api.boq.wizard.helper_edits.save_row_helper_edit");
+  const { call: clearHelperEditsCall } = useFrappePostCall("nirmaan_stack.api.boq.wizard.helper_edits.clear_row_helper_edits");
+  const helperEditTimersRef = useRef(new Map<string, { timer: number; run: () => void }>());
+  const helperEditQueueRef = useRef(new Map<number, Promise<unknown>>());
+  const queueHelperEditWrite = useCallback((row: number, write: () => Promise<unknown>) => {
+    const prev = helperEditQueueRef.current.get(row) ?? Promise.resolve();
+    // A failed write is not retried and shows nothing new on screen (UI CHANGE CONTROL): the change stays in the panel
+    // session, as every change did before this slice, and the next reload shows what the server kept.
+    const next = prev.then(write).catch((e: unknown) => console.warn("BoQ rate helper: a change was not saved for the row", e));
+    helperEditQueueRef.current.set(row, next);
+  }, []);
+  const helperEditsWritable = !locked && commitVersion !== null && !!boqId && !!sheetName;
+  const handleSaveHelperEdit = useCallback((attrId: string, value: string, fromView: HelperView) => {
+    if (!helperPanel || !helperEditsWritable) return;
+    const row = helperPanel.excelRow;
+    const target = { boq_name: boqId!, sheet_name: sheetName!, committed_version: commitVersion!, excel_row: row };
+    const categoryId = liveCategoriesByExcelRow.get(row)?.effective_category_id ?? null;
+    setOverlayRow(row, (prev) => ({ cleared: prev?.cleared, fields: { ...(prev?.fields ?? {}), [attrId]: { value, from_kind: fromView } } }));
+    const key = `${row}|${attrId}`;
+    const timers = helperEditTimersRef.current;
+    const pending = timers.get(key);
+    if (pending) window.clearTimeout(pending.timer);
+    const run = () => {
+      timers.delete(key);
+      queueHelperEditWrite(row, () => saveHelperEditCall({ ...target, attr_id: attrId, value, from_kind: fromView, ...(categoryId ? { category_id: categoryId } : {}) }));
+    };
+    timers.set(key, { timer: window.setTimeout(run, HELPER_EDIT_SAVE_PAUSE_MS), run });
+  }, [helperPanel, helperEditsWritable, boqId, sheetName, commitVersion, liveCategoriesByExcelRow, setOverlayRow, queueHelperEditWrite, saveHelperEditCall]);
+  const handleClearHelperEdits = useCallback((attrId?: string) => {
+    if (!helperPanel || !helperEditsWritable) return;
+    const row = helperPanel.excelRow;
+    const target = { boq_name: boqId!, sheet_name: sheetName!, committed_version: commitVersion!, excel_row: row };
+    // the clear wins over a change of the same field (Revert: of any field of the row) still waiting to be sent
+    for (const [key, p] of helperEditTimersRef.current) {
+      if (attrId === undefined ? key.startsWith(`${row}|`) : key === `${row}|${attrId}`) {
+        window.clearTimeout(p.timer);
+        helperEditTimersRef.current.delete(key);
+      }
+    }
+    setOverlayRow(row, (prev) => (attrId === undefined
+      ? { cleared: true, fields: {} }
+      : { cleared: prev?.cleared, fields: { ...(prev?.fields ?? {}), [attrId]: null } }));
+    queueHelperEditWrite(row, () => clearHelperEditsCall({ ...target, ...(attrId ? { attr_id: attrId } : {}) }));
+  }, [helperPanel, helperEditsWritable, boqId, sheetName, commitVersion, setOverlayRow, queueHelperEditWrite, clearHelperEditsCall]);
+  // a change still waiting when the page goes is sent at once, not dropped
+  useEffect(() => () => {
+    for (const p of [...helperEditTimersRef.current.values()]) {
+      window.clearTimeout(p.timer);
+      p.run();
+    }
+  }, []);
+  // R-BCS-140: a finished Suggest run replaced the saved edits of the rows it read (server side): read them again and drop
+  // this session's overlay. Reached through a ref because onSuggestFinished is declared above this block.
+  useLayoutEffect(() => {
+    helperEditsAfterRunRef.current = () => {
+      setHelperEditOverlay({ scope: helperEditScope, rows: {} });
+      void mutateHelperEdits();
+    };
+  });
+  const helperPanelSavedEdits = useMemo(
+    () => (helperPanel ? helperEditsForRow(helperEditsData?.message?.rows, overlayRows, helperPanel.excelRow) : undefined),
+    [helperPanel, helperEditsData, overlayRows],
+  );
 
   // Acquire the single-editor lock on FIRST edit-intent (A2 / ADR-0011). Called from the grid's
   // onDirtyChange (fires when the user first modifies a cell, BEFORE any save), so a second
@@ -5604,6 +5734,9 @@ const SheetPricingPage = () => {
             helpers={panelHelpers}
             onUse={handleUseSuggestion}
             onClose={() => setHelperPanel(null)}
+            savedEdits={helperPanelOpen ? helperPanelSavedEdits : undefined}
+            onSaveEdit={handleSaveHelperEdit}
+            onClearEdits={handleClearHelperEdits}
           />
         )}
         {/* RM-3c: FULL-SCREEN PUSH panel -- INSIDE the flex row (a flex sibling of the grid column), so
@@ -5622,6 +5755,9 @@ const SheetPricingPage = () => {
             helpers={panelHelpers}
             onUse={handleUseSuggestion}
             onClose={() => setHelperPanel(null)}
+            savedEdits={helperPanelSavedEdits}
+            onSaveEdit={handleSaveHelperEdit}
+            onClearEdits={handleClearHelperEdits}
           />
         )}
         </div>
