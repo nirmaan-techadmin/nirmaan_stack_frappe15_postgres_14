@@ -1,0 +1,239 @@
+{
+ "actions": [],
+ "autoname": "BRHE-.YY.-.#####",
+ "creation": "2026-11-26 00:46:40.954528",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "boq",
+  "sheet_name",
+  "excel_row",
+  "committed_version",
+  "category_id",
+  "edits_section",
+  "edits",
+  "lifecycle_section",
+  "edit_version",
+  "is_current",
+  "edited_by",
+  "edited_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Row Identity"
+  },
+  {
+   "description": "The workbook (BOQs) the edited row belongs to. Denormalized, as on BoQ Row BCS Rate.",
+   "fieldname": "boq",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "BoQ",
+   "options": "BOQs",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "description": "The committed sheet name, stored VERBATIM (#152 -- never stripped).",
+   "fieldname": "sheet_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Sheet Name",
+   "reqd": 1
+  },
+  {
+   "description": "The source Excel row the edit belongs to (= BOQ Nodes.source_row_number). Per ROW: the edit is shared by every view of the row's rate helper (Supply, Install, Combined, BCS supply), so there is no column.",
+   "fieldname": "excel_row",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Excel Row",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "The committed version the edit was made on. A new committed version reads NO edit of an older one (users copy rates to the next version explicitly).",
+   "fieldname": "committed_version",
+   "fieldtype": "Int",
+   "in_standard_filter": 1,
+   "label": "Committed Version",
+   "reqd": 1
+  },
+  {
+   "description": "The row's effective category when the edit was saved. A record of context only; nothing branches on it.",
+   "fieldname": "category_id",
+   "fieldtype": "Data",
+   "label": "Category"
+  },
+  {
+   "fieldname": "edits_section",
+   "fieldtype": "Section Break",
+   "label": "Helper Edits"
+  },
+  {
+   "description": "{attr_id: {value, from_kind, by, at}} for every key the rate helper's setAttr takes (plain attributes and the JSON keys __items__, __shares__, __row_unit__, __row_qty__, __includes__, __scope__). from_kind = the view the edit was made in: supply / install / combined / bcs_supply. ONLY the helper's inputs: a typed final value, a cell's rate and a BCS cost are never stored here, and nothing here writes them.",
+   "fieldname": "edits",
+   "fieldtype": "JSON",
+   "label": "Edits"
+  },
+  {
+   "fieldname": "lifecycle_section",
+   "fieldtype": "Section Break",
+   "label": "Lifecycle"
+  },
+  {
+   "default": "1",
+   "description": "Per-(boq, sheet_name, excel_row, committed_version) version, max prior + 1 on every save (freeze-and-supersede, as BoQ Row BCS Rate.bcs_version). A record is never overwritten in place.",
+   "fieldname": "edit_version",
+   "fieldtype": "Int",
+   "label": "Edit Version",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "Exactly one current record per (boq, sheet_name, excel_row, committed_version), enforced by the write path (api/boq/wizard/helper_edits.py), not this controller. The prior current is frozen with frappe.db.set_value(is_current=0); clearing every key ends the row's current record.",
+   "fieldname": "is_current",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Is Current"
+  },
+  {
+   "description": "Who made the latest save.",
+   "fieldname": "edited_by",
+   "fieldtype": "Link",
+   "label": "Edited By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "description": "When the latest save was written.",
+   "fieldname": "edited_at",
+   "fieldtype": "Datetime",
+   "label": "Edited At",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-26 00:46:40.954528",
+ "modified_by": "Administrator",
+ "module": "Nirmaan Stack",
+ "name": "BoQ Row Helper Edit",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nirmaan Procurement Executive",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nirmaan Project Lead",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nirmaan Project Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nirmaan Estimates Executive",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nirmaan Design Lead",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nirmaan Design Executive",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nirmaan Accountant",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nirmaan HR Executive",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nirmaan PMO Executive",
+   "share": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

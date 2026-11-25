@@ -1040,6 +1040,13 @@ def _suggest_worker(boq=None, sheet_name=None, resume_run_id=None, only_rows=Non
         bcs_switched_on = complete and ai_status == "ran" and _switch_bcs_on_after_suggest(
             boq, sheet_name, cv, env.get("attempted_rows")
         )
+        # BCS-4 (owner R-BCS-140, replacing R-BCS-45): the rows this pass's model read -- complete or partial -- take the run's
+        # own output: their saved rate-helper edits are superseded (kept as history). A fail-closed pass read nothing. Never
+        # fails the run (the helper rolls back and logs).
+        if ai_status == "ran":
+            from nirmaan_stack.api.boq.wizard.helper_edits import supersede_edits_for_rows
+
+            supersede_edits_for_rows(boq, sheet_name, env.get("attempted_rows"), cv)
         payload = {
             "status": "success" if complete else "partial",
             "boq": boq,
