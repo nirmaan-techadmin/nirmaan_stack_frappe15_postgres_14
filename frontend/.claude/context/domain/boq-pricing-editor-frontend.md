@@ -706,7 +706,7 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
       the folded line, the headline from the BCS box, a cost block's lines and figures row, the calculator's BCS section -- is
       whole rupees ROUNDED UP with a thousands separator (`bcsSide.bcsFigureText`; a cost block's step line ending "= n" through
       `bcsLine`); the copy icon and "Use this value" keep the EXACT figure, and the final-value box on the BCS side shows it to
-      the paisa ("2,009.60", read back by `parseBcsValue`). BoQ figures print as before. The scope line reads "Row <n> · BCS
+      the paisa ("2,009.60", read back by `parseBcsValue`). BoQ figures print as before (BCS-W2 below). The scope line reads "Row <n> · BCS
       supply cost" from the BCS box. The installation line is `BcsSide.installNote`, drawn ONCE below the sections
       (`data-testid="bcs-install-note"`), no longer inside each cost block. The never-asked default line on an Electrical row
       reads "<field> = <value> (not read from the BoQ; the usual default)" (`pricingSheetHelper.neverAskedWords`).
@@ -715,6 +715,15 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
       explanation-row line shows once (under Supply formula); a template Pricing Input remark is drawn by
       `PricingInputRemarkCell` from the row's current values (the draft while editing), price sentence in BoQ, cost sentence in
       BCS. Every other discipline's Rate Master is unchanged.
+    - **BCS-W2 (owner R2 "2. yes"): BoQ figures print thousands separated.** `bcsSide.boqFigureText(v)` (en-IN whole part,
+      decimals as `String(moneyValue(v))` printed them) and `boqLine(line)` (the result after "= " at the end or before ", rounded";
+      the figure after "rounded up to the rupee: " at the end) are DRAWN by `RateHelperPanel.tsx`: `FiguresRow` (no `FigureFormat` =
+      the BoQ side), the headline `shown()`, the BoQ `PriceSection`'s `figureText`, `drawnBoq(g)` for BoQ section lines, the flat
+      lines (`neverAskedDisplay(boqLine(line))`) and the item-list `working` lines. NOT touched: `finalStr` / `finalNum` (the box and
+      the write), `CopyFigureButton` (`bareNumberText(moneyValue(v))`), `computedValue`. Pins: `bcsw2Separators.dom.test.tsx`.
+    - **Rate Master (BCS-W2, owner Question 1 "1a / 2a"):** the Data Viewer's rate headers carry no derived-kind word any more
+      ("List price" / "BCS price" / "BoQ price", " (install)"); the title and the code name stay; the download keeps `key [Label]`.
+      Pins: `bcsw2RateMasterTags.dom.test.tsx`.
 
 ### Filters, selection and Suggest rates
 

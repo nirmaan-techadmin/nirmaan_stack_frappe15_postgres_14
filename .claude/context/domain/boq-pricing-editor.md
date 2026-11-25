@@ -66,9 +66,18 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
 - Owner R5 (2026-11-24 21:54 / 21:56 "1a"): every BCS FIGURE the helper panel and the calculator SHOW is whole rupees, ROUNDED UP,
   with a thousands separator (2009.6 -> 2,010; 441.6 -> 442); the stored and written value stays EXACT: "Use this value" from the BCS
   box writes 2009.6, and the box beside it shows the exact 2,009.60 (`bcsSide.bcsFigureText` / `bcsExactText` / `parseBcsValue`).
-  BoQ figures print as before. This is the owner's ruling for BCS display; the general money rule (round to nearest) is unchanged.
+  BoQ figures print as before (until BCS-W2, below). This is the owner's ruling for BCS display; the general money rule (round to
+  nearest) is unchanged.
 - The scope line reads "Row <n> · BCS supply cost" when the BCS supply cost box opened the panel.
 - The installation line ("Installation cost is one figure for the whole BoQ, on the BoQ summary") shows ONCE per panel / calculator
   result, below the sections (`BcsSide.installNote`), no longer inside every cost block (owner 20:09 "ok").
 - Electrical rows only (answer 4a): the never-asked default reads "Plate qty = 1 (not read from the BoQ; the usual default)"
   (`pricingSheetHelper.neverAskedWords`); any other discipline keeps the old words.
+
+### BoQ figures thousands separated on screen - BCS-W2 (2026-11-25)
+- Owner R2 (2026-11-25 13:08, "2. yes"): every BoQ FIGURE the helper panel and the calculator SHOW carries a thousands separator, the
+  same en-IN grouping as the BCS figures (2925 -> 2,925; 8638 -> 8,638), its decimals exactly as before (1377.5 -> 1,377.5): the
+  figures row, the headline, the folded BoQ line, each working line's result ("Supply = 2,925"; "..., rounded up to the rupee: 1,378"),
+  the item-list lines and the row total. Every category (the helper and the calculator are shared).
+- Display only: the box beside "Use this value" still shows 2925, "Use this value" writes 2925, a figure's copy icon copies the bare
+  2925; the helper's output, the grid's stored rates and every amount are unchanged (`bcsSide.boqFigureText` / `boqLine`).

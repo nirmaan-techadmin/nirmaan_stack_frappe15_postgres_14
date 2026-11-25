@@ -52460,3 +52460,18 @@ by fast-forward to c2bf7d076; HVAC v81 loaded; Electrical v73 minted and loaded.
 - Cert C1 - C11 PASS on dev2 :8180 (2026-11-25 10:12 - 10:28): row 73 BCS 2,010 on screen / 2,009.60 in the box; row 124 Use writes
   6,664.6, then 2,927 restored; calculator W4a BCS supply 6,091; HVAC Rate Master and helper unchanged.
 - Open: the downloaded rate file keeps the old gland band text in its formula row and the remark templates as stored.
+
+## Slice BCS-W2 (dev2) - screen tidy-up: main taken in, Rate Master's column-header tags off the screen, thousands separators on BoQ figures - 2026-11-25
+- Owner R1 (13:08 / 13:14: the tags "fix now ... or remove it if not rquired"), R2 (13:08 "2. yes": BoQ figures get separators);
+  Question 1 answer (16:16 "ok for both"): 1 (a) remove all five grey words on screen, 2 (a) the download keeps its words.
+- Commits: M 73aa6a07e (main at exactly 45546905b: VAV-2c3 + VAV-FIX, HVAC v84 - v88; two docs-only both-added conflicts, main first,
+  proved), K1 0c464de7f (separators), K2 2f54a3d32 (tags), K3 this docs commit; --no-verify for rule S1 only (320 at HEAD).
+- Data: HVAC v88 loaded on dev2 after a proved backup (live == file); no migrate (main asked none).
+- Screens: bcsSide boqFigureText / boqLine drawn by RateHelperPanel (figures row, headline, folded BoQ line, working lines, item
+  lists); RateMasterDataViewer no longer derives or draws the rate-column word. Moved checks A1 - A5 (bcswPanel, vav2c1ScopeBox -
+  a main-lane test -, a pricingSheetHelper source pin) and B1 - B2 (rateMasterDataViewer source pins), released by chat-Claude.
+- Proof: replay 33,346 rows byte-equal B0 = B1 = after (f3dc92ca); tag list 22 -> 0 as answered; 3 switch-offs red; tsc 0 new;
+  vitest related 6,589 / 6,590 + rmAccess1 (known timeout) 12 / 12 alone.
+- Cert C1 - C7 PASS on dev2 :8180 (2026-11-25 17:16 - 17:23): pop-up and wiring headers without the words, HVAC ADP unchanged; row 73
+  2,925 / 1,030 with the box at 2925; calculator 7,909 / 729 / 8,638 / 3,030 with BCS 6,091; HVAC row 94 172 / 34 / 206.
+- Open: the download keeps "[BCS price]" etc. in its header cells (owner 2a) - a later slice if the file's words should change.

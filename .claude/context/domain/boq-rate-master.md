@@ -940,7 +940,10 @@ do not settle a column it is left unlabelled rather than guessed, and the formul
 Gated on the DISCIPLINE (`RATE_LABEL_DISCIPLINES`) with an INDEPENDENT second gate on the `rate_ref`
 vocabulary — HVAC produces zero labels and its headers are byte-identical; a discipline opts in
 deliberately, never by acquiring a pipeline shape. The TypeScript mirror in `rateMasterSpec.ts` is
-pinned to the Python, like the `FORMULA_FIXTURE` pair.
+pinned to the Python, like the `FORMULA_FIXTURE` pair. **Since BCS-W2 (2026-11-25, owner Question 1 "1a / 2a") the label is
+shown in the DOWNLOAD only** (the Excel / CSV header cell `key [Label]`; the upload strips the brackets and matches by name): the
+Data Viewer's column headers no longer carry the grey word, whose "BCS" was this older meaning and clashed with the FORMULA row's
+BoQ / BCS sections. The TypeScript mirror stays as the pinned twin; no screen reads it.
 
 **THE PRICING-INPUT IMPACT PANEL PRICES THROUGH THE PRODUCT'S OWN PIPELINE, NEVER THROUGH A SECOND
 IMPLEMENTATION OF IT (owner-locked).** It used to price a SKU as `stored rate x the
@@ -6281,3 +6284,16 @@ figure, config key and worked example byte-equal; every cost figure v74's (the e
   export's twin): price pipelines in the BoQ section, `*_bcs` pipelines in the BCS section, a line in both stays BoQ. The download's
   formula row is unchanged (it still names `thickness_sqmm` for the gland bands: the band lines are screen-only).
 - The Derivation tab's Electrical texts are CODE (`itemListRuleOrder.ts`, `DERIVATION_RULINGS`), not the rate file.
+
+## Rate Master column-header tags off the screen - BCS-W2 (2026-11-25) - as built
+
+The owner's words: R1 (2026-11-25 13:08 "can we fix now??", 13:14 "yes we should do it...or remove it if not rquired"); Question 1
+answer (16:16 "ok for both"): point 1 (a) REMOVE the five grey words, point 2 (a) the download keeps its words.
+
+- What they were: the derived rate-column kind (`deriveRateColumnLabels`, the twin of `csv_exporter.derive_rate_column_labels`),
+  drawn by the Data Viewer as grey text beside a rate column's title: "List price" (13 Electrical columns), "BCS price" (3),
+  "BCS price (install)" (3), "BoQ price" (1), "BoQ price (install)" (2); HVAC carried none (`RATE_LABEL_DISCIPLINES`).
+- Now: `RateMasterDataViewer.tsx` neither derives nor draws it (the `rateLabelFor` block is gone; the rate header passes no `note`).
+  The title and the code name under it are unchanged; no column, filter, search, upload or download changed.
+- Readers found before the change: the header only, on screen; the download's header cells (kept); the upload ignores the bracketed
+  words; tests. `bcsw2RateMasterTags.dom.test.tsx` pins "no grey word on any Electrical or HVAC header" over the newest files.
