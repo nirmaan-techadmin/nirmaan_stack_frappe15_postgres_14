@@ -61,9 +61,6 @@ import {
   PRICING_INPUT_VALUE_COLUMNS,
   PRICING_INPUT_COLUMN_LABELS,
   PRICING_INPUT_COLUMN_SHORT_LABELS,
-  // SLICE 12b(B): the derived rate-column kind for the header (acceptance item 1).
-  deriveRateColumnLabels,
-  rateColumnLabel,
   columnOrderForFile,
   pricingInputUsedByText,
   sourceOrder,
@@ -446,38 +443,11 @@ export function RateMasterDataViewer({
   }, [scopedItems, config]);
   const derivedCounts = useMemo(() => derivedCountsByKey(config, scopedItems), [config, scopedItems]);
 
-  // SLICE 12b(B) -- THE DERIVED RATE-COLUMN LABEL, for this category's headers.
-  //
-  // ⚠️ DERIVED FROM THIS ONE CONFIG, AND THAT IS PROVEN SUFFICIENT, NOT ASSUMED. The category that
-  // owns a kind is also the category that prices it, so its own pipelines carry all the evidence.
-  // MEASURED on v65: a per-category derivation agrees with the whole-discipline derivation on EVERY
-  // owned kind -- 0 differences across all 13 categories. That is what lets this header avoid fetching
-  // twelve configs. If a future category ever prices a kind it does not declare, the two would
-  // diverge and the header would go quiet (never wrong) -- the same fail-to-silence as an
-  // unlabelled column.
-  // ⚠️ The DISCIPLINE is passed, and the deriver REQUIRES it: the label is Electrical BY RULE (owner
-  // ruling 2026-09-28), so an HVAC config gets an empty map here exactly as it does in the exporter.
-  // The stored config carries its own `discipline` -- verified on v65 -- so the viewer needs no new prop.
-  const rateLabels = useMemo(
-    () => deriveRateColumnLabels(
-      config ? { [config.category_id]: config } : {},
-      String((config as unknown as { discipline?: string })?.discipline ?? ""),
-    ),
-    [config],
-  );
-  // The kinds actually present, so a rate key carried by two kinds is labelled only where they agree
-  // -- one header cell cannot say two things. Mirrors `csv_exporter.header_label_for_rate`.
-  const rateLabelFor = useCallback(
-    (rateKey: string): string | undefined => {
-      const seen = new Set<string>();
-      for (const it of scopedItems) {
-        const lab = rateColumnLabel(rateLabels, it.kind, rateKey);
-        if (lab) seen.add(lab);
-      }
-      return seen.size === 1 ? Array.from(seen)[0] : undefined;
-    },
-    [rateLabels, scopedItems],
-  );
+  // BCS-W2 (owner, Question 1 answer 2026-11-25 16:16 "ok for both", point 1 (a)): the header carries NO derived rate-column
+  // word any more ("List price" / "BCS price" / "BoQ price", " (install)") -- slice 12b(B)'s grey words used the OLD meaning of
+  // "BCS" and clashed with the FORMULA row's BoQ / BCS sections, which now say in plain words what each column does. The title and
+  // the code name under it stay. The download keeps its `key [Label]` header cells (point 2 (a)): `csv_exporter` is untouched, and
+  // `rateMasterSpec.deriveRateColumnLabels`, its pinned TypeScript twin, stays as it is.
 
   // Kind filter chips = this category's kinds (present in its items), sorted.
   const kinds = useMemo(() => {
@@ -784,10 +754,8 @@ export function RateMasterDataViewer({
   };
 
   // A column header = its label + a per-column faceted filter (funnel -> search + checkbox list).
-  // SLICE 12b(B): `note` is the DERIVED rate-column kind ("List price" / "BCS price" / "BoQ price",
-  // with "(install)" where the leg applies). It is deliberately NOT rendered through `tag`, whose
-  // uppercase styling belongs to the spec-mode marker and would read as "LIST PRICE" -- these are
-  // words, not a badge. Absent => the header is byte-identical to before.
+  // SLICE 12b(B): `note` is small grey words beside the label, deliberately NOT rendered through `tag`, whose uppercase styling
+  // belongs to the spec-mode marker. BCS-W2: no caller passes one today (the derived rate-column kind is no longer shown).
   /** the FULL column name, for the hover -- the header itself shows the short form */
   /**
    * ⚠️ THE `th` MUST CLIP, AND EVERY HEADER MUST SHARE ONE HEIGHT. `overflow: visible` is what let a
@@ -1132,12 +1100,12 @@ export function RateMasterDataViewer({
                   const k = key.slice(5);
                   return (
                     <TableHead key={key} className={cn("sticky top-0 z-20 bg-background text-right", piHead)}>
-                      {/* SLICE 12b(B) acceptance 1: the DERIVED kind rides beside the key. A Pricing
-                          Input carries its own fixed column label instead -- it is not a SKU rate. */}
+                      {/* BCS-W2 (owner 1a): no derived kind beside the key any more (was SLICE 12b(B) acceptance 1). A
+                          Pricing Input carries its own fixed column label -- it is not a SKU rate. */}
                       {hdr(`rate:${k}`,
                            piMode ? (PRICING_INPUT_COLUMN_SHORT_LABELS[k] ?? PRICING_INPUT_COLUMN_LABELS[k] ?? k)
                                   : showFileIds ? plainFileColumnLabel(k) : k, true,
-                           undefined, piMode ? undefined : rateLabelFor(k), fileIdOf(key))}
+                           undefined, undefined, fileIdOf(key))}
                     </TableHead>
                   );
                 }

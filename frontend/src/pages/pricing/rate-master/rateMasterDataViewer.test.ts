@@ -152,15 +152,19 @@ describe("SLICE 12b(A) -- the viewer wires the Pricing Inputs columns", () => {
     expect(src).not.toContain("<col />{/* input name");
   });
 
-  it("ACCEPTANCE 1: a rate header carries its DERIVED kind -- and a Pricing Input does NOT", () => {
-    // the label rides as `note`, never as `tag` (whose uppercase styling is the spec-mode marker)
-    expect(src).toContain("piMode ? undefined : rateLabelFor(k)");
-    expect(src).toContain("deriveRateColumnLabels(");
+  // INVERTED at BCS-W2 (owner, Question 1 answer 2026-11-25 "ok for both", point 1 (a): the grey words are REMOVED from the
+  // headers on screen) by mechanical authority. BEFORE: "ACCEPTANCE 1: a rate header carries its DERIVED kind -- and a Pricing
+  // Input does NOT" -- toContain("piMode ? undefined : rateLabelFor(k)") and toContain("deriveRateColumnLabels(").
+  it("ACCEPTANCE 1 (BCS-W2): a rate header carries NO derived kind -- no discipline, no Pricing Input", () => {
+    expect(src).not.toContain("rateLabelFor(");
+    expect(src).not.toContain("deriveRateColumnLabels(");
+    expect(src).toContain("undefined, undefined, fileIdOf(key))"); // the rate header passes no note
   });
 
-  it("NEGATIVE: the label is gated on the DISCIPLINE, so an HVAC config gets none", () => {
-    // the viewer passes the config's own discipline; the deriver refuses anything outside its register
-    expect(src).toMatch(/deriveRateColumnLabels\([\s\S]{0,200}?discipline/);
+  // INVERTED at BCS-W2 (as above). BEFORE: toMatch(/deriveRateColumnLabels\([\s\S]{0,200}?discipline/) -- the HVAC half (an
+  // HVAC config gets no word) still holds, now for every discipline: the viewer derives no label at all.
+  it("NEGATIVE (BCS-W2): no discipline-gated label is derived in the viewer, so an HVAC config still gets none", () => {
+    expect(src).not.toMatch(/deriveRateColumnLabels\([\s\S]{0,200}?discipline/);
   });
 
   it("a Pricing Input's own TEXT is searchable (it was not before 12b(B))", () => {
