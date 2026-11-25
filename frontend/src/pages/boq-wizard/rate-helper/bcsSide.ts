@@ -57,6 +57,36 @@ export function bcsLine(line: string): string {
   return line.replace(/= (-?\d[\d,]*(?:\.\d+)?)(?=$|, rounded)/, (_m, n: string) => `= ${bcsFigureText(Number(n.replace(/,/g, "")))}`);
 }
 
+/** A number written as text ("2925", "-1377.5", "2,196") with its whole part grouped as `bcsFigureText` groups it (en-IN) and its
+ *  decimals kept exactly as written: "2925" -> "2,925", "1377.5" -> "1,377.5". */
+function groupedNumberText(text: string): string {
+  const [whole, frac] = text.replace(/,/g, "").split(".");
+  const n = Number(whole);
+  if (!/^-?\d+$/.test(whole) || !Number.isFinite(n)) return text;
+  const grouped = (whole.startsWith("-") ? "-" : "") + Math.abs(n).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+  return frac === undefined ? grouped : `${grouped}.${frac}`;
+}
+
+/**
+ * BCS-W2 (owner R2, 25 Nov 13:08 "2. yes"): a BoQ figure ON SCREEN carries the thousands separator a BCS figure already carries
+ * (`bcsFigureText`'s grouping: 2925 -> "2,925", 8638 -> "8,638"), and keeps its decimals exactly as it printed before (the figure to
+ * the paisa, `moneyValue`: 1377.5 -> "1,377.5"). Display only: the box beside "Use this value", the value written, the copied
+ * value and every amount stay as they are.
+ */
+export function boqFigureText(v: number): string {
+  const m = moneyValue(v);
+  return typeof m === "number" && Number.isFinite(m) ? groupedNumberText(String(m)) : String(m);
+}
+
+/** BCS-W2 (owner R2): a BoQ working line AS DRAWN -- its result figure (after "= ", ending the line or before ", rounded ...", the
+ *  place `bcsLine` reads; and the figure after "rounded up to the rupee: " ending a line) with the thousands separator, its
+ *  decimals as written. The helper's own lines stay exact. */
+export function boqLine(line: string): string {
+  return line
+    .replace(/= (-?\d[\d,]*(?:\.\d+)?)(?=$|, rounded)/, (_m, n: string) => `= ${groupedNumberText(n)}`)
+    .replace(/(rounded up to the rupee: )(-?\d[\d,]*(?:\.\d+)?)$/, (_m, lead: string, n: string) => `${lead}${groupedNumberText(n)}`);
+}
+
 /** The supply output of a pipeline: the first output that is `supply` or `supply_<unit>`. */
 export function supplyOutputOf(pl: Pipeline | undefined): string | undefined {
   return (pl?.output ?? []).find((o) => o === "supply" || o.startsWith("supply_"));

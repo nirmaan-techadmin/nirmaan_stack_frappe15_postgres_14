@@ -86,8 +86,11 @@ describe("R5 c the Scope box", () => {
     expect([...el.querySelectorAll('[data-testid="figure-not-in-scope"]')].map((x) => x.textContent)).toEqual(["- not in scope"]);
     expect(q(el, "item-block")!.textContent).toContain("supply: 0 - not in scope");
     // the Calculator states the scope itself: the valve's installation-only uplift (50%) applies, as before this slice
-    expect(q(el, "item-block")!.textContent).toContain("install: 3000 x (1 + 50%) = 4500");
-    expect(q(el, "item-row-total")!.textContent).toContain("4500");
+    // BCS-W2 (owner R2 "2. yes"; was toContain("... = 4500") and toContain("4500")): the same figure, printed thousands separated
+    expect(q(el, "item-block")!.textContent).toContain("install: 3000 x (1 + 50%) = 4,500");
+    expect(q(el, "item-block")!.textContent).not.toContain("= 4500");
+    expect(q(el, "item-row-total")!.textContent).toContain("4,500");
+    expect(q(el, "item-row-total")!.textContent).not.toContain("4500");
   });
 });
 

@@ -4281,7 +4281,10 @@ describe("Calculator slice 1 / TWO -- the copy value is the BARE number", () => 
     // authority. BEFORE: toContain("<CopyFigureButton value={v}") and toMatch(/typeof v === "number" \? v : "—"/).
     expect(src).toContain("<CopyFigureButton value={moneyValue(v)}");
     expect(src).not.toContain("<CopyFigureButton value={v}");
-    expect(src).toMatch(/typeof v === "number" \? moneyValue\(v\) : "—"/); // an absent kind is the em dash, never 0
+    // INVERTED at BCS-W2 (owner R2 "2. yes": a BoQ figure prints thousands separated) by mechanical authority. BEFORE:
+    // toMatch(/typeof v === "number" \? moneyValue\(v\) : "—"/). The copy control above still carries moneyValue(v), bare.
+    expect(src).toMatch(/typeof v === "number" \? boqFigureText\(v\) : "—"/); // an absent kind is the em dash, never 0
+    expect(src).not.toMatch(/typeof v === "number" \? moneyValue\(v\) : "—"/);
     // the header block is UNCHANGED: it still renders the single `computed` figure / the stacked headlines
     expect(src).toContain("const computed = result.values[kind!]");
     expect(src).toContain("h.values[kind!]");

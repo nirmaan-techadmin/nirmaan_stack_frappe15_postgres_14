@@ -37,7 +37,7 @@ import {
 import { moneyValue } from "./attributeWorkingLines";
 // BCS-3: the ONE section piece (tag, colour, open / folded) the panel and the calculator draw both sections with
 import { PriceSection } from "./PriceSection";
-import { BCS_INSTALL_NOTE, bcsExactText, bcsFigureText, bcsLine, parseBcsValue } from "./bcsSide";
+import { BCS_INSTALL_NOTE, bcsExactText, bcsFigureText, bcsLine, boqFigureText, boqLine, parseBcsValue } from "./bcsSide";
 import { neverAskedDisplay } from "./pricingSheetHelper";
 import { ScopeBox } from "./ScopeBox";
 import { DoubleCountBlock, ReviewBlock, SharedItems } from "./SharedItemBlock";
@@ -262,6 +262,10 @@ const FigureFormat = createContext<((v: number) => string) | undefined>(undefine
 function drawnCost(g: WorkingsGroup): WorkingsGroup {
   return { ...g, derivation: g.derivation.filter((l) => l !== BCS_INSTALL_NOTE).map(bcsLine) };
 }
+/** BCS-W2 (owner R2 "2. yes"): a BoQ block as DRAWN -- each line's result figure with the thousands separator (`boqLine`). A copy. */
+function drawnBoq(g: WorkingsGroup): WorkingsGroup {
+  return { ...g, derivation: g.derivation.map(boqLine) };
+}
 
 /**
  * Calculator slice 1 (owner 2026-09-08, "place small copy icon besude each umber" / "bare number").
@@ -336,7 +340,7 @@ function FiguresRow({ figures, copy = true, muted = false, stacked = false, unit
           <span key={k} className="inline-flex items-center gap-1 tabular-nums">
             <span className={muted ? "opacity-70" : "text-muted-foreground"}>{kindLabel(k)}</span>
             <span className="font-semibold text-foreground">
-              {format && typeof v === "number" ? format(v) : typeof v === "number" ? moneyValue(v) : "—"}
+              {format && typeof v === "number" ? format(v) : typeof v === "number" ? boqFigureText(v) : "—"}
             </span>
             {label && typeof v === "number" && (
               <span className={muted ? "opacity-70" : "text-muted-foreground"}>per {label}</span>
@@ -736,8 +740,8 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
             finalOverride[finalKey] ?? (typeof shownFigure === "number" ? (onBcs ? bcsExactText(shownFigure) : String(moneyValue(shownFigure))) : "");
           // BCS-W (owner R5 "1a"): the box shows the EXACT cost it will write (2,009.60), so its separators are read off on the BCS side
           const finalNum = onBcs ? parseBcsValue(finalStr) : Number.parseFloat(finalStr);
-          /** BCS-W (owner R5): a figure on the BCS side shows in whole rupees, rounded up; the BoQ side as before */
-          const shown = (v: number) => (onBcs ? bcsFigureText(v) : String(moneyValue(v)));
+          /** BCS-W (owner R5): a figure on the BCS side shows in whole rupees, rounded up; BCS-W2 (R2): the BoQ side thousands separated */
+          const shown = (v: number) => (onBcs ? bcsFigureText(v) : boqFigureText(v));
           // SLICE 6: an item-list suggestion renders its blocks instead of the flat attribute list, and "Use
           // this value" stays disabled until EVERY item priced (S4 -- all or nothing).
           const itemList = (result as ItemListSuggestion).itemList;
@@ -1154,7 +1158,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                       // Cable and Termination workings read as visually distinct sections. The shared
                       // EXTRACTED attributes already render ONCE above (they belong to the row, not a
                       // group). ABSENT `sections` => the flat rendering below, byte-identical to before.
-                      return <div className={sectionsClass} style={sectionsStyle}>{result.workings.sections.map(renderSection)}</div>;
+                      return <div className={sectionsClass} style={sectionsStyle}>{result.workings.sections.map((g, gi) => renderSection(drawnBoq(g), gi))}</div>;
                     }
                     if (isCalculator && calculatorBlocks && calculatorBlocks.length > 0) {
                       // EMPTY BLOCKS FROM THE START (owner-ruled): before the category prices, the
@@ -1169,7 +1173,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           {result.workings.derivation.length > 0 && (
                             <ul className="space-y-0.5 text-xs text-muted-foreground">
                               {result.workings.derivation.map((line, i) => (
-                                <li key={i}>{neverAskedDisplay(line, ctx?.discipline)}</li>
+                                <li key={i}>{neverAskedDisplay(boqLine(line), ctx?.discipline)}</li>
                               ))}
                             </ul>
                           )}
@@ -1188,7 +1192,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           {result.workings.derivation.length > 0 && (
                         <ul className="space-y-0.5 text-xs text-muted-foreground">
                           {result.workings.derivation.map((line, i) => (
-                            <li key={i}>{neverAskedDisplay(line, ctx?.discipline)}</li>
+                            <li key={i}>{neverAskedDisplay(boqLine(line), ctx?.discipline)}</li>
                           ))}
                         </ul>
                       )}
@@ -1202,6 +1206,7 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                           open={boqOpen}
                           emphasised={!!bcs && !isCalculator && !onBcs}
                           foldedFigure={result.values.supply_rate}
+                          figureText={typeof result.values.supply_rate === "number" ? boqFigureText(result.values.supply_rate) : undefined}
                           onToggle={bcs && !isCalculator && onBcs ? toggleOther : undefined}
                           className={isCalculator ? "order-1" : undefined}
                         >
@@ -1499,13 +1504,13 @@ function ExtraLines({ block, index, onEdit, rateUnit }: { block: ItemBlockView; 
           {l.fields.map((f) => field(l, f))}
           {l.state === "priced" ? (
             <div className="space-y-0.5 text-xs text-muted-foreground">
-              {l.working.map((w, wi) => <div key={wi}>{w}</div>)}
+              {l.working.map((w, wi) => <div key={wi}>{boqLine(w)}</div>)}
               <div className="pt-0.5 text-[10px] font-medium uppercase tracking-wide opacity-70">{BOQ_RATE_LABEL}</div>
               <FiguresRow figures={l.figures} unit={rateUnit} notInScope={l.notInScope} />
             </div>
           ) : (
             <div className="space-y-0.5">
-              {l.working.map((w, wi) => <div key={wi} className="text-xs text-muted-foreground">{w}</div>)}
+              {l.working.map((w, wi) => <div key={wi} className="text-xs text-muted-foreground">{boqLine(w)}</div>)}
               {/* VRF-5 (owner R1): an accessory that cannot price is a note -- the unit still prices without it */}
               <div className={l.optional ? "text-xs text-amber-800 dark:text-amber-300" : "text-xs text-red-700 dark:text-red-400"} data-testid="extra-line-refusal">Not priced &mdash; {l.reason}</div>
             </div>
@@ -2273,7 +2278,7 @@ function ItemListBlocks({
             <div className="space-y-0.5 text-xs text-muted-foreground">
               {b.skuLine && <div>{b.skuLine}</div>}
               {b.working.map((line, li) => (
-                <div key={li}>{line}</div>
+                <div key={li}>{boqLine(line)}</div>
               ))}
               <div className="pt-0.5 text-[10px] font-medium uppercase tracking-wide opacity-70">
                 {BOQ_RATE_LABEL}

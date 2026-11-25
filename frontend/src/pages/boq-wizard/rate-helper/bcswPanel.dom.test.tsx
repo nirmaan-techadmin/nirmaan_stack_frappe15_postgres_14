@@ -10,7 +10,9 @@
 //   (+) "Use this value" from the BCS box writes 2009.6 EXACTLY, and the box beside it shows the exact 2,009.60;
 //   (+) opened from the BCS box the scope line reads "Row <n> · BCS supply cost"; from the Supply box "Supply rate" as before;
 //   (+) the installation line shows ONCE, below the sections, on a two-block panel (the cable) and in the calculator;
-//   (-) BoQ figures print as before (2,925 stays "2925" in the headline, the BoQ lines as the helper writes them);
+//   (-) BoQ figures print as before (2,925 stays "2925" in the headline, the BoQ lines as the helper writes them) -- MOVED BY BCS-W2
+//       (owner R2 "2. yes"): a BoQ figure now prints thousands separated, "2,925" (bcsw2Separators.dom.test.tsx); the box and the
+//       written value stay "2925";
 //   (+/-) the pop-up "never asked" default reads "Plate qty = 1 (not read from the BoQ; the usual default)" on an Electrical
 //       row; any other discipline keeps the old words (unit-level, the line's own function).
 import path from "path";
@@ -97,7 +99,7 @@ describe("BCS-W the figure formats", () => {
 });
 
 describe("BCS-W the helper panel, Electrical", () => {
-  it("(+) from the Supply box: the folded BCS line shows 2,010; the BoQ headline is unchanged; scope line 'Supply rate'", () => {
+  it("(+) from the Supply box: the folded BCS line shows 2,010; the BoQ box is unchanged; scope line 'Supply rate'", () => {
     const { helper, ctx, result } = setup("industrial_sockets", SOCKET);
     expect(result.bcs!.values.supply_rate).toBeCloseTo(2009.6, 9);
     mount(<RateHelperPanel variant="embedded" excelRow={73} col="F" kind="supply_rate" ctx={ctx} helpers={[helper]} onUse={() => undefined} showCost />);
@@ -129,8 +131,10 @@ describe("BCS-W the helper panel, Electrical", () => {
     expect(onUse.mock.calls[0][1]).toBe(Number(result.bcs!.values.supply_rate!.toFixed(2)));
     expect(onUse.mock.calls[0][1]).toBe(2009.6);
     expect(onUse.mock.calls[0][2].kind).toBe("bcs_supply");
-    // (-) the BoQ side's folded figure prints as before
-    expect(q("[data-testid='price-section-boq-folded']")?.textContent).toContain(String(result.values.supply_rate));
+    // BCS-W2 (owner R2 "2. yes"; was "(-) the BoQ side's folded figure prints as before", toContain("2925")): the BoQ side's
+    // folded figure prints thousands separated -- and never the bare figure
+    expect(q("[data-testid='price-section-boq-folded']")?.textContent).toContain("2,925");
+    expect(q("[data-testid='price-section-boq-folded']")?.textContent).not.toContain(String(result.values.supply_rate));
   });
   it("(+) the cable's two blocks: the installation line once, below both", () => {
     const { helper, ctx } = setup("wiring_cabling", CABLE);
