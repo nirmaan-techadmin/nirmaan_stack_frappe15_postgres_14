@@ -27,6 +27,7 @@ import { withV79Items, withV79Keys } from "./vav2b1Keys.harness";
 import type { ExtractionRow, RateHelperRowContext } from "./rateHelperTypes";
 import type { RateCategoryConfig, RateMasterItem } from "@/pages/pricing/rate-master/rateMasterTypes";
 import { readJsonFixture } from "@/pages/pricing/calculatorPanelParity.harness";
+import { parseJson } from "@/lib/parseJson";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 class StubResizeObserver { observe() { /* no layout */ } unobserve() { /* no layout */ } disconnect() { /* no layout */ } }
@@ -166,7 +167,7 @@ describe("BCS-4 a __shares__ edit is saved and seeded like any key", () => {
     const call = onSaveEdit.mock.calls.find((c) => c[0] === SHARES_OVERRIDE_KEY)!;
     expect(call).toBeTruthy();
     expect(call[2]).toBe("supply");
-    expect(JSON.parse(call[1]).bacnet).toBeTruthy();
+    expect((parseJson(call[1]) as Record<string, unknown>).bacnet).toBeTruthy();
     const saved: SavedHelperEdits = { [SHARES_OVERRIDE_KEY]: { value: call[1], from_kind: "supply" } };
     expect(seededOverrides(saved)[PRICING_SHEET_HELPER_ID][SHARES_OVERRIDE_KEY]).toBe(call[1]);
     mount(<RateHelperPanel variant="calculator" excelRow={ctx.excelRow} col="calculator" kind="supply_rate" ctx={ctx} helpers={[helper]} calculatorBlocks={[]} fieldColumns={1} blockColumns={1} savedEdits={saved} />, false);
