@@ -1,0 +1,144 @@
+{
+ "actions": [],
+ "autoname": "BSI-.YY.-.#####",
+ "creation": "2026-11-26 15:38:01.923619",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "boq",
+  "inputs_section",
+  "area_sqft",
+  "covered_sheets",
+  "area_cost_override",
+  "area_cost_overridden",
+  "floor_cut_override",
+  "floor_cut_overridden",
+  "lifecycle_section",
+  "input_version",
+  "is_current",
+  "edited_by",
+  "edited_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "BoQ"
+  },
+  {
+   "description": "The BoQ these summary inputs belong to. ONE current record per BoQ (freeze-and-supersede). Keyed by the BoQ alone, so a sheet re-commit keeps it and Merge BoQs keeps it; a revision gets a copy at its sheet-mapping confirmation (revision.confirm_revision_mapping). No search index of its own: the explicit (boq, is_current) index covers every read.",
+   "fieldname": "boq",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "BoQ",
+   "options": "BOQs",
+   "reqd": 1
+  },
+  {
+   "fieldname": "inputs_section",
+   "fieldtype": "Section Break",
+   "label": "Summary Inputs"
+  },
+  {
+   "description": "The area the Electrical installation cost is worked on (area x the Pricing Input elec_bcs_install_per_sqft). Blank or 0 = not entered (an area of 0 sq ft is no area).",
+   "fieldname": "area_sqft",
+   "fieldtype": "Float",
+   "label": "Area (sq ft)"
+  },
+  {
+   "description": "{\"sheets\": [sheet names, VERBATIM]} - the sheets this installation cost covers (the ticked, clubbed block). Blank = the default ticks (sheets whose Suggest population is majority Electrical).",
+   "fieldname": "covered_sheets",
+   "fieldtype": "JSON",
+   "label": "Covered Sheets"
+  },
+  {
+   "description": "The user's figure for the area part of the installation cost; read only when Area Part Overridden is ticked (0 = the part removed). Frappe writes a blank Currency as 0, hence the Check.",
+   "fieldname": "area_cost_override",
+   "fieldtype": "Currency",
+   "label": "Area Part Figure"
+  },
+  {
+   "default": "0",
+   "description": "0 = the system's figure (area x Rs per sq ft); 1 = the user edited or removed it (shows 'changed by user').",
+   "fieldname": "area_cost_overridden",
+   "fieldtype": "Check",
+   "label": "Area Part Overridden"
+  },
+  {
+   "description": "The user's figure for the floor-cutting part; read only when Floor Cutting Overridden is ticked (0 = removed).",
+   "fieldname": "floor_cut_override",
+   "fieldtype": "Currency",
+   "label": "Floor Cutting Figure"
+  },
+  {
+   "default": "0",
+   "description": "0 = the system's figure (metres x tray_cutting_amount over the caught rows); 1 = the user edited or removed it.",
+   "fieldname": "floor_cut_overridden",
+   "fieldtype": "Check",
+   "label": "Floor Cutting Overridden"
+  },
+  {
+   "fieldname": "lifecycle_section",
+   "fieldtype": "Section Break",
+   "label": "Lifecycle"
+  },
+  {
+   "default": "1",
+   "description": "Per-BoQ version, max prior + 1 on every save (freeze-and-supersede). A record is never overwritten in place.",
+   "fieldname": "input_version",
+   "fieldtype": "Int",
+   "label": "Input Version",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "Exactly one current record per BoQ, enforced by the write path (api/boq/wizard/boq_summary.py), not this controller. The prior current is frozen with frappe.db.set_value(is_current=0).",
+   "fieldname": "is_current",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Is Current"
+  },
+  {
+   "description": "Who made the latest save.",
+   "fieldname": "edited_by",
+   "fieldtype": "Link",
+   "label": "Edited By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "description": "When the latest save was written.",
+   "fieldname": "edited_at",
+   "fieldtype": "Datetime",
+   "label": "Edited At",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-26 15:38:01.923619",
+ "modified_by": "Administrator",
+ "module": "Nirmaan Stack",
+ "name": "BoQ Summary Inputs",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nirmaan Estimates Executive",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

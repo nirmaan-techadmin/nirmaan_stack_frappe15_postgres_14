@@ -709,8 +709,11 @@ def confirm_revision_mapping(boq: str, mapping) -> dict:
     `general_specs_sheets` (keyed by the revision's OWN name, blank `preamble_text` -- it
     always re-extracts at parse), unless the human opted out (`general_specs: false`).
 
+    BCS-5: the source BoQ's `BoQ Summary Inputs` are carried here too (`summary_inputs` in the result:
+    {copied, dropped_ticks, ticks} -- boq_summary.carry_summary_inputs).
+
     Returns {"status": "saved", "seeded": <int>, "dispositions": [{"sheet_name", "status",
-    "reasons", "dangling_roles", "description_set_changed"}, ...]} -- one dispositions entry per
+    "reasons", "dangling_roles", "description_set_changed"}, ...], "summary_inputs": {...}} -- one dispositions entry per
     mapped DATA sheet (D5 diagnostics for surfacing a Pending sheet's dangling roles / config
     warning; the disposition itself rides wizard_status + the seeded sheet_config, no schema).
     """
@@ -873,5 +876,12 @@ def confirm_revision_mapping(boq: str, mapping) -> dict:
     # payload: every tab is by now provably either mapped or explicitly declared New.
     _prefill_new_sheet_configs(boq_doc, set(tab_names) - set(claimed.values()))
 
+    # BCS-5 (R-BCS-29): the source BoQ's summary inputs (area, both installation overrides, the ticks MAPPED through `claimed`;
+    # a ticked sheet with no successor drops) are copied here, in this transaction -- both revision entry paths end here.
+    # Imported here, not at the top, so this module's import graph is unchanged.
+    from nirmaan_stack.api.boq.wizard.boq_summary import carry_summary_inputs
+
+    summary_inputs = carry_summary_inputs(boq_doc.source_boq, boq_doc.name, claimed)
+
     frappe.db.commit()
-    return {"status": "saved", "seeded": seeded, "dispositions": dispositions}
+    return {"status": "saved", "seeded": seeded, "dispositions": dispositions, "summary_inputs": summary_inputs}
