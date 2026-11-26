@@ -4,9 +4,11 @@
 // rate files (latest-asset readers by file prefix: rate_master_electrical_all_v, rate_master_hvac_all_v).
 //
 // What each case protects:
-//   (+) a field changed in the Supply view reads "carried from the Supply helper" in the Install view and in the BCS view.
-//   (-) the same field reads "changed by you" in the Supply view itself -- never "carried from".
-//   (+) a change made in the BCS view reads "carried from the BCS helper" elsewhere (the BCS box's own name).
+//   (+) a field changed in the Supply view reads "from Supply helper" in the Install view and in the BCS view.
+//   (+) review round 1 (owner R2, 2026-11-26 10:53 / 10:54): the tag sits on its OWN line directly BELOW its field (label + box),
+//       never beside the label; the words are "from <view> helper" -- no "carried", no "the" -- and "changed by you".
+//   (-) the same field reads "changed by you" in the Supply view itself -- never "from Supply helper"; "carried" appears nowhere.
+//   (+) a change made in the BCS view reads "from BCS helper" elsewhere (the BCS box's own name).
 //   (-) a field nobody changed carries no edit tag.
 //   (+) Revert clears the row's saved change (handed up to the page) and the field goes back to the extraction, untagged.
 //   (+) a `__shares__` edit (a VAV row's shared-item blocks) is saved like any key -- handed up with its view -- and seeded
@@ -76,42 +78,52 @@ function mount(node: JSX.Element, open = true) {
   return host;
 }
 const mcb1 = () => host!.querySelector("select[id$='-attr-mcb1_item']") as HTMLSelectElement;
-/** The edit tag beside a plain attribute's label (the label row holds the label, its chips and the undo icon). */
-function tagOf(attrId: string): string | null {
+/** The field's label + box row (the label row holds the label, its chips, the undo icon and the box). */
+function fieldRow(attrId: string): HTMLElement {
   const select = host!.querySelector(`[id$='-attr-${attrId}']`)!;
-  const label = host!.querySelector(`label[for='${select.id}']`)!;
-  return label.parentElement!.querySelector("[data-testid='helper-edit-tag']")?.textContent ?? null;
+  return host!.querySelector(`label[for='${select.id}']`)!.parentElement!.parentElement as HTMLElement;
+}
+/** The edit tag of a plain attribute: ONLY when it sits on its own line directly BELOW the field's row (review round 1, R2). */
+function tagOf(attrId: string): string | null {
+  const below = fieldRow(attrId).nextElementSibling;
+  if (below?.getAttribute("data-testid") !== "helper-edit-tag-line") return null;
+  return below.querySelector("[data-testid='helper-edit-tag']")?.textContent ?? null;
 }
 const click = (el: Element | null | undefined) => act(() => el!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
 describe("BCS-4 the carry tag -- exact words, beside the existing tags", () => {
   const savedFromSupply: SavedHelperEdits = { mcb1_item: { value: CHANGED, from_kind: "supply" } };
 
-  it("(+) the Install view: 'carried from the Supply helper'", () => {
+  it("(+) the Install view: 'from Supply helper' on its own line below MCB 1, not beside the label", () => {
     const { helper, ctx } = dbSetup();
     mount(<RateHelperPanel variant="embedded" excelRow={ROW} col="G" kind="install_rate" ctx={ctx} helpers={[helper]} onUse={() => undefined} savedEdits={savedFromSupply} />);
     expect(mcb1().value).toBe(CHANGED);
-    expect(tagOf("mcb1_item")).toBe("carried from the Supply helper");
+    expect(tagOf("mcb1_item")).toBe("from Supply helper");
+    expect(fieldRow("mcb1_item").querySelector("[data-testid='helper-edit-tag']")).toBeNull(); // not beside the label
+    expect(host!.querySelectorAll("[data-testid='helper-edit-tag']").length).toBe(1);
   });
 
-  it("(+) the BCS view: 'carried from the Supply helper'", () => {
+  it("(+) the BCS view: 'from Supply helper'", () => {
     const { helper, ctx } = dbSetup();
     mount(<RateHelperPanel variant="embedded" excelRow={ROW} col="BCS" kind="supply_rate" target="bcs" showCost ctx={ctx} helpers={[helper]} onUse={() => undefined} savedEdits={savedFromSupply} />);
-    expect(tagOf("mcb1_item")).toBe("carried from the Supply helper");
+    expect(tagOf("mcb1_item")).toBe("from Supply helper");
   });
 
-  it("(-) the Supply view itself: 'changed by you', never 'carried from'", () => {
+  it("(-) the Supply view itself: 'changed by you' below the field, never 'from Supply helper'; 'carried' nowhere", () => {
     const { helper, ctx } = dbSetup();
     mount(<RateHelperPanel variant="embedded" excelRow={ROW} col="F" kind="supply_rate" ctx={ctx} helpers={[helper]} onUse={() => undefined} savedEdits={savedFromSupply} />);
     expect(tagOf("mcb1_item")).toBe("changed by you");
-    expect(host!.textContent).not.toContain("carried from");
+    expect(fieldRow("mcb1_item").querySelector("[data-testid='helper-edit-tag']")).toBeNull();
+    expect(host!.textContent).not.toContain("from Supply helper");
+    expect(host!.textContent).not.toContain("carried");
   });
 
-  it("(+) a change made in the BCS view reads 'carried from the BCS helper' in the Combined view; (-) an unchanged field has no edit tag", () => {
+  it("(+) a change made in the BCS view reads 'from BCS helper' in the Combined view; (-) an unchanged field has no edit tag", () => {
     const { helper, ctx } = dbSetup();
     const fromBcs: SavedHelperEdits = { mcb1_item: { value: CHANGED, from_kind: "bcs_supply" } };
     mount(<RateHelperPanel variant="embedded" excelRow={ROW} col="H" kind="combined_rate" ctx={ctx} helpers={[helper]} onUse={() => undefined} savedEdits={fromBcs} />);
-    expect(tagOf("mcb1_item")).toBe("carried from the BCS helper");
+    expect(tagOf("mcb1_item")).toBe("from BCS helper");
+    expect(host!.textContent).not.toContain("carried");
     expect(tagOf("mcb2_item")).toBeNull();
   });
 
@@ -144,7 +156,9 @@ describe("BCS-4 the carry tag -- exact words, beside the existing tags", () => {
     expect(helperViewOf("combined_rate")).toBe("combined");
     expect(helperViewOf("supply_rate", "bcs")).toBe("bcs_supply");
     expect(["supply", "install", "combined", "bcs_supply"].map(helperViewLabel)).toEqual(["Supply", "Install", "Combined", "BCS"]);
-    expect(carryTagText("install", "supply")).toBe("carried from the Install helper");
+    expect(carryTagText("install", "supply")).toBe("from Install helper");
+    expect(["supply", "install", "combined", "bcs_supply"].map((v) => carryTagText(v, null)))
+      .toEqual(["from Supply helper", "from Install helper", "from Combined helper", "from BCS helper"]);
     expect(carryTagText("supply", "supply")).toBe("changed by you");
   });
 });

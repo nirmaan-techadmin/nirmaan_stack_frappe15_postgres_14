@@ -292,9 +292,10 @@ export function helperViewLabel(view: string): string {
 }
 
 /** PURE. The tag on a field whose value came from an edit (mockup screen 2, rule 3): made in THIS view -> "changed by you";
- *  made in another view of the row -> "carried from the <Supply / Install / Combined / BCS> helper". */
+ *  made in another view of the row -> "from <Supply / Install / Combined / BCS> helper" (review round 1, owner R2 2026-11-26
+ *  10:53 / 10:54: no "carried", no "the"). */
 export function carryTagText(fromView: string, currentView: HelperView | null): string {
-  return fromView === currentView ? "changed by you" : `carried from the ${helperViewLabel(fromView)} helper`;
+  return fromView === currentView ? "changed by you" : `from ${helperViewLabel(fromView)} helper`;
 }
 
 /** PURE. The panel's override map seeded from a row's saved edits. Every key goes under the pricing-sheet helper -- the one
@@ -1036,13 +1037,6 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                                 default
                               </span>
                             )}
-                            {/* BCS-4 (mockup screen 2, rule 3): a value from an edit says where it came from -- "changed by you"
-                                (this view) or "carried from the <view> helper" -- in the same chip as "from BoQ" */}
-                            {attrOverrides[helper.id]?.[a.id] !== undefined && editViews[a.id] && (
-                              <span className={EDIT_TAG_CLASS} data-testid="helper-edit-tag">
-                                {carryTagText(editViews[a.id], view)}
-                              </span>
-                            )}
                             {attrOverrides[helper.id]?.[a.id] !== undefined && (
                               <button
                                 type="button"
@@ -1155,6 +1149,16 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                             </span>
                           )}
                         </div>
+                        {/* BCS-4 (mockup screen 2, rule 3; review round 1, owner R2 2026-11-26 10:53): a value from an edit says
+                            where it came from -- "changed by you" (this view) or "from <view> helper" -- on its OWN line directly
+                            BELOW the field (label + box), in the same chip as "from BoQ" */}
+                        {attrOverrides[helper.id]?.[a.id] !== undefined && editViews[a.id] && (
+                          <div className="flex" data-testid="helper-edit-tag-line">
+                            <span className={EDIT_TAG_CLASS} data-testid="helper-edit-tag">
+                              {carryTagText(editViews[a.id], view)}
+                            </span>
+                          </div>
+                        )}
                         {/* LONG-OPTION READ-OUT (owner 2026-09-04). A native <select> does NOT wrap
                             its option text in any engine we ship to, so a long catalogue description
                             is truncated to one line and the pricer cannot read what they picked.
@@ -1672,7 +1676,7 @@ function ItemListBlocks({
   editTag = null,
 }: {
   view: ItemListView;
-  /** BCS-4: the tag for a field the user changed ("changed by you" / "carried from the ... helper"); null = none */
+  /** BCS-4: the tag for a field the user changed ("changed by you" / "from <view> helper", on its own line below the field); null = none */
   editTag?: string | null;
   onEdit: (op: ItemEditOp) => void;
   onUnit: (unit: string) => void;
@@ -2114,12 +2118,6 @@ function ItemListBlocks({
                         {f.sourceTag}
                       </span>
                     )}
-                    {/* BCS-4 (mockup screen 2): a field the user changed says in which view of the row */}
-                    {f.userEdited && editTag && (
-                      <span className={EDIT_TAG_CLASS} data-testid="item-field-edit-tag">
-                        {editTag}
-                      </span>
-                    )}
                     {f.mirrorTag && (
                       <span
                         className="rounded bg-sky-100 px-1 text-[9px] font-medium leading-none text-sky-800 dark:bg-sky-900 dark:text-sky-200"
@@ -2248,6 +2246,15 @@ function ItemListBlocks({
                     />
                   )}
                 </div>
+                {/* BCS-4 (mockup screen 2; review round 1, owner R2): a field the user changed says in which view of the row,
+                    on its OWN line directly BELOW the field */}
+                {f.userEdited && editTag && (
+                  <div className="flex" data-testid="item-field-edit-tag-line">
+                    <span className={EDIT_TAG_CLASS} data-testid="item-field-edit-tag">
+                      {editTag}
+                    </span>
+                  </div>
+                )}
                 {/* A RULED DEFAULT stays AMBER -- it is the one tone this panel reserves for "we filled
                     this in for you", and the owner's S7 ruling left amber and red exactly as they were. */}
                 {f.rule && <p className="pl-1 text-[10px] leading-tight text-amber-700 dark:text-amber-400">{f.rule}</p>}
