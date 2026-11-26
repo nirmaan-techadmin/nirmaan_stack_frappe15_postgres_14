@@ -80,6 +80,7 @@ import {
   summariseCostBlocks,
 } from "./PricedTenderBcsDialog";
 import { buildAndDownloadReviewCsv } from "./exportReviewCsv";
+import { BoqSummaryBlock } from "./BoqSummaryBlock";
 
 // Keyword list for presentation-only "likely non-data" hint.
 const LIKELY_SKIP_KEYWORDS = [
@@ -979,6 +980,9 @@ const BoqHubPage = () => {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* BCS-5: the BoQ summary (Admin + Estimates only; renders nothing for anyone else). */}
+      <BoqSummaryBlock boqId={boqId} />
 
       {/* ── Removed-sheet advisory (ADR-0014 D4) ─────────────────────────── */}
       {/* Revision-only. The original's committed sheets no draft claims -> they carry     */}

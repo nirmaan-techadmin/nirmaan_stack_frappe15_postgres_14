@@ -37,6 +37,7 @@ import {
 } from "./pricingRollup";
 import { bcsBlankReasonText, formatBcsMargin, type BcsComputedCell } from "./bcsColumns";
 import type { BcsSectionTotals } from "./bcsRollup";
+import { BoqSummarySheetLine } from "./BoqSummaryBlock";
 import type {
   ColumnDescriptor,
   ColumnFormula,
@@ -411,6 +412,7 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
           </table>
         </div>
       )}
+      <BoqSummarySheetLine />
     </section>
   );
 };
