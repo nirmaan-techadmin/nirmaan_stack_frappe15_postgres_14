@@ -45,6 +45,9 @@ import {
   findPairedRateDescriptor,
   isAmountDescriptor,
   lookupOperandValue,
+  rowLeftOutOfMargin,
+  evaluateAmountCell,
+  shownAmountValue,
 } from "./PricingGrid";
 import { evaluateAmountColumn, pickFormula } from "./amountFormula";
 import { computeDepths, resolveDescriptorValue } from "./reviewRender";
@@ -60,6 +63,7 @@ import {
   pickMarginCostFormula,
   marginCostCell,
   boqTotalAmount,
+  bcsAmountColumns,
   mergeBcsRowValues,
   type BcsRateKind,
 } from "./bcsColumns";
@@ -455,36 +459,56 @@ export function rollupByParent(
         qty,
         resolveSheetColumn,
       );
-      bcsRowByIdx.set(r.row_index, costCell.kind === "value" ? costCell.value : null);
+      // BCS-6a P2f: a row with NO rate anywhere (none in the app, none in the uploaded file) AND no
+      // amount on screen is LEFT OUT of the margin -- its BCS cost as well as its amount (owner R-BCS-158 1,
+      // "1 agree"; POINT 4: a no-rate row WITH an amount, a file lump sum, counts at that amount).
+      bcsRowByIdx.set(
+        r.row_index,
+        costCell.kind === "value" && !rowLeftOutOfMargin(r, columnDescriptors, columnFormulas) ? costCell.value : null,
+      );
     }
-    // BCS-S10: when the sheet declares a BOQ Total formula the section denominator must be the
-    // rolled PER-ROW figure, not the per-column sum -- see rollBcsSections' `ownTendered`. No
-    // formula -> undefined -> the column path, byte-identical to pre-S10.
+    // BCS-S10 / BCS-6a: the section denominator is ALWAYS the rolled PER-ROW figure (see
+    // rollBcsSections' `ownTendered`), with or without a BOQ Total formula -- the SAME `boqTotalAmount`
+    // the grid's % Margin column divides by, so the panel and the column cannot disagree:
+    //   * D2: with no BOQ Total formula and no confirmed amount source, `boqTotalAmount` falls back to
+    //     the sheet's own amount columns (`bcsAmountColumns`, the S12e rule the grid and the BoQ
+    //     summary already used). Until BCS-6a the panel read the CONFIRMED columns only and showed no
+    //     amount and a blank % Margin on 33 dev2 sheets (BCS-S6 D2).
+    //   * D1: a formula ref reaches the resolver as the sheet's real column, so the choice is found.
+    //   * D3: a one-sided row counts its one side (`columnDescriptors` + `columnFormulas` passed).
+    //   * P2f: a row with no rate anywhere and no amount is out (null), exactly as its cost above.
+    // BCS-6a: each amount column is read EXACTLY as the grid's % Margin column reads it -- the amount ON
+    // SCREEN (`evaluateAmountCell` + `shownAmountValue`, saved-only: no drafts), owner R1 "the actual rates
+    // ... which the user has selcted". `rowOwnAmount` (the panel's own amount columns) is not used here: its
+    // no-formula path recomputes qty x rate and never shows a committed figure, so a lump sum written in
+    // the file (POINT 4) would have been dropped from the panel's margin while the grid counted it.
+    const shownAmount = (r: PricedRow) => (entry: ColumnDescriptor): number | null => {
+      const cell = evaluateAmountCell(entry, r, columnDescriptors, columnFormulas, {});
+      const raw = resolveDescriptorValue(r, entry);
+      return shownAmountValue(cell, typeof raw === "number" ? raw : null, choiceMap.get(reconChoiceKey(r.source_row_number, entry.col)));
+    };
     const boqFormula = pickBoqTotalFormula(columnFormulas);
     const boqByIdx = new Map<number, number | null>();
-    if (boqFormula) {
-      for (const r of rows) {
-        boqByIdx.set(
-          r.row_index,
-          // The SAME saved-only resolver every other rollup figure uses (formula precedence +
-          // reconciliation choice), so the section denominator and the panel's amount columns
-          // still come from one decision.
-          boqTotalAmount(
-            boqFormula,
-            bcsInput.amountSource,
-            (entry) =>
-              rowOwnAmount(r, entry as ColumnDescriptor, columnDescriptors, columnFormulas, choiceMap),
-            columnDescriptors,
-          ),
-        );
-      }
+    for (const r of rows) {
+      boqByIdx.set(
+        r.row_index,
+        rowLeftOutOfMargin(r, columnDescriptors, columnFormulas)
+          ? null
+          : boqTotalAmount(
+              boqFormula,
+              bcsInput.amountSource,
+              (entry) => shownAmount(r)(entry as ColumnDescriptor),
+              columnDescriptors,
+              columnFormulas,
+            ),
+      );
     }
     bcs = rollBcsSections(
       roots,
       (idx) => bcsRowByIdx.get(idx) ?? null,
-      (bcsInput.amountSource?.columns ?? []).map((c) => c.col),
+      bcsAmountColumns(bcsInput.amountSource, columnDescriptors).map((c) => c.col),
       grandTotals,
-      boqFormula ? (idx) => boqByIdx.get(idx) ?? null : null,
+      (idx) => boqByIdx.get(idx) ?? null,
     );
   }
 

@@ -1,0 +1,465 @@
+{
+ "_about": "BCS-6a test fixture: BOQ-26-00479 'HVAC Estimate Cost' (production, read-only GETs 2026-11-26, Abhishek), reduced to NUMBERS ONLY - the 17 costed rows (row numbers, qty, the saved rates and their priced markers, the uploaded file's amounts, the BCS cost rates), the sheet's 9 columns, 6 formulas and 44 reconciliation choices. No descriptions. expected_margin_pct = the README's 'expected' column (1 - BCS Total / the amount on screen), verified 17/17 by BCS-S6 S5c. Source sha256 3cac4bb9 (BCS lane/BCS-6a/input).",
+ "bcs_state": {
+  "bcs_qty_source": null,
+  "bcs_amount_source": null
+ },
+ "column_descriptors": [
+  "A:sl_no:sl_no_value",
+  "B:description:description",
+  "C:unit:unit",
+  "D:qty_total:qty_total",
+  "E:rate_supply:rate_supply",
+  "F:rate_install:rate_install",
+  "G:amount_supply:amount_supply",
+  "H:amount_install:amount_install",
+  "I:amount_total:amount_total"
+ ],
+ "column_formulas": [
+  {
+   "target_value_field": "amount_install",
+   "formula": {
+    "op": "*",
+    "operands": [
+     {
+      "ref": {
+       "value_field": "qty_total",
+       "value_key": null,
+       "rate_subkey": null
+      }
+     },
+     {
+      "ref": {
+       "value_field": "rate_install",
+       "value_key": null,
+       "rate_subkey": null
+      }
+     }
+    ]
+   }
+  },
+  {
+   "target_value_field": "amount_supply",
+   "formula": {
+    "op": "*",
+    "operands": [
+     {
+      "ref": {
+       "value_field": "qty_total",
+       "value_key": null,
+       "rate_subkey": null
+      }
+     },
+     {
+      "ref": {
+       "value_field": "rate_supply",
+       "value_key": null,
+       "rate_subkey": null
+      }
+     }
+    ]
+   }
+  },
+  {
+   "target_value_field": "amount_total",
+   "formula": {
+    "op": "+",
+    "operands": [
+     {
+      "ref": {
+       "value_field": "amount_supply",
+       "value_key": null,
+       "rate_subkey": null
+      }
+     },
+     {
+      "ref": {
+       "value_field": "amount_install",
+       "value_key": null,
+       "rate_subkey": null
+      }
+     }
+    ]
+   }
+  },
+  {
+   "target_value_field": "bcs_margin_cost",
+   "formula": {
+    "ref": {
+     "value_field": "bcs_total",
+     "value_key": null,
+     "rate_subkey": null
+    }
+   }
+  },
+  {
+   "target_value_field": "bcs_total",
+   "formula": {
+    "op": "*",
+    "operands": [
+     {
+      "op": "+",
+      "operands": [
+       {
+        "ref": {
+         "value_field": "bcs_supply",
+         "value_key": null,
+         "rate_subkey": null
+        }
+       },
+       {
+        "ref": {
+         "value_field": "bcs_install",
+         "value_key": null,
+         "rate_subkey": null
+        }
+       }
+      ]
+     },
+     {
+      "ref": {
+       "value_field": "qty_total",
+       "value_key": null,
+       "rate_subkey": null
+      }
+     }
+    ]
+   }
+  },
+  {
+   "target_value_field": "boq_total",
+   "formula": {
+    "ref": {
+     "value_field": "amount_total",
+     "value_key": null,
+     "rate_subkey": null
+    }
+   }
+  }
+ ],
+ "reconciliation_choices": [
+  "14:G=take_formula",
+  "14:H=take_formula",
+  "14:I=take_formula",
+  "18:G=take_formula",
+  "18:H=take_formula",
+  "18:I=take_formula",
+  "19:G=take_formula",
+  "19:H=take_formula",
+  "19:I=take_formula",
+  "21:G=take_formula",
+  "21:H=take_formula",
+  "21:I=take_formula",
+  "23:G=take_formula",
+  "23:H=take_formula",
+  "23:I=take_formula",
+  "25:G=take_formula",
+  "25:H=take_formula",
+  "25:I=take_formula",
+  "29:G=take_formula",
+  "29:H=take_formula",
+  "29:I=take_formula",
+  "32:G=take_formula",
+  "32:H=take_formula",
+  "32:I=take_formula",
+  "36:G=take_formula",
+  "36:I=take_formula",
+  "43:G=take_formula",
+  "43:H=take_formula",
+  "43:I=take_formula",
+  "45:G=take_formula",
+  "45:H=take_formula",
+  "45:I=take_formula",
+  "50:G=take_formula",
+  "50:I=take_formula",
+  "57:G=take_formula",
+  "57:H=take_formula",
+  "57:I=take_formula",
+  "60:G=take_formula",
+  "60:I=take_formula",
+  "62:G=take_formula",
+  "62:I=take_formula",
+  "68:G=take_formula",
+  "68:H=take_formula",
+  "68:I=take_formula"
+ ],
+ "expected": {
+  "summary_amount": 510302.5,
+  "summary_cost": 379028,
+  "summary_margin_pct": 25.7
+ },
+ "rows": [
+  {
+   "excel_row": 14,
+   "row_index": 4,
+   "qty": 15,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 970,
+   "rate_install": 260,
+   "amount_supply": 11700,
+   "amount_install": 2250,
+   "amount_total": 13950,
+   "bcs_supply": 690,
+   "bcs_install": 185,
+   "bcs_combined": 0,
+   "expected_margin_pct": 28.9
+  },
+  {
+   "excel_row": 18,
+   "row_index": 8,
+   "qty": 30,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 1623,
+   "rate_install": 434,
+   "amount_supply": 43500,
+   "amount_install": 4500,
+   "amount_total": 48000,
+   "bcs_supply": 1153,
+   "bcs_install": 195,
+   "bcs_combined": 0,
+   "expected_margin_pct": 34.5
+  },
+  {
+   "excel_row": 19,
+   "row_index": 9,
+   "qty": 25,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 1883,
+   "rate_install": 434,
+   "amount_supply": 40000,
+   "amount_install": 3750,
+   "amount_total": 43750,
+   "bcs_supply": 1343,
+   "bcs_install": 195,
+   "bcs_combined": 0,
+   "expected_margin_pct": 33.6
+  },
+  {
+   "excel_row": 21,
+   "row_index": 11,
+   "qty": 0.5,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 7830,
+   "rate_install": 1920,
+   "amount_supply": 2750,
+   "amount_install": 375,
+   "amount_total": 3125,
+   "bcs_supply": 5400,
+   "bcs_install": 1200,
+   "bcs_combined": 0,
+   "expected_margin_pct": 32.3
+  },
+  {
+   "excel_row": 23,
+   "row_index": 13,
+   "qty": 1.5,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 10005,
+   "rate_install": 1920,
+   "amount_supply": 4500,
+   "amount_install": 750,
+   "amount_total": 5250,
+   "bcs_supply": 6900,
+   "bcs_install": 1200,
+   "bcs_combined": 0,
+   "expected_margin_pct": 32.1
+  },
+  {
+   "excel_row": 25,
+   "row_index": 15,
+   "qty": 2,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 4829,
+   "rate_install": 880,
+   "amount_supply": 11000,
+   "amount_install": 1000,
+   "amount_total": 12000,
+   "bcs_supply": 3330,
+   "bcs_install": 550,
+   "bcs_combined": 0,
+   "expected_margin_pct": 32.0
+  },
+  {
+   "excel_row": 29,
+   "row_index": 19,
+   "qty": 20,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 1682,
+   "rate_install": 352,
+   "amount_supply": 25000,
+   "amount_install": 2000,
+   "amount_total": 27000,
+   "bcs_supply": 1160,
+   "bcs_install": 220,
+   "bcs_combined": 0,
+   "expected_margin_pct": 32.2
+  },
+  {
+   "excel_row": 32,
+   "row_index": 22,
+   "qty": 3,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 5220,
+   "rate_install": 500,
+   "amount_supply": 8250,
+   "amount_install": 750,
+   "amount_total": 9000,
+   "bcs_supply": 3600,
+   "bcs_install": 500,
+   "bcs_combined": 0,
+   "expected_margin_pct": 28.3
+  },
+  {
+   "excel_row": 36,
+   "row_index": 26,
+   "qty": 4,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 1823,
+   "rate_install": 250,
+   "amount_supply": 7800,
+   "amount_install": 1000,
+   "amount_total": 8800,
+   "bcs_supply": 1257,
+   "bcs_install": 0,
+   "bcs_combined": 0,
+   "expected_margin_pct": 39.4
+  },
+  {
+   "excel_row": 43,
+   "row_index": 33,
+   "qty": 4,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 1305,
+   "rate_install": 100,
+   "amount_supply": 1000,
+   "amount_install": 600,
+   "amount_total": 1600,
+   "bcs_supply": 900,
+   "bcs_install": 0,
+   "bcs_combined": 0,
+   "expected_margin_pct": 35.9
+  },
+  {
+   "excel_row": 45,
+   "row_index": 35,
+   "qty": 0.5,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 5220,
+   "rate_install": 800,
+   "amount_supply": 1750,
+   "amount_install": 250,
+   "amount_total": 2000,
+   "bcs_supply": 3600,
+   "bcs_install": 500,
+   "bcs_combined": 0,
+   "expected_margin_pct": 31.9
+  },
+  {
+   "excel_row": 50,
+   "row_index": 40,
+   "qty": 15,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 740,
+   "rate_install": 100,
+   "amount_supply": 6750,
+   "amount_install": 1500,
+   "amount_total": 8250,
+   "bcs_supply": 510,
+   "bcs_install": 0,
+   "bcs_combined": 0,
+   "expected_margin_pct": 39.3
+  },
+  {
+   "excel_row": 57,
+   "row_index": 47,
+   "qty": 1,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 30000,
+   "rate_install": 2400,
+   "amount_supply": 25500,
+   "amount_install": 1500,
+   "amount_total": 27000,
+   "bcs_supply": 21450,
+   "bcs_install": 1500,
+   "bcs_combined": 0,
+   "expected_margin_pct": 29.2
+  },
+  {
+   "excel_row": 60,
+   "row_index": 50,
+   "qty": 20,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 120,
+   "rate_install": 25,
+   "amount_supply": 2000,
+   "amount_install": 500,
+   "amount_total": 2500,
+   "bcs_supply": 85,
+   "bcs_install": 10,
+   "bcs_combined": 0,
+   "expected_margin_pct": 34.5
+  },
+  {
+   "excel_row": 62,
+   "row_index": 52,
+   "qty": 30,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 120,
+   "rate_install": 25,
+   "amount_supply": 3000,
+   "amount_install": 750,
+   "amount_total": 3750,
+   "bcs_supply": 85,
+   "bcs_install": 10,
+   "bcs_combined": 0,
+   "expected_margin_pct": 34.5
+  },
+  {
+   "excel_row": 68,
+   "row_index": 58,
+   "qty": 15,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 581,
+   "rate_install": 154,
+   "amount_supply": 4500,
+   "amount_install": 1500,
+   "amount_total": 6000,
+   "bcs_supply": 415,
+   "bcs_install": 110,
+   "bcs_combined": 0,
+   "expected_margin_pct": 28.6
+  },
+  {
+   "excel_row": 74,
+   "row_index": 64,
+   "qty": 1,
+   "priced_rate_supply": true,
+   "priced_rate_install": true,
+   "rate_supply": 0,
+   "rate_install": 200000,
+   "amount_supply": 0,
+   "amount_install": 200000,
+   "amount_total": 200000,
+   "bcs_supply": 0,
+   "bcs_install": 170000,
+   "bcs_combined": 0,
+   "expected_margin_pct": 15.0
+  }
+ ]
+}

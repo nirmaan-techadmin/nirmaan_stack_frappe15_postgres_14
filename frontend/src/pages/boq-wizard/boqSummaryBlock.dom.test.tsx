@@ -60,7 +60,9 @@ function fakeServer(method: string, args: { sheet_name: string }) {
   if (method.endsWith("get_priced_rows")) return { message: { commit_version: 1, column_descriptors: e ? E_EXTRA.descriptors : DESCS,
     column_formulas: e ? E_EXTRA.formulas : [], reconciliation_choices: e ? E_EXTRA.choices : [],
     rows: [{ row_index: 0, effective_parent_index: null, effective_classification: "line_item", description: "item",
-      source_row_number: 5, qty_total: qty, rate_supply: s, rate_install: i, node_type: "Line Item", ...(e ? { amount_supply: 1000, amount_install: 200, amount_total: 999 } : {}) }] } };
+      // BCS-6a (moved checks, third table): the rate is marked as entered in the app, so the Amount on screen is qty x rate.
+      source_row_number: 5, qty_total: qty, rate_supply: s, rate_install: i, priced_rate_supply: s !== 0, priced_rate_install: i !== 0,
+      node_type: "Line Item", ...(e ? { amount_supply: 1000, amount_install: 200, amount_total: 999 } : {}) }] } };
   if (method.endsWith("get_bcs_state")) return { message: { is_ready: true, bcs_qty_source: null, bcs_amount_source: null } };
   return { message: { rows: bs === null ? [] : [{ excel_row: 5, supply_rate: bs, install_rate: bi, combined_rate: 0 }] } };
 }

@@ -69,9 +69,12 @@ describe("resolveDivergence (D1 -- the single resolution rule)", () => {
     expect(resolveDivergence(100, null, undefined).diverges).toBe(false);
   });
 
-  it("DEFAULTS to the DOCUMENT value when unset (D1)", () => {
+  // BCS-6a MOVED CHECK (owner R-BCS-158, 2026-11-27: "defaulyt case should be to keep the calculated
+  // amount" -> "2 yes agree"). Until BCS-6a the unset case returned the DOCUMENT value (the old D1
+  // default). `resolved` stays "unset" -- the review strip still lists the cell for a choice.
+  it("DEFAULTS to the CALCULATED (formula) value when unset -- BCS-6a, owner R-BCS-158", () => {
     const r = resolveDivergence(100, 120, undefined);
-    expect(r).toEqual({ diverges: true, resolved: "unset", value: 100 });
+    expect(r).toEqual({ diverges: true, resolved: "unset", value: 120 });
   });
 
   it("keep_document -> the document value", () => {
@@ -106,18 +109,36 @@ describe("resolveDivergence -- DOC-0 exception (formula wins silently when docum
     expect(resolveDivergence(0, 0, undefined)).toEqual({ diverges: false });
   });
 
-  it("doc small but OUTSIDE the epsilon (0.5) is NOT zero -> UNCHANGED (document default, divergent)", () => {
+  it("doc small but OUTSIDE the epsilon (0.5) is NOT zero -> still divergent (calculated default, BCS-6a)", () => {
     const r = resolveDivergence(0.5, 120, undefined);
-    expect(r).toEqual({ diverges: true, resolved: "unset", value: 0.5 });
+    expect(r).toEqual({ diverges: true, resolved: "unset", value: 120 });
   });
 
   it("a NON-zero document divergence is UNCHANGED by the doc-0 rule", () => {
-    expect(resolveDivergence(100, 120, undefined)).toEqual({ diverges: true, resolved: "unset", value: 100 });
+    // BCS-6a: the unset arm is the calculated amount (owner R-BCS-158); keep_document still keeps the document.
+    expect(resolveDivergence(100, 120, undefined)).toEqual({ diverges: true, resolved: "unset", value: 120 });
     expect(resolveDivergence(100, 120, "keep_document")).toEqual({ diverges: true, resolved: "keep_document", value: 100 });
   });
 
   it("doc ~= 0 + null/NaN formula -> not divergent anyway (formula must be real)", () => {
     expect(resolveDivergence(0, null, undefined)).toEqual({ diverges: false });
     expect(resolveDivergence(0, NaN, undefined)).toEqual({ diverges: false });
+  });
+});
+
+// BCS-6a P2e -- THE DEFAULT, end to end on the one rule (owner R-BCS-158): "keep the document's amount"
+// applies ONLY where the user picked it for that cell; with no choice the calculated amount is used.
+describe("BCS-6a -- the calculated-amount default (owner R-BCS-158)", () => {
+  it("(+) a divergent cell with NO choice uses qty x rate", () => {
+    expect(resolveDivergence(13950, 18450, undefined)).toEqual({ diverges: true, resolved: "unset", value: 18450 });
+  });
+  it("(+) with \"keep document\" chosen it uses the uploaded file's amount", () => {
+    expect(resolveDivergence(13950, 18450, "keep_document")).toEqual({ diverges: true, resolved: "keep_document", value: 13950 });
+  });
+  it("(+) with \"take formula\" chosen it uses qty x rate", () => {
+    expect(resolveDivergence(13950, 18450, "take_formula")).toEqual({ diverges: true, resolved: "take_formula", value: 18450 });
+  });
+  it("(-) a non-divergent cell is untouched by the default (no divergence reported)", () => {
+    expect(resolveDivergence(18450, 18450, undefined)).toEqual({ diverges: false });
   });
 });

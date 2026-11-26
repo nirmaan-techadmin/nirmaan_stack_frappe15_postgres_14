@@ -1005,6 +1005,59 @@ export function lookupOperandValue(
 }
 
 /**
+ * ★ BCS-6a P2f -- A ROW WITH NO RATE ANYWHERE: no rate entered in the app AND none written in the
+ * uploaded file, on a sheet that HAS rate columns. Owner R-BCS-158 1 (2026-11-27 00:23-00:26): "what
+ * if no rate was given in th euploade file..it was blank?? should those rows be excluded" -> "1
+ * agree" -- such a row is LEFT OUT of every margin, its amount AND its BCS cost (grid % Margin blank,
+ * the Summary panel and the BoQ summary skip it), and the note lists it.
+ *
+ * "A rate" is exactly what a formula may read (`lookupOperandValue`): a draft being typed, a saved
+ * price (incl. a deliberate 0), or a non-zero rate from the file -- the same test priceability's
+ * `isRateFilled` makes, so "no rate" here and "needs a rate" there cannot disagree. A sheet with no
+ * rate column at all is never "no rate" (nothing could ever be priced on it; its amounts stand).
+ */
+export function rowHasNoRate(
+  row: PricedRow,
+  columnDescriptors: ColumnDescriptor[],
+  draftRates: Record<string, string> = {},
+): boolean {
+  const rates = columnDescriptors.filter(isRateDescriptor);
+  if (rates.length === 0) return false;
+  return rates.every(
+    (d) =>
+      lookupOperandValue(
+        row,
+        { value_field: d.value_field, value_key: d.value_key, rate_subkey: d.rate_subkey },
+        columnDescriptors,
+        draftRates,
+      ) === undefined,
+  );
+}
+
+/**
+ * ★ BCS-6a P2f, AS AMENDED BY THE OWNER (POINT 4, 2026-11-27 01:43, "agree"): a row is LEFT OUT of every
+ * margin only when it has NO RATE anywhere (`rowHasNoRate`) AND NO AMOUNT on screen. A row with no rate
+ * but WITH an amount -- a lump sum written in the uploaded file, shown in its Amount cell -- is COUNTED at
+ * that amount, and its cost counts. "An amount on screen" = some amount cell shows a non-zero number
+ * (`evaluateAmountCell` value, or the committed figure where no formula applies) -- the same cells the
+ * user reads. Used by the grid's % Margin, the Summary panel and the BoQ summary, and by the note's
+ * exception (3).
+ */
+export function rowLeftOutOfMargin(
+  row: PricedRow,
+  columnDescriptors: ColumnDescriptor[],
+  columnFormulas: ColumnFormula[],
+  draftRates: Record<string, string> = {},
+): boolean {
+  if (!rowHasNoRate(row, columnDescriptors, draftRates)) return false;
+  return !columnDescriptors.filter(isAmountDescriptor).some((d) => {
+    const cell = evaluateAmountCell(d, row, columnDescriptors, columnFormulas, draftRates);
+    const v = cell.kind === "value" ? cell.value : cell.kind === "committed" ? resolveDescriptorValue(row, d) : null;
+    return typeof v === "number" && Number.isFinite(v) && v !== 0;
+  });
+}
+
+/**
  * DANGLING-REF pre-validation (the upgrade F2 deferred to F4): every DIRECT leaf ref of a
  * formula tree, once area-bound, must match a live descriptor. A ref matching NO descriptor
  * (e.g. a formula orphaned by a re-commit that moved/removed columns) -> the cell is "broken"
@@ -1677,7 +1730,10 @@ const fmtReconAmount = (n: number): string =>
  * contrast, not in the priced/color palette) when UNRESOLVED, a MUTED grey pill when resolved
  * (still visible -- "was a divergence, now decided" -- without nagging). Read-only (onChoose
  * absent) -> a static pill, no popover. Clicking opens a two-option chooser labelled with the
- * document and formula numbers; a resolved cell also offers "Use default" (clear -> document).
+ * document and formula numbers; a resolved cell also offers "Use default" (clear -> the default).
+ * BCS-6a, owner QR-DEFAULT = (a) (2026-11-27 01:43): the default is the CALCULATED amount (owner
+ * R-BCS-158), so with no choice made "Use formula" is the highlighted pick and the reset reads
+ * "Use default (formula)"; the two buttons' names and the violet mark are unchanged.
  */
 function ReconcileBadge({
   documentVal,
@@ -1748,7 +1804,7 @@ function ReconcileBadge({
         </p>
         <Button
           type="button"
-          variant={resolved === "keep_document" || resolved === "unset" ? "default" : "outline"}
+          variant={resolved === "keep_document" ? "default" : "outline"}
           className="h-auto w-full justify-between py-1.5 text-xs"
           onClick={() => choose("keep_document")}
         >
@@ -1757,7 +1813,7 @@ function ReconcileBadge({
         </Button>
         <Button
           type="button"
-          variant={resolved === "take_formula" ? "default" : "outline"}
+          variant={resolved === "take_formula" || resolved === "unset" ? "default" : "outline"}
           className="h-auto w-full justify-between py-1.5 text-xs"
           onClick={() => choose("take_formula")}
         >
@@ -1771,7 +1827,7 @@ function ReconcileBadge({
             className="h-auto w-full py-1 text-[11px] text-muted-foreground"
             onClick={() => choose(null)}
           >
-            Use default (document)
+            Use default (formula)
           </Button>
         )}
       </PopoverContent>
@@ -2468,21 +2524,31 @@ export function computeBcsRowCells(input: {
   // BCS-S10: the denominator through the SHARED `boqTotalAmount`, so an edited BOQ Total formula
   // moves the margin. The `evaluate` callback is UNCHANGED and still returns the figure that
   // would be on screen (formula + reconciliation resolved) -- that owner ruling did not move.
-  const amountCell = bcsTenderedAmountCell(
-    boqTotalAmount(pickBoqTotalFormula(columnFormulas), input.bcsAmountSource, (entry) => {
-      const cell = evaluateAmountCell(entry, row, columnDescriptors, columnFormulas, rowDraftRates);
-      const raw = resolveDescriptorValue(row, entry);
-      return shownAmountValue(
-        cell,
-        typeof raw === "number" ? raw : null,
-        reconChoiceMap.get(reconChoiceKey(row.source_row_number, entry.col)),
+  // BCS-6a: `boqTotalAmount` now hands this callback the sheet's REAL column for a formula ref (D1 --
+  // so `entry.col` is the real letter and the choice is found), counts a one-sided row's one side
+  // (D3, hence `columnFormulas`), and a row with NO rate anywhere AND no amount has no denominator (P2f).
+  const leftOut = rowLeftOutOfMargin(row, columnDescriptors, columnFormulas, rowDraftRates);
+  const amountCell = leftOut
+    ? ({ kind: "blank", reason: "no_amount" } as BcsComputedCell)
+    : bcsTenderedAmountCell(
+        boqTotalAmount(
+          pickBoqTotalFormula(columnFormulas),
+          input.bcsAmountSource,
+          (entry) => {
+            const cell = evaluateAmountCell(entry, row, columnDescriptors, columnFormulas, rowDraftRates);
+            const raw = resolveDescriptorValue(row, entry);
+            return shownAmountValue(
+              cell,
+              typeof raw === "number" ? raw : null,
+              reconChoiceMap.get(reconChoiceKey(row.source_row_number, entry.col)),
+            );
+          },
+          // The S12e fallback: with no confirmed amount source the sheet's OWN amount columns are
+          // the denominator. Without this the margin stayed blank while BCS Total computed fine.
+          columnDescriptors,
+          columnFormulas,
+        ),
       );
-    },
-      // The S12e fallback: with no confirmed amount source the sheet's OWN amount columns are
-      // the denominator. Without this the margin stayed blank while BCS Total computed fine.
-      columnDescriptors,
-    ),
-  );
   // BCS-S11: the numerator may be re-pointed (BCS Total by default, or the raw cost boxes).
   // The RATIO's shape stays here, in code, so bcsMarginPercent's three guards -- zero, negative
   // and non-finite denominator -- run whatever either slot was configured to.

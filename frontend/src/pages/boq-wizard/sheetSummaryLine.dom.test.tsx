@@ -41,7 +41,9 @@ const SUMMARY = {
 const DESCS = ["qty_total", "rate_supply", "amount_supply"].map((vf, k) => ({ col: "DEF"[k], role: vf, area: null, value_field: vf,
   value_key: null, rate_subkey: null }));
 const ROW = { row_index: 0, effective_parent_index: null, effective_classification: "line_item", description: "item",
-  source_row_number: 5, qty_total: 10, rate_supply: 100, node_type: "Line Item" };
+  source_row_number: 5, qty_total: 10, rate_supply: 100, node_type: "Line Item",
+  // BCS-6a (moved checks, third table): the rate is marked as entered in the app, so the Amount on screen is qty x rate.
+  priced_rate_supply: true };
 const fake = (m: string) => Promise.resolve(m.endsWith("get_priced_rows")
   ? { message: { commit_version: 1, column_descriptors: DESCS, column_formulas: [], reconciliation_choices: [], rows: [ROW] } }
   : m.endsWith("get_bcs_state") ? { message: { is_ready: true, bcs_qty_source: null, bcs_amount_source: null } }

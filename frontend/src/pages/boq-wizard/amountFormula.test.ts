@@ -238,12 +238,22 @@ describe("cycle detection -> broken", () => {
 // every case here is a RATE. `missing: "rate"` is asserted explicitly rather than ignored,
 // because that tag IS the mechanism: it is what stops an enclosing `+` zero-filling the node.
 describe("fail-safe (missing RATE -> whole formula null)", () => {
-  it("`+` with one missing rate -> not_yet, NOT the present addend", () => {
+  // BCS-6a MOVED CHECK (owner QR-POISON = (a), 2026-11-27 01:43 ("option a"): a row priced on ONE side shows that side in its supply + install total). Until BCS-6a this pinned "never the partial sum".
+  it("supply + install with ONE missing rate -> the present side (BCS-6a, owner QR-POISON (a))", () => {
     const set = [cf("amount_total", null, null, op("+", leaf(ref("rate_supply")), leaf(ref("rate_install"))))];
     const lk = mkLookup({ "rate_supply|null|null": 3 }); // rate_install ABSENT
-    const r = evaluateAmountColumn(SCALAR_AMOUNT_TOTAL, set, lk);
-    expect(r).toEqual({ ok: false, reason: "not_yet", missing: "rate" });
-    expect(r).not.toMatchObject({ ok: true }); // never the partial sum (3)
+    expect(evaluateAmountColumn(SCALAR_AMOUNT_TOTAL, set, lk)).toEqual({ ok: true, value: 3 });
+  });
+
+  it("(-) supply + install with BOTH rates missing -> not_yet (no side priced)", () => {
+    const set = [cf("amount_total", null, null, op("+", leaf(ref("rate_supply")), leaf(ref("rate_install"))))];
+    expect(evaluateAmountColumn(SCALAR_AMOUNT_TOTAL, set, mkLookup({}))).toEqual({ ok: false, reason: "not_yet", missing: "rate" });
+  });
+
+  it("(-) a + that is NOT a supply + install pair keeps the old rule: one missing rate -> not_yet", () => {
+    const set = [cf("amount_total", null, null, op("+", leaf(ref("rate_supply")), leaf(ref("rate_combined"))))];
+    const lk = mkLookup({ "rate_supply|null|null": 3 }); // rate_combined ABSENT
+    expect(evaluateAmountColumn(SCALAR_AMOUNT_TOTAL, set, lk)).toEqual({ ok: false, reason: "not_yet", missing: "rate" });
   });
 
   it("`*` with one missing rate -> not_yet (never zero-substituted)", () => {
@@ -253,12 +263,22 @@ describe("fail-safe (missing RATE -> whole formula null)", () => {
       .toEqual({ ok: false, reason: "not_yet", missing: "rate" });
   });
 
-  it("a missing operand deep in a nested tree blanks the whole formula", () => {
+  // BCS-6a MOVED CHECK (owner QR-POISON = (a), 2026-11-27 01:43 ("option a"): a row priced on ONE side shows that side in its supply + install total): qty x (supply + install) with install unpriced -> qty x supply.
+  it("qty x (supply + install) with install unpriced -> qty x supply (BCS-6a, owner QR-POISON (a))", () => {
     const set = [
       cf("amount_total", null, null,
         op("*", leaf(ref("qty_total")), op("+", leaf(ref("rate_supply")), leaf(ref("rate_install"))))),
     ];
     const lk = mkLookup({ "qty_total|null|null": 2, "rate_supply|null|null": 3 }); // rate_install absent
+    expect(evaluateAmountColumn(SCALAR_AMOUNT_TOTAL, set, lk)).toEqual({ ok: true, value: 6 });
+  });
+
+  it("(-) a missing rate deep in a nested tree, NOT on a supply + install pair, still blanks the whole formula", () => {
+    const set = [
+      cf("amount_total", null, null,
+        op("*", leaf(ref("qty_total")), op("+", leaf(ref("rate_supply")), leaf(ref("rate_combined"))))),
+    ];
+    const lk = mkLookup({ "qty_total|null|null": 2, "rate_supply|null|null": 3 }); // rate_combined absent
     expect(evaluateAmountColumn(SCALAR_AMOUNT_TOTAL, set, lk))
       .toEqual({ ok: false, reason: "not_yet", missing: "rate" });
   });
@@ -270,10 +290,12 @@ describe("fail-safe (missing RATE -> whole formula null)", () => {
       cf("amount_install", null, null, op("*", leaf(ref("qty_total")), leaf(ref("rate_install")))),
     ];
     const lk = mkLookup({ "qty_total|null|null": 2, "rate_supply|null|null": 3 }); // rate_install absent
-    // amount_install -> not_yet -> grand -> not_yet (no partial = amount_supply only).
-    // ★ THE PROPAGATION TEST: the rate went missing two levels down, inside a `*` inside an
-    // `amount_install` operand, and the outer `+` STILL must not zero-fill it.
-    expect(evaluateAmountColumn(SCALAR_AMOUNT_TOTAL, set, lk))
+    // BCS-6a MOVED CHECK (owner QR-POISON = (a), 2026-11-27 01:43 ("option a"): a row priced on ONE side shows that side in its supply + install total).
+    // The rate went missing two levels down (inside a x inside the amount_install operand); the kind still PROPAGATES
+    // ("rate"), and the outer Amount (Supply) + Amount (Install) now counts the priced side: 2 x 3.
+    expect(evaluateAmountColumn(SCALAR_AMOUNT_TOTAL, set, lk)).toEqual({ ok: true, value: 6 });
+    // (-) the propagated kind is still a RATE: the install amount alone stays blank (needs a rate).
+    expect(evaluateAmountColumn({ value_field: "amount_install", value_key: null, rate_subkey: null }, set, lk))
       .toEqual({ ok: false, reason: "not_yet", missing: "rate" });
   });
 });

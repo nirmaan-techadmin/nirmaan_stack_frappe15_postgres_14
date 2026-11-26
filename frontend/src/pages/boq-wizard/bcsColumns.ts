@@ -72,7 +72,7 @@ import { ROLE_LABELS } from "./boqTypes";
 // BCS-S9: the ONE operator fold, shared with the column-formula evaluator. `amountFormula` is
 // itself a pure leaf (type-only imports), so this stays acyclic -- and sharing the fold is what
 // stops `+ - x /` meaning two different things on one screen. See foldOperands.
-import { foldOperands, type EvalResult } from "./amountFormula";
+import { foldOperands, pickFormula, type EvalResult } from "./amountFormula";
 
 /** The two sides of the confirmation. */
 export type BcsSide = "qty" | "amount";
@@ -1155,13 +1155,15 @@ export function bcsRowAmount(
   source: BcsSource | null | undefined,
   evaluate: (entry: BcsColumnEntry) => number | null,
   descriptors?: readonly ColumnDescriptor[],
+  columnFormulas?: readonly ColumnFormula[],
 ): number | null {
   const cols = bcsAmountColumns(source, descriptors);
   if (cols.length === 0) return null;
+  const marginAmount = marginColumnAmount(evaluate, descriptors, columnFormulas);
   let any = false;
   let total = 0;
   for (const entry of cols) {
-    const v = evaluate(entry);
+    const v = marginAmount(entry);
     if (v === null || !Number.isFinite(v)) continue;
     any = true;
     total += v;
@@ -1548,25 +1550,121 @@ export function boqTotalAmount(
   source: BcsSource | null | undefined,
   evaluate: (entry: BcsColumnEntry) => number | null,
   descriptors?: readonly ColumnDescriptor[],
+  columnFormulas?: readonly ColumnFormula[],
 ): number | null {
-  if (!tree) return bcsRowAmount(source, evaluate, descriptors);
-  const resolve = (ref: AmountFormulaRef): EvalResult => {
-    const v = evaluate({
-      col: "",
-      role: "",
-      area: ref.value_key,
-      value_field: ref.value_field,
-      value_key: ref.value_key,
-      rate_subkey: ref.rate_subkey,
-    } as BcsColumnEntry);
-    return v === null || !Number.isFinite(v)
-      ? { ok: false, reason: "not_yet" }
-      : { ok: true, value: v };
-  };
-  const walk = (n: AmountFormulaNode): EvalResult =>
-    "ref" in n ? resolve(n.ref) : foldOperands(n.op, n.operands.map(walk));
-  const r = walk(tree);
+  if (!tree) return bcsRowAmount(source, evaluate, descriptors, columnFormulas);
+  const marginAmount = marginColumnAmount(evaluate, descriptors, columnFormulas);
+  const r = marginFold(tree, (ref) => marginAmount(refEntry(ref, descriptors)));
   return r.ok && Number.isFinite(r.value) ? r.value : null;
+}
+
+/**
+ * ★ BCS-6a D1 -- A FORMULA REF IS RESOLVED TO THE SHEET'S REAL COLUMN, matched on value_field +
+ * value_key + rate_subkey (null and undefined are the same "none"), BEFORE the caller's `evaluate`
+ * sees it. The made-up entry (empty `col`) is kept only when no column on the sheet matches.
+ *
+ * WHY IT MATTERS. Both callers look the reconciliation choice up by `entry.col`
+ * (`PricingGrid.computeBcsRowCells` -> `reconChoiceKey(row, entry.col)`; `pricingRollup.rowOwnAmount`
+ * -> `amountD.col`). With `col: ""` the key was "14:" and never matched the stored "14:I", so on a
+ * sheet with a BOQ Total formula every "take formula" choice was dropped and the margin divided by
+ * the uploaded file's amount while the Amount cell beside it showed qty x rate (BCS-S6 D1: 267
+ * 'ELV BOQ', 227 'Structured Cabling BoM', BOQ-26-00479 16 of 17 rows; Abhishek's fix).
+ */
+function refEntry(
+  ref: AmountFormulaRef,
+  descriptors: readonly ColumnDescriptor[] | undefined,
+): BcsColumnEntry {
+  const real = (descriptors ?? []).find(
+    (d) =>
+      d.value_field === ref.value_field &&
+      (d.value_key ?? null) === (ref.value_key ?? null) &&
+      (d.rate_subkey ?? null) === (ref.rate_subkey ?? null),
+  );
+  if (real) return real as unknown as BcsColumnEntry;
+  return {
+    col: "",
+    role: "",
+    area: ref.value_key,
+    value_field: ref.value_field,
+    value_key: ref.value_key,
+    rate_subkey: ref.rate_subkey,
+  } as BcsColumnEntry;
+}
+
+/**
+ * ★ BCS-6a D3 -- THE MARGIN DENOMINATOR'S FOLD: a row priced on ONE side counts that side.
+ *
+ * Owner R3 (2026-11-27 00:04): "d3 yes" -- an install-only (or supply-only) row's BoQ amount is
+ * its one amount, in EVERY margin. So under a `+`, an operand with no amount contributes 0 as long
+ * as at least one operand of that `+` has one; a `+` where NO operand has an amount stays absent
+ * (that row is not priced on any side -- the no-rate case, left out entirely). A `broken` operand
+ * still breaks the whole fold, and `x` / `-` / `/` stay strictly fail-safe (zero-filling a factor
+ * or a divisor would invent a number, not omit a side). The arithmetic is still `foldOperands` --
+ * the misses of a `+` are handed over as an empty value ("value") with zero-fill on, the same opt-in
+ * a sheet's own amount column uses -- so no second copy of the fold exists.
+ *
+ * This replaces the strictness BCS-S10 gave the denominator ("a missing operand must never silently
+ * improve the number"): the owner ruled the one-sided row IS a full amount. It changes ONLY the
+ * margins; the Amount cells on screen are untouched (QR-POISON decides the Amount (Total) cell).
+ */
+function marginFold(
+  tree: AmountFormulaNode,
+  resolve: (ref: AmountFormulaRef) => number | null,
+  depth = 0,
+): EvalResult {
+  if (depth > 32) return { ok: false, reason: "broken", detail: "cycle" };
+  if ("ref" in tree) {
+    const v = resolve(tree.ref);
+    return v === null || !Number.isFinite(v) ? { ok: false, reason: "not_yet" } : { ok: true, value: v };
+  }
+  const results = tree.operands.map((o) => marginFold(o, resolve, depth + 1));
+  if (tree.op === "+" && results.some((r) => r.ok)) {
+    return foldOperands(
+      "+",
+      results.map((r) => (r.ok || r.reason === "broken" ? r : { ok: false, reason: "not_yet", missing: "value" } as EvalResult)),
+      { missingValueIsZero: true },
+    );
+  }
+  return foldOperands(tree.op, results);
+}
+
+/** Does this formula tree reference amount columns ONLY? (What the D3 column expansion may unfold.) */
+function refsAmountsOnly(tree: AmountFormulaNode): boolean {
+  if ("ref" in tree) return tree.ref.value_field.startsWith("amount");
+  return tree.operands.length > 0 && tree.operands.every(refsAmountsOnly);
+}
+
+/**
+ * ★ ONE AMOUNT COLUMN'S FIGURE FOR THE MARGIN -- the caller's `evaluate` (the figure ON SCREEN:
+ * formula + reconciliation choice), and, only where that is blank, the same column's OWN formula
+ * re-folded the margin's way (`marginFold`).
+ *
+ * WHY THE SECOND STEP (BCS-6a D3, the 161 / 164 shape). A sheet with no BOQ Total formula divides by
+ * its Amount (Total) column, whose own formula is `Amount (Supply) + Amount (Install)`. On an
+ * install-only row that CELL is blank on screen -- the column formula refuses to add a side whose
+ * rate nobody entered (amountFormula's 2026-09-04 rule, kept) -- so the margin lost the row. Here the
+ * blank column is unfolded into its own operands, each still read through `evaluate` (so each side
+ * is the figure on screen in ITS cell), and summed with the one-sided `+`. Only a formula over amount
+ * columns is unfolded; `qty x rate` and the like are never re-read here.
+ */
+function marginColumnAmount(
+  evaluate: (entry: BcsColumnEntry) => number | null,
+  descriptors: readonly ColumnDescriptor[] | undefined,
+  columnFormulas: readonly ColumnFormula[] | undefined,
+): (entry: BcsColumnEntry) => number | null {
+  const amountOf = (entry: BcsColumnEntry, depth: number): number | null => {
+    const v = evaluate(entry);
+    if (v !== null && Number.isFinite(v)) return v;
+    if (!columnFormulas || columnFormulas.length === 0 || depth > 8) return null;
+    const own = pickFormula(
+      { value_field: entry.value_field, value_key: entry.value_key ?? null, rate_subkey: entry.rate_subkey ?? null },
+      columnFormulas as ColumnFormula[],
+    );
+    if (!own?.formula || !refsAmountsOnly(own.formula)) return null;
+    const r = marginFold(own.formula, (ref) => amountOf(refEntry(ref, descriptors), depth + 1));
+    return r.ok && Number.isFinite(r.value) ? r.value : null;
+  };
+  return (entry) => amountOf(entry, 0);
 }
 
 /**

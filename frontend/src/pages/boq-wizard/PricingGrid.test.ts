@@ -981,10 +981,16 @@ describe("evaluateAmountCell -- formula wins", () => {
     expect(evaluateAmountCell(amtD, row, cols, [formula], drafts)).toEqual({ kind: "value", value: 14 }); // 2*(3+4)
   });
 
-  it("a missing rate operand -> BLANK not_yet (never a partial / stale number)", () => {
+  // BCS-6a MOVED CHECK (owner QR-POISON = (a), 2026-11-27 01:43 ("option a"): a row priced on ONE side shows that side in its supply + install total). Until BCS-6a a missing install rate blanked qty x (supply + install).
+  it("a missing rate on ONE side of supply + install -> that side alone (BCS-6a, owner QR-POISON (a))", () => {
     const row = prow({ row_index: 1, qty_total: 10 });
     const drafts = { "1:E": "3" }; // install absent + un-priced
-    expect(evaluateAmountCell(amtD, row, cols, [formula], drafts)).toEqual({ kind: "blank", reason: "not_yet" });
+    expect(evaluateAmountCell(amtD, row, cols, [formula], drafts)).toEqual({ kind: "value", value: 30 }); // 10 x (3 + 0)
+  });
+
+  it("(-) BOTH rates missing -> still BLANK not_yet (a row priced on no side)", () => {
+    const row = prow({ row_index: 1, qty_total: 10 });
+    expect(evaluateAmountCell(amtD, row, cols, [formula], {})).toEqual({ kind: "blank", reason: "not_yet" });
   });
 
   it("a real 0 operand computes (0), it is NOT blanked", () => {
@@ -1013,9 +1019,16 @@ describe("evaluateAmountCell -- formula wins", () => {
     expect(evaluateAmountCell(amtD, row, cols, [formula], {})).toEqual({ kind: "value", value: 11200 }); // 10*(880+240)
   });
 
-  it("PREPOPULATED-RATE e2e: a 0.0 unpriced rate still BLANKS (needs a rate)", () => {
-    // qty + supply prepopulated, but install is a committed 0.0 (unfilled) -> not_yet.
+  // BCS-6a MOVED CHECK (owner QR-POISON = (a), 2026-11-27 01:43 ("option a"): a row priced on ONE side shows that side in its supply + install total).
+  it("PREPOPULATED-RATE e2e: a 0.0 unpriced install beside a prepopulated supply -> the supply side (BCS-6a, QR-POISON (a))", () => {
+    // qty + supply prepopulated, install a committed 0.0 (unfilled): the 0.0 is still "no rate" (needs a rate), and the row
+    // now shows its one priced side, 10 x 880.
     const row = prow({ row_index: 1, qty_total: 10, rate_supply: 880, rate_install: 0 });
+    expect(evaluateAmountCell(amtD, row, cols, [formula], {})).toEqual({ kind: "value", value: 8800 });
+  });
+
+  it("(-) PREPOPULATED-RATE: BOTH rates a committed 0.0 -> still BLANKS (needs a rate)", () => {
+    const row = prow({ row_index: 1, qty_total: 10, rate_supply: 0, rate_install: 0 });
     expect(evaluateAmountCell(amtD, row, cols, [formula], {})).toEqual({ kind: "blank", reason: "not_yet" });
   });
 });
@@ -1770,9 +1783,11 @@ describe("shownAmountValue -- the ONE 'what does this amount cell show?' decisio
     expect(shownAmountValue({ kind: "value", value: 1500 }, 1500, undefined)).toBe(1500);
   });
 
-  it("shows the DOCUMENT amount on an unresolved divergence -- the D1 default", () => {
-    // The screen shows 1200 (the document); the margin must divide by 1200, not by 1500.
-    expect(shownAmountValue({ kind: "value", value: 1500 }, 1200, undefined)).toBe(1200);
+  // BCS-6a MOVED CHECK (owner R-BCS-158, 2026-11-27: "defaulyt case should be to keep the calculated
+  // amount" -> "2 yes agree"). Until BCS-6a an unresolved divergence showed the DOCUMENT amount (1200).
+  it("shows the CALCULATED amount on an unresolved divergence -- BCS-6a, owner R-BCS-158", () => {
+    // The screen shows 1500 (qty x rate); the margin divides by the same 1500.
+    expect(shownAmountValue({ kind: "value", value: 1500 }, 1200, undefined)).toBe(1500);
   });
 
   it("shows the DOCUMENT amount when the user chose keep_document", () => {

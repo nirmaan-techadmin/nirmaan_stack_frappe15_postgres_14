@@ -72,8 +72,17 @@ export type ReconResolution =
  *   - DOC-0 EXCEPTION (amendment to D1): the document amount is ~0 -> the FORMULA value wins
  *     SILENTLY (see below) -> { diverges: false };
  *   - diverges + choice "take_formula" -> the FORMULA value;
- *   - diverges + unset / "keep_document" -> the DOCUMENT value (the D1 default -- document wins
- *     until the user explicitly takes the formula).
+ *   - diverges + "keep_document" -> the DOCUMENT value -- ONLY where the user picked it for that cell;
+ *   - diverges + unset (no choice) -> the FORMULA value (the calculated amount, qty x rate).
+ *
+ * ★ THE DEFAULT IS THE CALCULATED AMOUNT (owner R-BCS-158, 2026-11-27 00:23-00:26, BCS-6a): "check
+ * that keep the document's amount is not the default case..defaulyt case should be to keep the
+ * calculated amount" -> "2 yes agree". Until BCS-6a the unset case returned the DOCUMENT value (the
+ * old D1 default). `resolved` still says "unset" on that arm, because the review strip
+ * (priceability.buildDivergenceEntries) lists exactly the cells nobody has chosen for yet -- the
+ * user can still choose; only the number used until then changed. Every reader of the shown
+ * amount (the grid cell via PricingGrid.shownAmountValue, the % Margin denominator, the Summary
+ * panel's rowOwnAmount, the BoQ summary) follows from this one arm.
  *
  * DOC-0 RULE (amendment): when the committed DOCUMENT amount is approximately ZERO
  * (|doc| within the shared epsilon, via amountsEqual(doc, 0)) it is an ABSENT/blank value, NOT a
@@ -99,5 +108,9 @@ export function resolveDivergence(
   if (choice === "take_formula") {
     return { diverges: true, resolved: "take_formula", value: formulaVal as number };
   }
-  return { diverges: true, resolved: choice ?? "unset", value: documentVal as number };
+  if (choice === "keep_document") {
+    return { diverges: true, resolved: "keep_document", value: documentVal as number };
+  }
+  // No choice made -> the CALCULATED amount (owner R-BCS-158; see the docblock above).
+  return { diverges: true, resolved: "unset", value: formulaVal as number };
 }

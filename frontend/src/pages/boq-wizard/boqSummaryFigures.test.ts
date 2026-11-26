@@ -16,7 +16,9 @@ const d = (col: string, vf: string): ColumnDescriptor => ({ col, role: vf, area:
 const DESCS = [d("D", "qty_total"), d("E", "rate_supply"), d("F", "rate_install"), d("G", "amount_supply"), d("H", "amount_install")];
 const row = (idx: number, parent: number | null, er: number, qty: number, s: number, i: number, cls = "line_item") =>
   ({ row_index: idx, effective_parent_index: parent, effective_classification: cls, description: `r${er}`, source_row_number: er,
-    qty_total: qty, rate_supply: s, rate_install: i, node_type: cls === "line_item" ? "Line Item" : "Preamble" }) as unknown as PricedRow;
+    qty_total: qty, rate_supply: s, rate_install: i, node_type: cls === "line_item" ? "Line Item" : "Preamble",
+    // BCS-6a (moved checks, third table): the rate is marked as entered in the app, so the Amount on screen is qty x rate.
+    priced_rate_supply: s !== 0, priced_rate_install: i !== 0 }) as unknown as PricedRow;
 const ROWS = [row(0, null, 10, 0, 0, 0, "preamble"), row(1, 0, 11, 10, 100, 20), row(2, 0, 12, 5, 200, 0), row(3, 0, 13, 2, 0, 0)];
 const rate = (er: number, s: number, i: number) => ({ excel_row: er, supply_rate: s, install_rate: i, combined_rate: 0 }) as unknown as BcsRowRate;
 const RATES = [rate(11, 70, 5), rate(12, 150, 0), rate(13, 40, 0)]; // row 13: a BCS supply with no BoQ amount
@@ -35,7 +37,9 @@ describe("sheetFigures - the sheet Summary's own functions", () => {
   it("(+) supply + typed install == the Summary's BCS Total; BoQ amount == its total column; rows counted", () => {
     const f = sheetFigures(reads());
     const sp = summaryPanelFigures([]);
-    expect(f.bcsSupply).toBe(10 * 70 + 5 * 150 + 2 * 40);
+    // BCS-6a MOVED CHECK (owner R-BCS-158 1, "1 agree"): row 13 has a BCS supply but NO rate in the app or the uploaded
+    // file, so it is left out of the margin -- its cost too. Until BCS-6a this was 10 x 70 + 5 x 150 + 2 x 40 = 1,530.
+    expect(f.bcsSupply).toBe(10 * 70 + 5 * 150);
     expect(f.typedInstall).toBe(10 * 5);
     expect((f.bcsSupply ?? 0) + (f.typedInstall ?? 0)).toBe(sp.bcsTotal);
     expect(f.boqAmount).toBe(sp.totalAmount);
@@ -70,7 +74,10 @@ describe("sheetFigures - the sheet Summary's own functions", () => {
     const panel = rollupByParent(rows, descs, formulas, choice as never);
     expect(panel.grandTotals["I"]).toBe(1200); // what the sheet's Summary shows in I
     expect(withChoice.boqAmount).toBe(1200); // the block follows it (not the un-reconciled 999)
-    expect(sheetFigures(reads({ rows, descriptors: descs, formulas, recon: [] })).boqAmount).toBe(999); // no choice: the document value
+    // BCS-6a MOVED CHECK (owner R-BCS-158): with NO choice the calculated amount is used (until BCS-6a: the document's 999).
+    expect(sheetFigures(reads({ rows, descriptors: descs, formulas, recon: [] })).boqAmount).toBe(1200); // no choice: calculated
+    const keep = [{ excel_row: 11, col_letter: "I", choice: "keep_document" }];
+    expect(sheetFigures(reads({ rows, descriptors: descs, formulas, recon: keep as never })).boqAmount).toBe(999); // (-) kept only where chosen
   });
 });
 

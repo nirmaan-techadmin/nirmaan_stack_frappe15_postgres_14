@@ -28,10 +28,18 @@
  * "none of this in that area", a FACT the document states, and blanking the amount over it hid
  * rows that were perfectly computable.
  *
- * ⚠️ A MISSING **RATE** IS NOT COVERED AND NEVER WILL BE (MissingKind). An unpriced rate is a
- * PENDING ACTION, not a fact -- `qty x (supply + install)` with install unpriced stays BLANK,
- * because 0 there would print a confident number that silently omits a price. This distinction
- * is the whole safety of the exemption, and six tests hold it in place.
+ * ⚠️ A MISSING **RATE** IS NOT COVERED (MissingKind). An unpriced rate is a PENDING ACTION, not a
+ * fact, so a missing rate still blanks the amount it multiplies: `qty x rate` with the rate unpriced
+ * stays BLANK, and so does any sum where NO operand is priced.
+ *
+ * ★ ONE EXCEPTION, THE ONE-SIDED ROW (owner QR-POISON = (a), 2026-11-27 01:43, BCS-6a, after 217
+ * ELE-2F row 377 was explained to him -- "option a"): in a SUPPLY + INSTALL sum -- `Amount (Supply) +
+ * Amount (Install)`, or `qty x (supply rate + install rate)` -- a side whose rate is missing counts 0
+ * as long as the other side is priced, so a row priced on one side only shows that one side in its
+ * total (row 377: Amount (Install) 1,80,000 -> Amount (Total) 1,80,000). This REPLACES the rate half
+ * of the 2026-09-04 rule for that case only; the qty half (an empty quantity is 0) is unchanged, a
+ * row with no side priced stays blank, and every other sum (per-area totals, anything not a supply +
+ * install pair) keeps the old rule. See `supplyInstallPair` and `FoldOptions.missingRateSideIsZero`.
  *
  * The exemption also applies ONLY to a sheet's own amount columns, not to every sum this module
  * folds -- see FoldOptions for the % Margin denominator, which stays strictly fail-safe.
@@ -173,6 +181,11 @@ export interface FoldOptions {
   /** Read a MISSING qty / amount operand as the number 0 (owner ruling -- see the module
    *  docblock). NEVER applies to a missing RATE, whatever this says: see MissingKind. */
   missingValueIsZero?: boolean;
+  /** BCS-6a, owner QR-POISON = (a): under `+`, read an operand that blanked on a MISSING RATE as
+   *  0 -- but ONLY while at least one other operand has a value, and ONLY where the caller has
+   *  established the sum is a supply + install pair (`supplyInstallPair`). A sum where every
+   *  operand is missing stays blank. */
+  missingRateSideIsZero?: boolean;
 }
 
 export type FormulaOp = "+" | "*" | "-" | "/";
@@ -187,7 +200,9 @@ export type FormulaOp = "+" | "*" | "-" | "/";
  * wrong. Callers differ only in how they turn a LEAF into an EvalResult.
  *
  * FAIL-SAFE: a "broken" operand always makes the whole fold broken, beating "not_yet". A missing
- * RATE blanks the fold at every tier. A missing QTY / AMOUNT blanks it too, UNLESS the caller
+ * RATE blanks the fold at every tier (except the unpriced side of a supply + install sum whose other
+ * side is priced, when the caller passes `missingRateSideIsZero` -- owner QR-POISON (a), BCS-6a).
+ * A missing QTY / AMOUNT blanks it too, UNLESS the caller
  * passes `missingValueIsZero` (only a sheet's own amount columns do), in which case it is read as
  * the number 0 -- see MissingKind and FoldOptions, in that order. Note what zero-filling under
  * `/` means: an empty divisor is a division by zero, so the fold is BROKEN, not merely blank --
@@ -201,6 +216,8 @@ export function foldOperands(
   // A non-commutative op has no identity to seed from -- it starts at its FIRST operand.
   const seedFromFirst = NON_COMMUTATIVE_OPS.has(op);
   const zeroFill = opts?.missingValueIsZero === true;
+  // BCS-6a QR-POISON (a): the one-sided row -- see FoldOptions.missingRateSideIsZero.
+  const sideFill = opts?.missingRateSideIsZero === true && op === "+" && results.some((x) => x.ok);
   let acc = op === "*" ? 1 : 0;
   let seeded = !seedFromFirst; // "+"/"*" are seeded the moment they start
   let sawNotYet = false;
@@ -214,17 +231,21 @@ export function foldOperands(
         sawBroken = true;
         continue; // keep scanning so "broken" can win the reason; arithmetic is abandoned
       }
-      // MISSING. An UNPRICED RATE always poisons the fold, at every tier -- zero-filling it would
-      // print an amount that quietly omits a price nobody has entered yet (see MissingKind).
-      if (r.missing === "rate" || !zeroFill || r.missing !== "value") {
+      // MISSING. An UNPRICED RATE poisons the fold -- zero-filling it would print an amount that
+      // quietly omits a price nobody has entered yet (see MissingKind) -- EXCEPT on the unpriced side
+      // of a supply + install sum whose other side IS priced (owner QR-POISON (a), BCS-6a).
+      if (sideFill && r.missing === "rate") {
+        r = { ok: true, value: 0 };
+      } else if (r.missing === "rate" || !zeroFill || r.missing !== "value") {
         sawNotYet = true;
         if (r.missing === "rate") sawPendingRate = true;
         continue;
+      } else {
+        // AN EMPTY QTY / AMOUNT CELL **IS** THE NUMBER 0 -- not a skipped term, not an unknown.
+        // It flows into the arithmetic like any other value, so `x` yields 0 and `/` by it is
+        // refused as a division by zero, exactly as a typed 0 would be.
+        r = { ok: true, value: 0 };
       }
-      // AN EMPTY QTY / AMOUNT CELL **IS** THE NUMBER 0 -- not a skipped term, not an unknown.
-      // It flows into the arithmetic like any other value, so `x` yields 0 and `/` by it is
-      // refused as a division by zero, exactly as a typed 0 would be.
-      r = { ok: true, value: 0 };
     }
     if (!seeded) {
       acc = r.value;
@@ -324,6 +345,33 @@ function evalColumn(
   return evalNode(formula.formula, formulaSet, lookup, nextVisiting, col.value_key);
 }
 
+/** Which side of the row a leaf ref prices: supply / install, or null (anything else). */
+function refSide(ref: AmountFormulaRef): "supply" | "install" | null {
+  const vf = ref.value_field, sub = ref.rate_subkey ?? null;
+  if (vf === "amount_supply" || vf === "rate_supply") return "supply";
+  if (vf === "amount_install" || vf === "rate_install") return "install";
+  if ((vf === "amount_by_area" && sub === "supply") || (vf === "rate_by_area" && sub === "supply_rate")) return "supply";
+  if ((vf === "amount_by_area" && sub === "install") || (vf === "rate_by_area" && sub === "install_rate")) return "install";
+  return null;
+}
+
+/**
+ * BCS-6a, owner QR-POISON = (a): is this operator node a SUPPLY + INSTALL sum -- a `+` whose every
+ * operand is a leaf naming the supply or the install side (amounts or rates, scalar or per-area), with
+ * BOTH sides present? Only such a sum lets an unpriced side count 0 (`FoldOptions.missingRateSideIsZero`).
+ */
+function supplyInstallPair(node: { op: FormulaOp; operands: AmountFormulaNode[] }): boolean {
+  if (node.op !== "+") return false;
+  const sides = new Set<string>();
+  for (const o of node.operands) {
+    if (!isLeafNode(o)) return false;
+    const side = refSide(o.ref);
+    if (!side) return false;
+    sides.add(side);
+  }
+  return sides.has("supply") && sides.has("install");
+}
+
 /**
  * Evaluate one token-tree node. An operator folds its operands LEFT TO RIGHT; a leaf binds its
  * ref to `bindArea` and recurses through evalColumn. FAIL-SAFE: if ANY operand is not ok, the
@@ -360,10 +408,11 @@ function evalNode(
   if (isOperatorNode(node)) {
     // THE ONE OPT-IN SITE for the additive skip -- a sheet's own amount column. See FoldOptions
     // for why boqTotalAmount (the % Margin denominator) deliberately does not opt in.
+    // BCS-6a QR-POISON (a): a supply + install pair also lets the unpriced side count 0.
     return foldOperands(
       node.op,
       node.operands.map((o) => evalNode(o, formulaSet, lookup, visiting, bindArea)),
-      { missingValueIsZero: true },
+      { missingValueIsZero: true, missingRateSideIsZero: supplyInstallPair(node) },
     );
   }
   // Neither a valid operator nor a valid leaf -> malformed (slipped past F1) -> broken.

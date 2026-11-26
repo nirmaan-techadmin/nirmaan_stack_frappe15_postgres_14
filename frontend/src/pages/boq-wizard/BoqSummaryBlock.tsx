@@ -18,7 +18,7 @@ import { FrappeContext, useFrappeGetCall, useFrappePostCall, type FrappeConfig }
 import { useUserData } from "@/hooks/useUserData";
 import { canSeeBcsCost } from "./boqAccess";
 import { rollupByParent, type RollupNode } from "./pricingRollup";
-import { bcsAmountColumns, bcsLiveRateKinds, bcsMarginPercent, boqTotalAmount, formatBcsMargin, pickBoqTotalFormula } from "./bcsColumns";
+import { bcsAmountColumns, bcsLiveRateKinds, bcsMarginPercent, formatBcsMargin } from "./bcsColumns";
 import type { BcsSectionTotals } from "./bcsRollup";
 import { bcsFigureText } from "./rate-helper/bcsSide";
 import type { BcsRowRate, BcsSource, ColumnDescriptor, ColumnFormula, GetBcsStateResponse, GetPricedRowsResponse,
@@ -73,9 +73,9 @@ function ownFigures(roots: RollupNode[], by: Map<number, BcsSectionTotals>, pick
 const EMPTY: BcsSectionTotals = { cost: null, tendered: null, margin: { kind: "blank", reason: "no_cost" } };
 
 /** One sheet's BoQ amount, BCS supply, typed installation and "rows with BCS supply", through the sheet Summary's own functions.
- *  The BoQ amount of a row = `boqTotalAmount` (the declared BOQ Total formula, else the sheet's own amount columns by
- *  `bcsAmountColumns`' rule) evaluated on the row's OWN amounts as `rollupByParent` resolves them - formulas AND reconciliation
- *  choices - so it equals the amount the sheet's Summary shows (Question 4 = (c)). */
+ *  The BoQ amount = the rollup's tendered (`rollupByParent` -> `boqTotalAmount` over the amount ON SCREEN: the declared BOQ
+ *  Total formula, else the sheet's own amount columns by `bcsAmountColumns`' rule; formulas AND reconciliation choices; BCS-6a:
+ *  one-sided rows counted, no-rate rows without an amount left out) - the figure the sheet's Summary panel divides by. */
 export function sheetFigures(r: SheetReads): SheetFigures {
   const kinds = bcsLiveRateKinds(r.descriptors);
   // The amount side: the confirmed columns where stored, else the sheet's own amount columns (`bcsAmountColumns`, the margin's rule).
@@ -87,23 +87,17 @@ export function sheetFigures(r: SheetReads): SheetFigures {
   const sup = roll("install");
   const ins = roll("supply");
   const supplyOwn = ownFigures(sup.roots, sup.bcs?.byRowIndex ?? new Map<number, BcsSectionTotals>(), (t) => t.cost);
-  const boqFormula = pickBoqTotalFormula(r.formulas);
-  const colOf = (e: { value_field: string; value_key?: string | null; rate_subkey?: string | null }) => r.descriptors.find((d) =>
-    d.value_field === e.value_field && (d.value_key ?? null) === (e.value_key ?? null) && (d.rate_subkey ?? null) === (e.rate_subkey ?? null))?.col;
-  let boqAmount: number | null = null;
+  // BCS-6a: the BoQ amount IS the rollup's per-row tendered -- the denominator the sheet's grid and Summary panel divide
+  // by (the amount on screen, one-sided rows counted, no-rate rows without an amount left out) -- so the three surfaces
+  // cannot disagree. Until BCS-6a this block re-walked `boqTotalAmount` itself over the rollup's own amounts.
+  const tenderedOwn = ownFigures(sup.roots, sup.bcs?.byRowIndex ?? new Map<number, BcsSectionTotals>(), (t) => t.tendered);
+  const boqAmount: number | null = sup.bcs?.grand.tendered ?? null;
   let rowsWithAmount = 0;
   let rowsWithSupply = 0;
   const walk = (n: RollupNode) => {
-    const amt = boqTotalAmount(boqFormula, r.amountSource, (e) => {
-      const col = colOf(e);
-      return col ? (n.ownAmounts[col] ?? null) : null;
-    }, r.descriptors);
-    if (amt !== null) {
-      boqAmount = (boqAmount ?? 0) + amt;
-      if (amt > 0) {
-        rowsWithAmount += 1;
-        if ((supplyOwn.get(n.rowIndex) ?? 0) > 0) rowsWithSupply += 1;
-      }
+    if ((tenderedOwn.get(n.rowIndex) ?? 0) > 0) {
+      rowsWithAmount += 1;
+      if ((supplyOwn.get(n.rowIndex) ?? 0) > 0) rowsWithSupply += 1;
     }
     n.children.forEach(walk);
   };

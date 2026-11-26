@@ -545,9 +545,11 @@ describe("rollupByParent reconciliation-choice resolution (Cluster B)", () => {
     }),
   ];
 
-  it("DEFAULTS a divergent cell to the DOCUMENT value when unset (D1)", () => {
+  // BCS-6a MOVED CHECK (owner R-BCS-158, 2026-11-27: "defaulyt case should be to keep the calculated
+  // amount" -> "2 yes agree"): until BCS-6a an unset divergent cell rolled up the DOCUMENT value (80).
+  it("DEFAULTS a divergent cell to the CALCULATED value when unset -- BCS-6a, owner R-BCS-158", () => {
     const res = rollupByParent(rows(), CDS, FORMULAS, []); // no choices
-    expect(root(res, 0)!.totals["F"]).toBe(80); // document, NOT the formula's 50
+    expect(root(res, 0)!.totals["F"]).toBe(50); // the formula's 10 x 5, NOT the document's 80
   });
 
   it("take_formula resolves the cell to the FORMULA value", () => {
@@ -557,7 +559,7 @@ describe("rollupByParent reconciliation-choice resolution (Cluster B)", () => {
     expect(root(res, 0)!.totals["F"]).toBe(50);
   });
 
-  it("keep_document keeps the document value (same as unset)", () => {
+  it("keep_document keeps the document value (only where the user picked it, BCS-6a)", () => {
     const res = rollupByParent(rows(), CDS, FORMULAS, [
       { excel_row: 34, col_letter: "F", choice: "keep_document" },
     ]);
@@ -645,10 +647,11 @@ describe("rollupByParent -- the BCS cost axis (BCS-S5)", () => {
   });
 
   // One tiny line at 90% margin beside one huge line at 2%.
+  // BCS-6a (moved checks, third table): the rate is marked as entered in the app, so the Amount on screen is qty x rate.
   const skewedRows = () => [
     prow({ row_index: 0, source_row_number: 10, effective_parent_index: null, effective_classification: "preamble", description: "Section", node_type: "Preamble" }),
-    prow({ row_index: 1, source_row_number: 11, effective_parent_index: 0, effective_classification: "line_item", description: "tiny", node_type: "Line Item", qty_total: 1, rate_combined: 10 }),
-    prow({ row_index: 2, source_row_number: 12, effective_parent_index: 0, effective_classification: "line_item", description: "huge", node_type: "Line Item", qty_total: 1, rate_combined: 1_000_000 }),
+    prow({ row_index: 1, source_row_number: 11, effective_parent_index: 0, effective_classification: "line_item", description: "tiny", node_type: "Line Item", qty_total: 1, rate_combined: 10, priced_rate_combined: true }),
+    prow({ row_index: 2, source_row_number: 12, effective_parent_index: 0, effective_classification: "line_item", description: "huge", node_type: "Line Item", qty_total: 1, rate_combined: 1_000_000, priced_rate_combined: true }),
   ];
 
   it("B1 no BCS input -> bcs is null and nothing else changes (pre-BCS-S5 callers unaffected)", () => {
@@ -710,7 +713,9 @@ describe("rollupByParent -- the BCS cost axis (BCS-S5)", () => {
   it("B7 every node gets an entry, and a priced PREAMBLE's own cost counts exactly once", () => {
     const rows = skewedRows();
     // Give the preamble itself a quantity, so it carries a cost of its own beside its children's.
-    rows[0] = prow({ ...rows[0], qty_total: 2 });
+    // BCS-6a MOVED CHECK: the preamble also gets a BoQ rate -- the test is about a PRICED preamble, and
+    // since BCS-6a (owner R-BCS-158 1) a row with no rate anywhere is left out of the margin, cost too.
+    rows[0] = prow({ ...rows[0], qty_total: 2, rate_combined: 7 });
     const res = rollupByParent(
       rows, BCS_CDS, [], [],
       bcsInput([
@@ -722,5 +727,49 @@ describe("rollupByParent -- the BCS cost axis (BCS-S5)", () => {
     expect([...res.bcs!.byRowIndex.keys()].sort((a, b) => a - b)).toEqual([0, 1, 2]);
     expect(res.bcs!.byRowIndex.get(0)!.cost).toBe(11); // 6 + 1 + 4, the preamble's own once
     expect(res.bcs!.grand.cost).toBe(11);
+  });
+
+  // ── BCS-6a P2f / D2 / D3 through the real entry point ──────────────────────────────────────────
+  it("BCS-6a P2f (-) a row with NO rate anywhere is left out of the margin: its cost AND its amount (owner R-BCS-158 1)", () => {
+    const rows = skewedRows();
+    rows[0] = prow({ ...rows[0], qty_total: 2 }); // the preamble: a quantity and a BCS rate, but NO BoQ rate anywhere
+    const res = rollupByParent(
+      rows, BCS_CDS, [], [],
+      bcsInput([{ excel_row: 10, combined_rate: 3 }, { excel_row: 11, combined_rate: 1 }, { excel_row: 12, combined_rate: 4 }]),
+    );
+    expect(res.bcs!.byRowIndex.get(0)!.cost).toBe(5); // 1 + 4: the rate-less preamble's 2 x 3 is left out
+    expect(res.bcs!.grand.cost).toBe(5);
+    expect(res.bcs!.grand.tendered).toBe(1_000_010); // its (absent) amount adds nothing either
+  });
+
+  it("BCS-6a D2 (+) no BOQ Total formula and NO confirmed amount source: the Summary still has an amount and a margin", () => {
+    // 267 HVAC-BOQ shape: bcs_amount_source null -> before BCS-6a the panel showed no amount and a blank % Margin.
+    const input = { ...bcsInput([{ excel_row: 11, combined_rate: 1 }, { excel_row: 12, combined_rate: 980_000 }]), amountSource: null };
+    const res = rollupByParent(skewedRows(), BCS_CDS, [], [], input);
+    expect(res.bcs!.grand.tendered).toBe(1_000_010); // the sheet's own Amount (Total) column (bcsAmountColumns)
+    expect(res.bcs!.grand.cost).toBe(980_001);
+    expect(res.bcs!.grand.margin.kind).toBe("value");
+  });
+
+  it("BCS-6a D3 (+) an install-only row counts its install amount in the Summary's margin (217 ELE-2F row 377 shape)", () => {
+    const d = (col: string, vf: string) => desc(col, vf, vf);
+    const cds = [d("D", "qty_total"), d("E", "rate_supply"), d("F", "rate_install"), d("G", "amount_supply"), d("H", "amount_install"), d("I", "amount_total")];
+    const ref = (vf: string) => ({ ref: { value_field: vf, value_key: null, rate_subkey: null } });
+    const fm = (target: string, formula: unknown) => ({ target_value_field: target, target_value_key: null, target_rate_subkey: null, formula }) as never;
+    const formulas = [
+      fm("amount_supply", { op: "*", operands: [ref("qty_total"), ref("rate_supply")] }),
+      fm("amount_install", { op: "*", operands: [ref("qty_total"), ref("rate_install")] }),
+      fm("amount_total", { op: "+", operands: [ref("amount_supply"), ref("amount_install")] }),
+    ];
+    const rows = [prow({ row_index: 0, source_row_number: 377, effective_parent_index: null, effective_classification: "line_item",
+      description: "install-only lump sum", node_type: "Line Item", qty_total: 1, rate_install: 180000, priced_rate_install: true })];
+    const res = rollupByParent(rows, cds, formulas, [], {
+      ratesByExcelRow: new Map([[377, { excel_row: 377, supply_rate: 0, install_rate: 125000, combined_rate: null } as never]]),
+      kinds: ["supply", "install"] as const, qtySource: QTY_SOURCE, amountSource: null,
+    });
+    expect(res.grandTotals["I"]).toBe(180000); // QR-POISON (a): the Amount (Total) cell shows the one side too
+    expect(res.bcs!.grand.tendered).toBe(180000); // and the margin counts it
+    expect(res.bcs!.grand.cost).toBe(125000);
+    expect(res.bcs!.grand.margin).toEqual({ kind: "value", value: (1 - 125000 / 180000) * 100 });
   });
 });

@@ -2280,7 +2280,10 @@ describe("BCS-S10 -- the denominator's seed reproduces the confirmed-columns sum
     expect(boqTotalAmount(supplyOnly, s, evaluate as never)).toBe(600);
   });
 
-  it("an unresolvable operand blanks the denominator rather than part-summing it", () => {
+  // BCS-6a MOVED CHECK (pinned on purpose until now; BCS-S6 S5c D3). Owner R3, 2026-11-27 00:04:
+  // "d3 yes" -- a row priced on one side only (supply only, or installation only) counts its single
+  // amount in the margin. So `amount_G + <nothing>` part-sums to the side that has an amount.
+  it("a one-sided row counts its one side in the denominator -- owner R3 \"d3 yes\" (BCS-6a)", () => {
     const s = src("G", "H");
     const missing: AmountFormulaNode = {
       op: "+",
@@ -2289,7 +2292,90 @@ describe("BCS-S10 -- the denominator's seed reproduces the confirmed-columns sum
         { ref: { value_field: "amount_NOPE", value_key: null, rate_subkey: null } },
       ],
     };
-    expect(boqTotalAmount(missing, s, evaluate as never)).toBeNull();
+    expect(boqTotalAmount(missing, s, evaluate as never)).toBe(600);
+  });
+
+  it("(-) a + where NO operand has an amount stays blank -- that row is priced on no side (P2f)", () => {
+    const none: AmountFormulaNode = {
+      op: "+",
+      operands: [
+        { ref: { value_field: "amount_NOPE", value_key: null, rate_subkey: null } },
+        { ref: { value_field: "amount_GONE", value_key: null, rate_subkey: null } },
+      ],
+    };
+    expect(boqTotalAmount(none, src("G", "H"), evaluate as never)).toBeNull();
+  });
+
+  it("(-) a x with a missing factor stays blank -- only a sum may omit a side", () => {
+    const times: AmountFormulaNode = {
+      op: "*",
+      operands: [
+        { ref: { value_field: "amount_G", value_key: null, rate_subkey: null } },
+        { ref: { value_field: "amount_NOPE", value_key: null, rate_subkey: null } },
+      ],
+    };
+    expect(boqTotalAmount(times, src("G", "H"), evaluate as never)).toBeNull();
+  });
+});
+
+// BCS-6a D1 -- Abhishek's failing-first test (BOQ-26-00479). Under a BOQ Total formula the ref must reach
+// the caller's `evaluate` as the sheet's REAL column, because the caller looks the reconciliation choice
+// up by `entry.col`; the made-up `col: ""` entry made every "take formula" choice miss.
+describe("BCS-6a D1 -- a BOQ Total formula ref is resolved to its real column before evaluate", () => {
+  const ref = { value_field: "amount_total", value_key: null, rate_subkey: null };
+  const descs = [
+    { col: "G", role: "amount_supply", area: null, value_field: "amount_supply", value_key: null, rate_subkey: null },
+    { col: "I", role: "amount_total", area: null, value_field: "amount_total", value_key: null, rate_subkey: null },
+  ] as never;
+  // Stands in for the grid's callback: column I with its "take formula" choice found = 2,900 (qty x rate);
+  // any other letter (the empty one) misses the choice and falls back to the file's 2,500.
+  const evaluate = (e: { col: string }) => (e.col === "I" ? 2900 : 2500);
+
+  it("(+) the ref reaches evaluate as column I -> 2,900 (the amount on screen)", () => {
+    expect(boqTotalAmount({ ref }, null, evaluate as never, descs)).toBe(2900);
+  });
+
+  it("(+) a ref with undefined value_key / rate_subkey still matches (null = undefined)", () => {
+    const loose = { value_field: "amount_total" } as never;
+    expect(boqTotalAmount({ ref: loose }, null, evaluate as never, descs)).toBe(2900);
+  });
+
+  it("(-) no matching column on the sheet -> the made-up entry is still used (col '')", () => {
+    const seen: string[] = [];
+    const spy = (e: { col: string }) => { seen.push(e.col); return evaluate(e); };
+    const other = { value_field: "amount_install", value_key: null, rate_subkey: null };
+    expect(boqTotalAmount({ ref: other }, null, spy as never, descs)).toBe(2500);
+    expect(seen).toEqual([""]);
+  });
+});
+
+// BCS-6a D3 -- the 161 / 164 shape: no BOQ Total formula, the denominator is Amount (Total), whose own
+// formula is Amount (Supply) + Amount (Install). On an install-only row that CELL stays blank on screen
+// (the 2026-09-04 amount-formula rule is untouched), but the margin unfolds the column into its sides.
+describe("BCS-6a D3 -- a blank Amount (Total) cell is unfolded into its sides for the margin", () => {
+  const d = (col: string, vf: string) => ({ col, role: vf, area: null, value_field: vf, value_key: null, rate_subkey: null });
+  const descs = [d("G", "amount_supply"), d("H", "amount_install"), d("I", "amount_total")] as never;
+  const sumRefs = { op: "+", operands: [
+    { ref: { value_field: "amount_supply", value_key: null, rate_subkey: null } },
+    { ref: { value_field: "amount_install", value_key: null, rate_subkey: null } },
+  ] };
+  const formulas = [{ target_value_field: "amount_total", target_value_key: null, target_rate_subkey: null, formula: sumRefs }] as never;
+  const shown = (vals: Record<string, number | null>) => (e: { col: string }) => vals[e.col] ?? null;
+
+  it("(+) install-only (217 ELE-2F row 377 shape): Amount (Install) 1,80,000, Amount (Total) blank -> 1,80,000", () => {
+    expect(boqTotalAmount(null, null, shown({ G: null, H: 180000, I: null }) as never, descs, formulas)).toBe(180000);
+  });
+  it("(+) supply-only: Amount (Supply) 36,000 -> 36,000", () => {
+    expect(boqTotalAmount(null, null, shown({ G: 36000, H: null, I: null }) as never, descs, formulas)).toBe(36000);
+  });
+  it("(+) a shown Amount (Total) is used as it is (never re-added from its sides)", () => {
+    expect(boqTotalAmount(null, null, shown({ G: 100, H: 50, I: 999 }) as never, descs, formulas)).toBe(999);
+  });
+  it("(-) no side priced -> blank (not counted)", () => {
+    expect(boqTotalAmount(null, null, shown({}) as never, descs, formulas)).toBeNull();
+  });
+  it("(-) without the column formulas (the old call) the blank column stays blank", () => {
+    expect(boqTotalAmount(null, null, shown({ G: null, H: 180000, I: null }) as never, descs)).toBeNull();
   });
 });
 
