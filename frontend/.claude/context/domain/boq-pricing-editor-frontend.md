@@ -576,8 +576,9 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
   first compute already uses the saved change; `setAttr` hands each change up (`onSaveEdit(attrId, value, view)`, the page
   waits PricingGrid's 1 s autosave pause, then queues the post per row), `resetAttr` / Revert hand up a clear
   (`onClearEdits`), and Revert sets an EMPTY state scoped to the row (the row-less empty state would read the seed again). The
-  view is `helperViewOf(kind, target)`; the tag is `carryTagText` ("changed by you" / "carried from the <view> helper") in the
-  "from BoQ" chip, on plain fields and on edited item fields (`ItemListBlocks` `editTag`). ⚠️ Nothing here reaches `onUse`
+  view is `helperViewOf(kind, target)`; the tag is `carryTagText` ("changed by you" / "from <view> helper") in the
+  "from BoQ" chip, on its own line directly below the field (`helper-edit-tag-line`; owner R2 review round 1), on plain fields
+  and on edited item fields (`ItemListBlocks` `editTag`, `item-field-edit-tag-line`). ⚠️ Nothing here reaches `onUse`
   (applyRate) and a typed final value is never handed up. A locked / taken-over / history view saves nothing. A finished
   Suggest run re-reads the edits (owner R-BCS-140: the server replaced the rows it read) through `helperEditsAfterRunRef`.
 

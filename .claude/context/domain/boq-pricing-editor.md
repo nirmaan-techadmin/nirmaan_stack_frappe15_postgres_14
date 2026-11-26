@@ -117,8 +117,9 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   first compute, and the compute already prefers an override to the extraction -- there is no new pricing path. Nothing reaches
   `save_cell_price` or `save_row_bcs_rates`: a value already in a cell, typed or accepted, is never altered; a typed final value is
   never saved; the user still clicks "Use this value" or types in the cell.
-- The tags: a field whose value came from an edit reads "changed by you" in the view it was made in, and "carried from the
-  <Supply / Install / Combined / BCS> helper" in the row's other views -- the panel's own view labels, the same chip as "from BoQ".
+- The tags: a field whose value came from an edit reads "changed by you" in the view it was made in, and "from
+  <Supply / Install / Combined / BCS> helper" in the row's other views -- the panel's own view labels, the same chip as "from BoQ",
+  on its OWN line directly BELOW the field (owner R2, review round 1, 2026-11-26 10:53 / 10:54: below, not beside; no "carried").
 - ⚠️ **A fresh Suggest run REPLACES the saved edits of the rows it writes** (owner R-BCS-140, 2026-11-26 00:37, "yes replcae" --
   it SUPERSEDES R-BCS-45 of 21 Nov, "a fresh run keeps the saved change"). `rate_master._suggest_worker`, after the run's own commit
   and beside the BCS switch-on, calls `helper_edits.supersede_edits_for_rows` with the pass's own `attempted_rows` (complete or

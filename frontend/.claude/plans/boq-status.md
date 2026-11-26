@@ -11,7 +11,7 @@ record is the last `## Slice DU-3` section of `boq-upload-plan.md`.
 **BCS lane (branch `feature/boq-bcs`, dev2):** slice **BCS-4** took main in at `c4a3d5fa1` (VAV-MT's parallel
 plan) and built the carry: a field changed in any view of a row's rate helper (Supply, Install, Combined or the
 BCS supply box) is saved for the row (`BoQ Row Helper Edit`) and shows in the row's other views, tagged
-"changed by you" / "carried from the ... helper"; only suggestions change; a fresh Suggest run replaces the
+"changed by you" / "from ... helper" below the field; only suggestions change; a fresh Suggest run replaces the
 edits of the rows it writes (owner R-BCS-140, superseding R-BCS-45) (rules:
 `.claude/context/domain/boq-pricing-editor.md` § "A change carries to the row's other helpers"). Left for the
 BCS phase: slice 5 (the BoQ summary), slice 6 ("Previously priced" and the spreadsheet removal), then the
