@@ -87,10 +87,42 @@ class TestC1CommitGuard(FrappeTestCase):
         fewer = copy.deepcopy(found); fewer[path][lit] -= 1
         self.assertTrue(any("fewer" in x for x in self.R.catalogue_word_drift(fewer, frozen)))
 
-    def test_c1_05_scoped_to_the_boq_folders_and_not_yet_in_the_hook(self):
-        # QR-HOOK (2026-11-26 03:47): the hook registration waits for the owner (it needs a residence_baseline.json entry, which the
-        # CAT-1 brief forbids editing) -- this suite module is the guard meanwhile; the line below flips when C1 joins CHECKS
-        self.assertEqual([c for c in self.R.CHECKS if c.rule == "C1"], [])
+    def test_c1_05_scoped_to_the_boq_folders_and_in_the_hook(self):
+        # CAT-1b (owner 2026-11-26 10:37 "2 ok. allowed"; PIN K7, mechanical authority): C1 joined CHECKS with its one baseline line.
+        # BEFORE (CAT-1 QR-HOOK 03:47, the hook waited for the owner): assertEqual([c for c in self.R.CHECKS if c.rule == "C1"], [])
+        c1 = [c for c in self.R.CHECKS if c.rule == "C1"]
+        self.assertEqual([(c.id, c.pass_mark) for c in c1], [("c1_catalogue_words_unfrozen", 0)])
+        with open(os.path.join(APP, "scripts", "residence_baseline.json"), encoding="utf-8") as fh:
+            entry = json.load(fh)["c1_catalogue_words_unfrozen"]
+        self.assertEqual((entry["count"], entry["rule"]), (0, "C1"))
+
+    def test_c1_06_the_hook_fails_a_new_boq_file_typing_a_catalogue_word(self):
+        # CAT-1b T6: the hook's own verdict (`compare` against the baseline count 0) on the tree = holding; with a NEW file in a BoQ folder
+        # typing a catalogue word (a scratch path, never written into the repo) = a NEW violation, the run fails.
+        vocab = self.R.catalogue_vocabulary()
+        frozen = json.load(open(os.path.join(APP, self.R.CATALOGUE_ALLOWLIST), encoding="utf-8"))
+        word = "Ball Valve" if "Ball Valve" in vocab else sorted(v for v in vocab if " " in v)[0]
+        self.assertTrue(self.R.compare("c1_catalogue_words_unfrozen", len(self.R.catalogue_words_unfrozen()), 0).ok)
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "frontend" / "src" / "pages" / "boq-wizard" / "rate-helper" / "newCat1bHelper.ts"
+            p.parent.mkdir(parents=True)
+            p.write_text(f'export const pick = (x: string) => x === "{word}";\n', encoding="utf-8")
+            drift = self.R.catalogue_word_drift(self.R.catalogue_words_found(extra=[p], vocab=vocab), frozen)
+        v = self.R.compare("c1_catalogue_words_unfrozen", len(drift), 0)
+        self.assertFalse(v.ok, v)
+        self.assertIn("NEW violation", v.message)
+        self.assertTrue(any("newCat1bHelper.ts" in x and word in x for x in drift), drift)
+
+    def test_c1_07_a_file_outside_the_scope_is_not_scanned(self):
+        # CAT-1b T6 (QR-TEAM (a)): only the BoQ / rate-master folders and the listed prompts are read; a team file elsewhere that types a
+        # catalogue word (here: a real file outside the scope, read directly) is never counted by the scan.
+        found = self.R.catalogue_words_found()
+        scope = tuple(d + "/" for d in self.R.CATALOGUE_CODE_DIRS)
+        self.assertTrue(found)
+        self.assertEqual([k for k in found if not k.startswith(scope) and k not in self.R.CATALOGUE_PROMPTS], [])
+        files = {p.relative_to(Path(self.R.REPO_ROOT)).as_posix() for sub in self.R.CATALOGUE_CODE_DIRS
+                 for p in self.R.iter_files(sub, (".py", ".ts", ".tsx"))}
+        self.assertFalse(any(f.startswith(("frontend/src/pages/ProjectPayments/", "nirmaan_stack/api/payments/")) for f in files))
         self.assertTrue(all(d.startswith(("nirmaan_stack/api/boq", "nirmaan_stack/services/boq_rate", "frontend/src/pages/boq-wizard",
                                           "frontend/src/pages/pricing")) for d in self.R.CATALOGUE_CODE_DIRS))
 

@@ -875,9 +875,9 @@ def catalogue_word_drift(found: dict[str, dict[str, int]], frozen: dict[str, dic
                   + [f"{x} (fewer: lower its count in {CATALOGUE_ALLOWLIST}; remove it at 0)" for x in under] + no_reason)
 
 
-# NOT YET IN `CHECKS` (CAT-1 QR-HOOK, 2026-11-26 03:47): registering C1 needs an entry in scripts/residence_baseline.json, which the CAT-1
-# brief forbids editing (test_residence_check pins baseline entries == CHECKS). Until the owner rules, C1 runs as the Python suite guard
-# (services/boq_rate_master/test_catalogue_guards.TestC1CommitGuard) over exactly these functions; the hook registration is one Check entry.
+# IN `CHECKS` since CAT-1b (owner 2026-11-26 10:37, verbatim: "2 ok. allowed" -- the one baseline line c1_catalogue_words_unfrozen, count
+# 0, rule C1): the commit hook runs it, pass mark 0, over the scope above only (QR-TEAM (a)). The Python suite guard
+# (services/boq_rate_master/test_catalogue_guards.TestC1CommitGuard) runs the same functions.
 def catalogue_words_unfrozen() -> list[str]:
     """C1 over its scope: the files whose typed catalogue words differ from CATALOGUE_ALLOWLIST."""
     return catalogue_word_drift(catalogue_words_found(), read_frozen(CATALOGUE_ALLOWLIST))
@@ -1097,6 +1097,24 @@ CHECKS: list[Check] = [
                    f"lower its count with python3 scripts/residence_check.py {PRUNE_FLAG}",
         measure=lambda: len(disable_comments_unfrozen()),
         locate=disable_comments_unfrozen,
+        pass_mark=0,
+    ),
+    # CAT-1 / CAT-1b (owner 2026-11-26 00:14 "guards that future builds cant bypass these again"; 01:47 QR-TEAM (a) the BoQ /
+    # rate-master folders and prompt files only; 10:37 "2 ok. allowed" the baseline line): a catalogue item or value is named by
+    # reference, a label or a placeholder -- never typed. Frozen per file in CATALOGUE_ALLOWLIST with a reason and ruling each;
+    # pass mark 0, as J1's.
+    Check(
+        id="c1_catalogue_words_unfrozen",
+        rule="C1",
+        description=f"BoQ / rate-master code files and rate-master prompts whose typed catalogue words (string literals or "
+                    f"prompt words equal to a value of the newest rate files) differ from their frozen count in "
+                    f"{CATALOGUE_ALLOWLIST}.",
+        route_hint="name the item or value by reference (item_uid, a gate-checked config value), a label, or a "
+                   "{{cat:<attr>=<value>}} / {{item:<item_uid>}} placeholder in config wording (boq-rate-master.md, the "
+                   f"catalogue link); a deliberate exception goes in {CATALOGUE_ALLOWLIST} with its reason and ruling. "
+                   "Fewer: lower that file's count (remove it at 0).",
+        measure=lambda: len(catalogue_words_unfrozen()),
+        locate=catalogue_words_unfrozen,
         pass_mark=0,
     ),
     # Not an ADR-0010 rule: a merged PR's walk must become rerunnable feature walks (pr-walk SKILL.md step 9). A
