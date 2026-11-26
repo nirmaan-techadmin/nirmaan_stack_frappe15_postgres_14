@@ -28,6 +28,45 @@ the full corrections-owed list.
 _Moved verbatim from root `CLAUDE.md` when it was cut down to material every task needs (CLAUDE.md restructure, pass 2). CLAUDE.md now carries a one-line pointer here._ Where a rule below differs from an older copy further down this file, **this section
 is current**: it is the text root `CLAUDE.md` carried until the move, after pass 1 pruned it.
 
+**THE CATALOGUE DECIDES WHAT EVERY SCREEN AND THE AI OFFER; NOTHING TYPES A CATALOGUE NAME (CAT-1 / CAT-1b, 2026-11-26).** The owner's
+words, verbatim: 2026-11-24 18:42 - 19:38 (the mechanism: lists rebuilt from the catalogue, linked by reference); 2026-11-26 00:06 /
+00:10 (full coverage); 00:14 "also we need to put guards that future builds cant bypass these again" / "and the build follows this
+principle everytime"; 01:47 "a a a ok" (QR-C-1 (a): the fill mechanism and gate in CAT-1, the TypeScript fill and the wording
+conversion in CAT-1b; QR-S (a); QR-TEAM (a): C1 scoped to the BoQ / rate-master folders and the prompt files); 10:37 "2 ok. allowed"
+(the C1 baseline line); 11:15 "a" (QR-C-2 (a): whole-value texts stay typed).
+- **The lists.** Every choice list of a linked discipline (HVAC; Electrical joins in CAT-3) is REBUILT from the active catalogue
+  (`services/boq_rate_master/catalogue_lists.py`: `build`, a stamp over items + configs, the cache written after commit) at the two
+  write choke points (the loader's end, `loader.recompute_derived_after_write`) and MERGED at the two read points through ONE helper:
+  `extraction._load_active_configs` (every Suggest request; the stamp checked each call) and `rate_master.get_rate_category_config`
+  (panel, Calculator, Rate Master, rules page, the server pricing step; checked at most once a minute). The exporter reads the RAW
+  config. A value no SKU stocks is offered only when DECLARED (`unstocked_answers`, e.g. Valve operation On-Off); a SKU value never
+  offered is declared in `catalogue_excludes`.
+- **The wording.** Config wording names a catalogue value as `{{cat:<attr>=<value>}}` (`|lower`, `|trim` when the text writes it so)
+  and an item as `{{item:<item_uid>}}` / `{{item:<item_uid>:<attr>}}`; both read points fill it in the same merge. From HVAC v90 the
+  HVAC wording is placeholders (494 in 228 texts). Left as typed words, on purpose: a text that IS a value (a family-list entry, a
+  label equal to a value, `category_display` - a reference the gate checks, and read raw by the CSV export and the load validators),
+  and a mixed-case mention of a longer value (QR-MIXED). A placeholder that does not resolve is REFUSED at load, its place named; a
+  catalogue change by a route with no gate (Desk, console) prints the value as written, never braces.
+- **The gate** (`catalogue_gate.reference_problems`, called by both loader paths through
+  `config_validation.validate_catalogue_references`): every value, item and placeholder a config names resolves on the catalogue as
+  it will stand, or the load is refused with the place named. Pinned cases (goldens, `impact_examples`) are listed as INFO, never
+  refused.
+- **The guards** (each green on the tree, red on one injected typed value in a new place): **C1** (`scripts/residence_check.py`, in
+  the commit hook since CAT-1b, pass mark 0; the suite twin `test_catalogue_guards.TestC1CommitGuard`) - a string literal or prompt
+  word equal to a catalogue value in the BoQ / rate-master code folders or the rate-master prompts; **G-PROSE** (`test_catalogue_guards`,
+  listed by the gate) - config wording naming a multi-word catalogue value outside a placeholder; the prompt-word guard; the
+  spec_reader ADP family guard; **G2** - every builder reads the borrowed sections through the merge.
+- **Declaring an exception.** A typed word that must stay goes in `scripts/catalogue_allowlist.json` (C1: per file, per literal,
+  count + reason + ruling) or `services/boq_rate_master/catalogue_prose_allowlist.json` (G-PROSE: per config path, per value, count).
+  Counts only go DOWN; a lower count is lowered in the same commit, and an entry at 0 is removed.
+- **Test readers of a rate FILE** read it filled: TypeScript through `readJsonFixture` (`calculatorPanelParity.harness.ts`, which
+  calls `rate-helper/catalogueFill.harness.ts`), Python through `cat1b_fill_support.read_asset`; a placeholder that does not resolve
+  throws there. `catalogueFill.parity.test.ts` + `test_cat1b_wording` hold TS fill == Python fill byte for byte. The replay dump
+  (`scripts/_instruments/ac5_dump.py`) reads the served configs. A series test that reads the RAW live config undoes v90's edits
+  through `cat1b_undo_support.as_v89`.
+- **K3 correction.** CAT-1's K3 (d43f84bc6) message says "HVAC wording as placeholders"; v89 converted none (owner 01:47 QR-C-1 (a));
+  the conversion is CAT-1b's v90.
+
 **EVERY RULE A CATEGORY PRICES BY IS ON ITS RATE MASTER DERIVATION TAB, BEFORE IT DEPLOYS (owner 2026-11-15 13:30-13:41,
 verbatim: "going forwrad we need to add a derivation coverage check before deployment to ensure all rules (model + code+ anywhere
 else) are captured in the dderivation tab for that category in the rate master").** The tab lives on Rate Master > <discipline> >
