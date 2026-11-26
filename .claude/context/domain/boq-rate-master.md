@@ -28,7 +28,7 @@ the full corrections-owed list.
 _Moved verbatim from root `CLAUDE.md` when it was cut down to material every task needs (CLAUDE.md restructure, pass 2). CLAUDE.md now carries a one-line pointer here._ Where a rule below differs from an older copy further down this file, **this section
 is current**: it is the text root `CLAUDE.md` carried until the move, after pass 1 pruned it.
 
-**THE CATALOGUE DECIDES WHAT EVERY SCREEN AND THE AI OFFER; NOTHING TYPES A CATALOGUE NAME (CAT-1 / CAT-1b, 2026-11-26).** The owner's
+**THE CATALOGUE DECIDES WHAT EVERY SCREEN AND THE AI OFFER; NOTHING TYPES A CATALOGUE NAME (CAT-1 / CAT-1b / CAT-2, 2026-11-26/27).** The owner's
 words, verbatim: 2026-11-24 18:42 - 19:38 (the mechanism: lists rebuilt from the catalogue, linked by reference); 2026-11-26 00:06 /
 00:10 (full coverage); 00:14 "also we need to put guards that future builds cant bypass these again" / "and the build follows this
 principle everytime"; 01:47 "a a a ok" (QR-C-1 (a): the fill mechanism and gate in CAT-1, the TypeScript fill and the wording
@@ -51,6 +51,22 @@ conversion in CAT-1b; QR-S (a); QR-TEAM (a): C1 scoped to the BoQ / rate-master 
   `config_validation.validate_catalogue_references`): every value, item and placeholder a config names resolves on the catalogue as
   it will stand, or the load is refused with the place named. Pinned cases (goldens, `impact_examples`) are listed as INFO, never
   refused.
+- **The code targets (CAT-2, HVAC v91; owner 00:10 / 01:16 R1; QR-FORM ruled 2026-11-27).** A catalogue value a code rule picks as
+  ONE target is named in the config, never typed in code: `list_spec.code_targets.<role>` = `{attr, value}` or `{attr, values: [...]}`
+  (a short named list), plus `section` when the target is a SKU of a delegated section's category. A typed value the gate checks, not
+  an item_uid: the rules pick a FAMILY / type that many SKUs carry. The code reads the role (`itemListPricing.codeTarget` /
+  `codeTargetRef` / `codeTargetValues`, carried in by `itemListPricingSpec`); a config without the role leaves that rule OFF, never a
+  typed fallback. The gate checks every role STRICTLY (`catalogue_gate.code_target_refs`: the value carried by an active SKU of the
+  scope, the attribute one those SKUs carry, the section delegated) and refuses the load naming the place, e.g.
+  `hvac_valve_package > list_spec.code_targets.pibcv.value`; it also checks `list_spec.pricing.paint_row.family`. On v91: Valve
+  Package 13 roles (the review-net families PIBCV, NRV, Pressure Gauge, Ball / Sluice for the gauge, Air Vent, Ball, Strainer, 2-Way,
+  Balancing, Test Plug, Thermometer; Modulating on `operation`; Dual Plate on `nrv_type`), VRF 2 (`frame_families`,
+  `onoff_controller`), Insulation 1 (`gi_framework`), Piping 2 (`cpvc`, `pvc`); the rules page reads the same roles and
+  `paint_row.family`. Stays typed on purpose (R2): BoQ-wording patterns and note sentences, attribute names, the Electrical words
+  (ARMOURED / UNARMOURED, Switch, Bus bar: CAT-3) and the label groups (cloth claddings, cable kinds: CAT-3). A NEW single-target rule
+  adds a role to its config (a new rate file) and reads it; it never types the value.
+- **The "Change to..." family picker** (`familyChoices(spec, items)`, CAT-2 P1): with the served catalogue a family is offered only
+  when an SKU of the block's kinds carries it; an offered alias follows its target.
 - **The guards** (each green on the tree, red on one injected typed value in a new place): **C1** (`scripts/residence_check.py`, in
   the commit hook since CAT-1b, pass mark 0; the suite twin `test_catalogue_guards.TestC1CommitGuard`) - a string literal or prompt
   word equal to a catalogue value in the BoQ / rate-master code folders or the rate-master prompts; **G-PROSE** (`test_catalogue_guards`,
@@ -63,7 +79,9 @@ conversion in CAT-1b; QR-S (a); QR-TEAM (a): C1 scoped to the BoQ / rate-master 
   calls `rate-helper/catalogueFill.harness.ts`), Python through `cat1b_fill_support.read_asset`; a placeholder that does not resolve
   throws there. `catalogueFill.parity.test.ts` + `test_cat1b_wording` hold TS fill == Python fill byte for byte. The replay dump
   (`scripts/_instruments/ac5_dump.py`) reads the served configs. A series test that reads the RAW live config undoes v90's edits
-  through `cat1b_undo_support.as_v89`.
+  through `cat1b_undo_support.as_v89`, and v91's through `cat2_undo_support.as_v90` (TypeScript: `cat2Edits.harness.undoCat2`, first in
+  the `undoVav2c3d` chain). An older test that drives a code-target rule on a PRE-v91 asset wraps that asset's load in
+  `codeTargetsOverlay.harness.withNewestCodeTargets` (the role blocks read from the newest asset; QR-COMPAT (a)).
 - **K3 correction.** CAT-1's K3 (d43f84bc6) message says "HVAC wording as placeholders"; v89 converted none (owner 01:47 QR-C-1 (a));
   the conversion is CAT-1b's v90.
 

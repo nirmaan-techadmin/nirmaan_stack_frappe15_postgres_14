@@ -19,12 +19,18 @@ Load-bearing invariants, "THE CATALOGUE DECIDES ...".
 - **CAT-M (the merge), built:** origin's develop sync 31d29db45 is merged over CAT-1 + CAT-1b as one
   merge commit (no conflict; our commits keep their hashes), and main dev is migrated for it. The re-test
   set, the replay (0 figure / 0 wording moves) and the 21 AI requests are unchanged on the merged code.
-- **Push:** CAT-1 + CAT-1b + the merge go together, by the owner, after the CAT-M review (owner
-  2026-11-26 10:37 / 11:01). The branch now contains origin, so the push is a fast-forward.
-- **Left:** CAT-2 (HVAC code words, the family picker; the next free HVAC version), CAT-3a / CAT-3b
-  (Electrical, incl. its 53 placeholders and the Electrical lists), CAT-4 (item notes, the deactivate
-  warning, Rate Master screens), the Suggest run store. Candidate for CAT-2: the raw readers (CSV export
-  `category_display`, the load validators) filling, so the 15 whole-value texts can become references.
+- **Pushed:** CAT-1 + CAT-1b + the merge (owner, 2026-11-26 20:35).
+- **CAT-2 (HVAC v91), built, awaiting review (not pushed):** the HVAC values code rules picked from
+  typed constants (the Valve Package review-net families, the VRF frame / controller families, the GI
+  framework cladding, CPVC / PVC) are `list_spec.code_targets` roles the load gate checks; the code
+  reads the roles and the constants are deleted (C1 115 -> 95 entries); the rules page's Paint reads
+  `paint_row.family`; the "Change to..." picker offers only families an SKU carries. Nothing a pricer
+  sees changes (replay 0 / 0, 21 AI requests byte-identical). The owner pushes after the review.
+- **Left:** CAT-3a / CAT-3b (Electrical, incl. its 53 placeholders, the Electrical lists, the labels;
+  and the four Electrical rules-page words CAT-2 left: ARMOURED / UNARMOURED, Switch, Bus bar), CAT-4
+  (item notes, the deactivate warning, Rate Master screens), the Suggest run store. Still a candidate:
+  the raw readers (CSV export `category_display`, the load validators) filling, so the 15 whole-value
+  texts can become references.
 
 Before CAT: **DU-3**, the fix slice from the DU-2 review of the Ducting rows (the last `## Slice DU-3`
 section of `boq-upload-plan.md`).
