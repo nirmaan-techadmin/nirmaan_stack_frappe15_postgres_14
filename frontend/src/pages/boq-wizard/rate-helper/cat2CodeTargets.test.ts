@@ -7,13 +7,17 @@
  *   T3      `familyChoices(spec, items)`: + every item-list category keeps every family today (0 dropped, CAT-D1 E8); - a family whose
  *           SKUs are removed (a scratch copy) leaves the picker; an offered alias follows its target (kept while the target is carried,
  *           gone with it); with no items, every declared family as before.
+ *   T1      (K13) each moved rule reads its target from the config: the newest asset names every role the code reads, each carried by
+ *           an SKU of its scope; - a config without a role leaves the rule off; a renamed value is followed.
+ *   T2      (K13) none of the referenced values is typed as a string literal in the three moved files; - a planted one is found.
  */
 import { describe, expect, it } from "vitest";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import type { RateCategoryConfig, RateMasterItem } from "../../pricing/rate-master/rateMasterTypes";
 import { readJsonFixture } from "../../pricing/calculatorPanelParity.harness";
-import { codeTarget, codeTargetRef, codeTargetValues, familyAttr, familyChoices, itemListPricingSpec, kindIn, type ItemListPricingSpec } from "./itemListPricing";
-import { offeredFamilies } from "./pricingSheetHelper";
+import { codeTarget, codeTargetRef, codeTargetValues, drainPipeDefault, familyAttr, familyChoices, giFrameworkCladding, itemListPricingSpec, kindIn, type ItemListPricingSpec } from "./itemListPricing";
+import { offeredFamilies, VALVE_TARGET_ROLES, valveTargets } from "./pricingSheetHelper";
+import { itemListRuleOrder } from "../../pricing/rate-master/itemListRuleOrder";
 
 type Asset = { category_configs: RateCategoryConfig[]; items: RateMasterItem[] };
 const DATA_DIR = new URL("../../../../../nirmaan_stack/services/boq_rate_master/data/", import.meta.url);
@@ -85,5 +89,96 @@ describe("CAT-2 T3 -- the 'Change to...' family picker follows the catalogue (P1
   it("an empty catalogue offers nothing; no catalogue given (the old call) offers every declared family", () => {
     for (const { spec } of listCategories) expect(familyChoices(spec, []).length).toBe(0);
     for (const { spec } of listCategories) expect(familyChoices(spec).length).toBeGreaterThan(0);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// CAT-2 K13 -- the readers read the references; the constants are gone (T1 / T2 / T4)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+const cfgOf = (id: string) => LIVE.category_configs.find((c) => c.category_id === id)!;
+const specOf = (id: string) => itemListPricingSpec(cfgOf(id))!;
+const targetsOf = (id: string) => ((cfgOf(id) as unknown as { list_spec: { code_targets?: Record<string, { attr: string; value?: string; values?: string[] }> } }).list_spec.code_targets ?? {});
+const withoutRole = (id: string, role: string) => {
+  const c = structuredClone(cfgOf(id)) as unknown as { list_spec: { code_targets: Record<string, unknown> } };
+  delete c.list_spec.code_targets[role];
+  return itemListPricingSpec(c as unknown as RateCategoryConfig)!;
+};
+
+describe("CAT-2 T1 -- each moved rule reads its target from the config", () => {
+  it("POSITIVE: the newest asset names every role the code reads, and each is carried by an SKU of its scope", () => {
+    const need: Record<string, string[]> = {
+      hvac_valve_package: [...VALVE_TARGET_ROLES, "gauge_valve_families", "modulating", "dual_plate"],
+      hvac_vrf: ["frame_families", "onoff_controller"], hvac_insulation: ["gi_framework"], hvac_piping: ["cpvc", "pvc"],
+    };
+    for (const [id, roles] of Object.entries(need)) {
+      const t = targetsOf(id);
+      expect(Object.keys(t).sort(), id).toEqual([...roles].sort());
+      for (const r of roles) {
+        const sec = (t[r] as { section?: string }).section;
+        const scopeId = sec ? ((cfgOf(id) as unknown as { list_spec: { sections: Array<{ id: string; category_id?: string }> } }).list_spec.sections.find((s) => s.id === sec)!.category_id!) : id;
+        const kinds = new Set((cfgOf(scopeId) as unknown as { item_kinds: string[] }).item_kinds);
+        for (const v of t[r].values ?? [t[r].value!]) {
+          expect(LIVE.items.some((it) => kinds.has(it.kind) && it.attributes[t[r].attr] === v), `${id} ${r} '${v}'`).toBe(true);
+        }
+      }
+    }
+    expect(valveTargets(specOf("hvac_valve_package"))).not.toBeNull();
+  });
+  it("NEGATIVE: a config without a role leaves that rule off -- never a typed fallback", () => {
+    expect(valveTargets(withoutRole("hvac_valve_package", "pibcv"))).toBeNull();
+    expect(valveTargets(withoutRole("hvac_valve_package", "dual_plate"))).toBeNull();
+    const ins = withoutRole("hvac_insulation", "gi_framework");
+    const attr = targetsOf("hvac_insulation").gi_framework.attr;
+    const item = { attributes: { [attr]: { value: null } } } as never;
+    expect(giFrameworkCladding(specOf("hvac_insulation"), attr, item, "GI framework with perforated aluminium sheet")?.to).toBe(targetsOf("hvac_insulation").gi_framework.value);
+    expect(giFrameworkCladding(ins, attr, item, "GI framework with perforated aluminium sheet")).toBeNull();
+    expect(drainPipeDefault(withoutRole("hvac_piping", "cpvc"), "condensate drain pipe 25 mm", "")).toBeNull();
+    expect(drainPipeDefault(specOf("hvac_piping"), "condensate drain pipe 25 mm", "")?.family).toBe(targetsOf("hvac_piping").cpvc.value);
+  });
+  it("a renamed value: the rule follows the config's new name (the gate keeps config and catalogue together)", () => {
+    const c = structuredClone(cfgOf("hvac_piping")) as unknown as { list_spec: { code_targets: Record<string, { value: string }>; pricing: { families: Record<string, unknown> } } };
+    const old = c.list_spec.code_targets.cpvc.value;
+    c.list_spec.pricing.families[old + " (renamed)"] = c.list_spec.pricing.families[old];
+    delete c.list_spec.pricing.families[old];
+    c.list_spec.code_targets.cpvc.value = old + " (renamed)";
+    expect(drainPipeDefault(itemListPricingSpec(c as unknown as RateCategoryConfig)!, "condensate drain pipe 25 mm", "")).toEqual({
+      family: old + " (renamed)", line: `drain pipe, no material stated -> priced as ${old} (renamed)` });
+  });
+});
+
+describe("CAT-2 T2 -- no moved constant is typed in the moved files any more", () => {
+  const files = ["../../boq-wizard/rate-helper/pricingSheetHelper.ts", "../../boq-wizard/rate-helper/itemListPricing.ts", "../../pricing/rate-master/itemListRuleOrder.ts"]
+    // code lines only: a comment line (// or a JSDoc / block line) may quote a word as it is written, as C1 allows
+    .map((f) => readFileSync(new URL(f, import.meta.url), "utf-8").split("\n").filter((l) => !/^\s*(?:\/\/|\/\*|\*)/.test(l)).join("\n"));
+  const values = new Set<string>();
+  for (const id of ["hvac_valve_package", "hvac_vrf", "hvac_insulation", "hvac_piping"]) for (const t of Object.values(targetsOf(id))) for (const v of t.values ?? [t.value!]) values.add(v);
+  values.add(String((cfgOf("hvac_ducting") as unknown as { list_spec: { pricing: { paint_row: { family: string } } } }).list_spec.pricing.paint_row.family));
+  const typed = (src: string) => [...values].filter((v) => src.includes(`"${v}"`) || src.includes(`'${v}'`) || src.includes(`?? "${v}"`));
+  it("POSITIVE: none of the 20 distinct referenced values appears as a typed string literal in the three files", () => {
+    expect(values.size).toBe(20);   // the 20 code-target values less the repeated one, + paint_row.family
+    for (const src of files) expect(typed(src)).toEqual([]);
+  });
+  it("NEGATIVE: a planted typed value is found", () => {
+    const one = [...values][0];
+    expect(typed(`${files[0]}\nconst X = "${one}";`)).toEqual([one]);
+  });
+});
+
+describe("CAT-2 T4 -- the rules page reads the same references (E8 P3)", () => {
+  const lines = (cfg: unknown) => itemListRuleOrder(cfg, LIVE.items).map((r) => `${r.title} -- ${r.detail ?? ""}`).join("\n");
+  const paintFamily = () => String((cfgOf("hvac_ducting") as unknown as { list_spec: { pricing: { paint_row: { family: string } } } }).list_spec.pricing.paint_row.family);
+  it("POSITIVE: today's lines name the referenced values (Paint, the GI framework, CPVC)", () => {
+    expect(lines(cfgOf("hvac_ducting"))).toContain(`and state no gauge is priced as ${paintFamily()}`);
+    expect(lines(cfgOf("hvac_insulation"))).toContain(`prices as ${targetsOf("hvac_insulation").gi_framework.value}`);
+    expect(lines(cfgOf("hvac_piping"))).toContain(`A drain pipe whose material the BoQ does not name prices as ${targetsOf("hvac_piping").cpvc.value}`);
+  });
+  it("a renamed value shows its new name; a missing reference leaves its line out", () => {
+    const duct = structuredClone(cfgOf("hvac_ducting")) as unknown as { list_spec: { pricing: { paint_row: { family: string } } } };
+    duct.list_spec.pricing.paint_row.family = paintFamily() + " (renamed)";
+    expect(lines(duct)).toContain(`and state no gauge is priced as ${paintFamily()} (renamed)`);
+    const ins = structuredClone(cfgOf("hvac_insulation")) as unknown as { list_spec: { code_targets: Record<string, unknown> } };
+    delete ins.list_spec.code_targets.gi_framework;
+    expect(lines(ins)).not.toContain("A GI frame or framework with perforated aluminium sheet");
+    expect(lines(cfgOf("hvac_insulation"))).toContain("A GI frame or framework with perforated aluminium sheet");
   });
 });

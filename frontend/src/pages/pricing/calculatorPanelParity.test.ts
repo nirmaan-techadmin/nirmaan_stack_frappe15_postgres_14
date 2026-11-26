@@ -70,6 +70,7 @@ import { itemListRuleOrder } from "./rate-master/itemListRuleOrder";
 import { applyAdp1 } from "@/pages/boq-wizard/rate-helper/adp1.harness";
 import { applyAdp2 } from "@/pages/boq-wizard/rate-helper/adp2.harness";
 import { applyAdp3b } from "@/pages/boq-wizard/rate-helper/adp3b.harness";
+import { withNewestCodeTargets } from "../boq-wizard/rate-helper/codeTargetsOverlay.harness";   // CAT-2 PIN P-COMPAT (QR-COMPAT (a)): the role blocks read from the newest asset
 
 // ── the fixtures, as snapshotted from the live site on 2026-10-06 ───────────────────────────────
 
@@ -109,9 +110,9 @@ const configs = new Map<string, RateCategoryConfig>(
  * owner ruled closed in ADP-4 ("fixed in ADP-4 so both say the same thing") are closed by v50's "Other..." on the five
  * number fields, and leave the awaiting list.
  */
-const V50 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+const V50 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
   new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v50.json", import.meta.url),
-);
+));
 const isAdpItem = (it: { kind?: string; attributes?: Record<string, unknown> }) =>
   it.kind === "hvac_adp_item" || (it.kind === "hvac_pricing_input" && (it.attributes as { shared_by?: unknown } | undefined)?.shared_by === "adp");
 configs.set("hvac_adp", V50.category_configs.find((c) => c.category_id === "hvac_adp")!);
@@ -586,9 +587,9 @@ describe("HVAC Insulation -- every family x unit class x ladder path", () => {
 describe("HVAC Piping -- every family x unit class x ladder path, every SKU, every resolution path (SLICE 12e-2, owner option 1)", () => {
   // The committed v36 asset by name (the configs the live site serves since the 12e-2 load), not the served fixture:
   // the fixture's configs are a dated snapshot by design; its ITEMS are re-snapshotted and equal the asset's.
-  const live = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+  const live = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v36.json", import.meta.url),
-  );
+  ));
   const cfg36 = new Map<string, RateCategoryConfig>(live.category_configs.map((c) => [c.category_id, c]));
   const items36: RateMasterItem[] = live.items.map((it) => ({ ...it, discipline: live.discipline } as RateMasterItem));
   const PIP = "hvac_piping";
@@ -866,9 +867,9 @@ describe("SLICE 12d-6 -- a layered thickness on both surfaces (owner (a) + U4)",
  * STOPS differing fails too -- a stale exclusion hides a rule that now reaches the calculator.
  */
 describe("SLICE 12d-8 / T2 -- one parity case per Derivation-tab rule, on the live v33 asset", () => {
-  const live = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+  const live = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v33.json", import.meta.url),
-  );
+  ));
   const cfg33 = new Map<string, RateCategoryConfig>(live.category_configs.map((c) => [c.category_id, c]));
   const items33: RateMasterItem[] = live.items.map((it) => ({ ...it, discipline: live.discipline } as RateMasterItem));
   const INS = "hvac_insulation", ADP = "hvac_adp";
@@ -1023,9 +1024,9 @@ describe("SLICE 12d-8 / T2 -- one parity case per Derivation-tab rule, on the li
 // the slice adds, through BOTH surfaces on v46 + ADP-1 (= v47; `applyAdp1`, pinned equal to the asset in its commit)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("ADP-1 parity -- one case per new rule (slot diffuser H3, plenum H4, F1 / F3 / F4), on v46 + ADP-1", () => {
-  const v46 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+  const v46 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v46.json", import.meta.url),
-  );
+  ));
   const a = applyAdp1(v46 as any) as typeof v46;
   const cfgA = new Map<string, RateCategoryConfig>(a.category_configs.map((c) => [c.category_id, c]));
   const itemsA: RateMasterItem[] = a.items.map((it) => ({ ...it, discipline: a.discipline } as RateMasterItem));
@@ -1067,9 +1068,9 @@ describe("ADP-1 parity -- one case per new rule (slot diffuser H3, plenum H4, F1
 // the slice adds, through BOTH surfaces on v46 + ADP-1 + ADP-2 (= v48; `applyAdp2`, pinned equal to the asset in its commit)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("ADP-2 parity -- one case per new rule (air stream H5, plenum H7, neck B3), on the ADP-1 config + ADP-2", () => {
-  const v46 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+  const v46 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v46.json", import.meta.url),
-  );
+  ));
   const a = applyAdp2(applyAdp1(v46 as any)) as typeof v46;
   const cfgA = new Map<string, RateCategoryConfig>(a.category_configs.map((c) => [c.category_id, c]));
   const itemsA: RateMasterItem[] = a.items.map((it) => ({ ...it, discipline: a.discipline } as RateMasterItem));
@@ -1112,9 +1113,9 @@ describe("ADP-2 parity -- one case per new rule (air stream H5, plenum H7, neck 
 // ADP-3b (= v49; `applyAdp3b`, pinned equal to the asset in its commit)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("ADP-3b parity -- one case per new rule (face boxes B1, third part D1, width as height D2), on the ADP-2 config + ADP-3b", () => {
-  const v46 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+  const v46 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v46.json", import.meta.url),
-  );
+  ));
   const a = applyAdp3b(applyAdp2(applyAdp1(v46 as any))) as typeof v46;
   const cfgB = new Map<string, RateCategoryConfig>(a.category_configs.map((c) => [c.category_id, c]));
   const itemsB: RateMasterItem[] = a.items.map((it) => ({ ...it, discipline: a.discipline } as RateMasterItem));
@@ -1165,9 +1166,9 @@ describe("ADP-3b parity -- one case per new rule (face boxes B1, third part D1, 
 // carries a block's fields, not the sections under it), so each case states both entries explicitly.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("12e-3c parity -- the quantity link, the calculator's 'pick' sentence, the shown default, the Insulated default (v37)", () => {
-  const v37 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+  const v37 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v37.json", import.meta.url),
-  );
+  ));
   const cfg37 = new Map<string, RateCategoryConfig>(v37.category_configs.map((c) => [c.category_id, c]));
   const items37: RateMasterItem[] = v37.items.map((it) => ({ ...it, discipline: v37.discipline } as RateMasterItem));
   const PIP = "hvac_piping", NITRILE = "Nitrile Rubber Insulation", SEC = "insulation";
@@ -1283,9 +1284,9 @@ describe("12e-3c parity -- the quantity link, the calculator's 'pick' sentence, 
  * the panel MIRRORS from its pipe ("from pipe") is not entered -- it mirrors in the calculator too.
  */
 describe("12e-4c AC8 -- the 29 real Piping rows the capped run read (BRSR-26-00393 .. 00396): calculator = panel", () => {
-  const v38 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+  const v38 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v38.json", import.meta.url),
-  );
+  ));
   const cfg38 = new Map<string, RateCategoryConfig>(v38.category_configs.map((c) => [c.category_id, c]));
   const items38: RateMasterItem[] = v38.items.map((it) => ({ ...it, discipline: v38.discipline } as RateMasterItem));
   const PIP = "hvac_piping";
@@ -1504,9 +1505,9 @@ describe("12e-4c AC8 -- the 29 real Piping rows the capped run read (BRSR-26-003
  * layered thickness should be measured on the pipe + 2 x the TOTAL thickness, so this figure is expected to move.
  */
 describe("12e-5 AC10 -- one real Stage A row per row type (runs BRSR-26-00447 .. 00465): calculator = panel", () => {
-  const v38 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+  const v38 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v38.json", import.meta.url),
-  );
+  ));
   const cfg38 = new Map<string, RateCategoryConfig>(v38.category_configs.map((c) => [c.category_id, c]));
   const items38: RateMasterItem[] = v38.items.map((it) => ({ ...it, discipline: v38.discipline } as RateMasterItem));
   const PIP = "hvac_piping";
@@ -1674,9 +1675,9 @@ describe("12e-5 AC10 -- one real Stage A row per row type (runs BRSR-26-00447 ..
  * `want` is the panel, `calc` the calculator; a ruling that removes either shape flips its pin.
  */
 describe("12e-5c AC13 -- one Stage B row per new shape (runs BRSR-26-00718 .. 00805, v42): calculator vs panel, pinned", () => {
-  const v42 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+  const v42 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v42.json", import.meta.url),
-  );
+  ));
   const cfg42 = new Map<string, RateCategoryConfig>(v42.category_configs.map((c) => [c.category_id, c]));
   const items42: RateMasterItem[] = v42.items.map((it) => ({ ...it, discipline: v42.discipline } as RateMasterItem));
   const PIP = "hvac_piping";
@@ -1934,9 +1935,9 @@ const VRF_SHEET: ReadonlyArray<readonly [number, string, string, number, number]
 ];
 
 describe("HVAC VRF (VRF-2a, v56) -- the calculator prices every VRF SKU at the sheet's figure; panel = calculator on every item; the BoQ panel stays off", () => {
-  const v56 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline"> & { brand?: string | null }>; category_configs: RateCategoryConfig[] }>(
+  const v56 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline"> & { brand?: string | null }>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v56.json", import.meta.url),
-  );
+  ));
   const VRF = "hvac_vrf";
   // brand is an ITEM column, projected into the attributes at read time (extraction.PROJECTED_ITEM_COLUMNS / the API)
   const items56: RateMasterItem[] = v56.items.map((it) => ({
@@ -2151,9 +2152,9 @@ describe("HVAC VRF (VRF-2a, v56) -- the calculator prices every VRF SKU at the s
  * divergence is GONE (the brand note), asserted below.
  */
 describe("HVAC VRF (VRF-2b, v57) -- HP / TR / kW read and converted, the Misc four, the notes; panel = calculator on every case", () => {
-  const v57 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline"> & { brand?: string | null }>; category_configs: RateCategoryConfig[] }>(
+  const v57 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline"> & { brand?: string | null }>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v57.json", import.meta.url),
-  );
+  ));
   const VRF = "hvac_vrf";
   const items57: RateMasterItem[] = v57.items.map((it) => ({
     ...it, discipline: v57.discipline,
@@ -2354,9 +2355,9 @@ describe("HVAC VRF (VRF-2b, v57) -- HP / TR / kW read and converted, the Misc fo
  * D-3, every refnet case, Set per family, the Lot spellings and VRF-R3's 104 Set / Lot / per HP rows.
  */
 describe("HVAC VRF (VRF-3a, v58) -- the outdoor split, the stated split, Set / refnet / Lot; panel = calculator on every case", () => {
-  const v58 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline"> & { brand?: string | null }>; category_configs: RateCategoryConfig[] }>(
+  const v58 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline"> & { brand?: string | null }>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v58.json", import.meta.url),
-  );
+  ));
   type SplitRow = { id: string; how: string; unit: string; qty: number | null; text: string; brand: string; variant: string; item: Record<string, string>;
     lines: number[] | null; totals: { supply_rate: number; install_rate: number } | null; condition: string | null };
   type SetLotRow = { id: string; unit: string; qty: number | null; unit_class: string | null; kind: string; family: string | null; v57_reason: string };
@@ -2921,9 +2922,9 @@ describe("HVAC VRF (VRF-4, v60) -- the model's per-item answers on a BoQ row; pa
 const PARITY_V60_WORDING_ONLY: string[] = [];
 
 describe("VRF-5 B2 -- the harness feeds a Piping row's insulation sections; on VRF the calculator keeps a picked unit and refuses like the panel", () => {
-  const v60 = readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
+  const v60 = withNewestCodeTargets(readJsonFixture<{ discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] }>(
     new URL("../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v60.json", import.meta.url),
-  );
+  ));
   const cfg60 = new Map<string, RateCategoryConfig>(v60.category_configs.map((c) => [c.category_id, c]));
   const items60: RateMasterItem[] = v60.items.map((it) => ({ ...it, discipline: v60.discipline } as RateMasterItem));
   const PIP = "hvac_piping", NITRILE = "Nitrile Rubber Insulation", SEC = "insulation";

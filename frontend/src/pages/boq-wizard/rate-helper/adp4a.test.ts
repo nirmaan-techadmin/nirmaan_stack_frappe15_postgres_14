@@ -24,11 +24,12 @@ import { FAMILY_DISPLAY, plainItemListWording, plainWorking, itemListPricingSpec
 import { mergeItemsByName } from "./rateHelperPlumbing";
 import { isSuggestion, type ExtractionRow, type HelperResult } from "./rateHelperTypes";
 import { CONFIGS as LIVE_CONFIGS } from "./adp3a.harness";
+import { withNewestCodeTargets } from "./codeTargetsOverlay.harness";   // CAT-2 PIN P-COMPAT (QR-COMPAT (a)): the role blocks read from the newest asset
 
 type Asset = { discipline: string; items: Array<RateMasterItem & { brand?: string }>; category_configs: RateCategoryConfig[] };
 const DATA = path.resolve(__dirname, "../../../../../nirmaan_stack/services/boq_rate_master/data");
-const V49 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v49.json")));
-const V50 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v50.json")));
+const V49 = withNewestCodeTargets(readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v49.json"))));
+const V50 = withNewestCodeTargets(readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v50.json"))));
 const ADP = "hvac_adp", INS = "hvac_insulation", PIP = "hvac_piping";
 const cfgOf = (a: Asset, id: string) => a.category_configs.find((c) => c.category_id === id)!;
 const CFG = new Map<string, RateCategoryConfig>(LIVE_CONFIGS);

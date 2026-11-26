@@ -19,10 +19,11 @@ import type { ExtractedListItem } from "./itemListPricing";
 import { NOMINAL_BORE_MM, buildExtractionByRow, makePricingSheetHelper, nominalBoreOf, type ItemListSuggestion, type ItemListView } from "./pricingSheetHelper";
 import { rowHeadingNotes, rowOwnHeadingNotes } from "./rateSuggestionModel";
 import { readJsonFixture } from "../../pricing/calculatorPanelParity.harness";
+import { withNewestCodeTargets } from "./codeTargetsOverlay.harness";   // CAT-2 PIN P-COMPAT (QR-COMPAT (a)): the role blocks read from the newest asset
 
 type Asset = { discipline: string; items: Array<Omit<RateMasterItem, "discipline"> & { brand?: string | null }>; category_configs: RateCategoryConfig[] };
 const DATA = "../../../../../nirmaan_stack/services/boq_rate_master/data/";
-const h67 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v67.json`, import.meta.url));
+const h67 = withNewestCodeTargets(readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v67.json`, import.meta.url)));
 const e72 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_electrical_all_v72.json`, import.meta.url));
 const toItems = (a: Asset) => a.items.map((it) => ({ ...it, discipline: a.discipline, attributes: it.brand ? { ...it.attributes, brand: it.brand } : { ...it.attributes } } as RateMasterItem));
 const ITEMS: RateMasterItem[] = [...toItems(h67), ...toItems(e72)];

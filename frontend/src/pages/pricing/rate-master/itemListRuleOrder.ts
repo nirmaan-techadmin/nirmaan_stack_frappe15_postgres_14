@@ -302,7 +302,7 @@ export const DERIVATION_RULINGS: Readonly<Record<string, Readonly<Record<string,
 import { plainSentence, pricingInputLabel } from "./plainEnglish";
 import { percentOf } from "@/pages/boq-wizard/rate-helper/helperWording";
 import { inputFactor } from "@/pages/boq-wizard/rate-helper/scopeRule";
-import { GI_FRAMEWORK_CLADDING, PIECE_LENGTH_MIN_MM, familyDisplayName, itemListPricingSpec, oneSizeMessage, plainBoxSurface, plainItemListWording, stockedUnitsWords, waysLabel,
+import { PIECE_LENGTH_MIN_MM, codeTarget, familyDisplayName, itemListPricingSpec, oneSizeMessage, plainBoxSurface, plainItemListWording, stockedUnitsWords, waysLabel,
          type AccessorySpec, type CapacityUnits, type CountedSpec, type DefaultSpec, type ItemListPricingSpec, type MaterialText } from "../../boq-wizard/rate-helper/itemListPricing";
 export { plainSentence };
 
@@ -505,7 +505,11 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
           `the names in the row's own text, read through the same map; ${plainSentence(String(ft.from_row.refuse).replace("{types}", "the names found"))}`);
       // SLICE 12e-6 (owner R2, amended 2026-10-16 14:22; U9): ADDED -- the line above keeps its words
       add(`One ${name(famAttrId)} written as two stocked kinds prices one of them`,
-          "CPVC named with PVC or uPVC prices as CPVC; any other two stocked kinds price the lower cost for the row's size -- with a line saying so; the pricer can change it");
+          // CAT-2 (R1): the two pipe types of the owner's CPVC rule are the config's `list_spec.code_targets.cpvc` / `.pvc`
+          (codeTarget(ls, "cpvc") && codeTarget(ls, "pvc")
+            ? `${codeTarget(ls, "cpvc")} named with ${codeTarget(ls, "pvc")} or uPVC prices as ${codeTarget(ls, "cpvc")}; any other two stocked kinds`
+            : "Any two stocked kinds")
+          + " price the lower cost for the row's size -- with a line saying so; the pricer can change it");
     }
     // SLICE 12e-4b (owner D-3; decisions 2 / 3 / 7): the family as the BoQ writes it, where the config names
     // the attribute that carries it
@@ -517,9 +521,10 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
            `an answered ${name(famAttrId)} always wins over it`,
            `shown read-only, and only where it differs from the kind priced`].join("; "));
       // SLICE 12e-6b (owner R1, 2026-10-16 23:43 IST; owner U9 precedent): ADDED -- the lines above keep their words
-      if (pr.families?.CPVC) {
-        add(`A drain pipe whose material the BoQ does not name prices as CPVC`,
-            "a pipe the row or a heading calls a drain (drain, drainage, condensate) with no type told and no pipe material named -- in amber: 'drain pipe, no material stated -> priced as CPVC'; a material the BoQ names keeps its rule; the pricer can change it");
+      const drainTo = codeTarget(ls, "cpvc");   // CAT-2 (R1): `list_spec.code_targets.cpvc`, never typed here
+      if (drainTo && pr.families?.[drainTo]) {
+        add(`A drain pipe whose material the BoQ does not name prices as ${drainTo}`,
+            `a pipe the row or a heading calls a drain (drain, drainage, condensate) with no type told and no pipe material named -- in amber: 'drain pipe, no material stated -> priced as ${drainTo}'; a material the BoQ names keeps its rule; the pricer can change it`);
       }
     }
   }
@@ -957,9 +962,10 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
         `'factory laminated fire resistant fibre cloth fabric', 'reinforced glass cloth' -> Glass Cloth with paint; with aluminium named too -> 24G / 26G Aluminium with Glass Cloth by its gauge (no gauge: 26G); with a line saying 'BoQ says <the words> -> priced as <the option>'; a ${name(String(c.attr))} the model answered stands`);
     // ADP-1 (owner F3, 2026-10-19; U6): ADDED, where the category's cladding offers the GI framework option
     const vals = ((ls?.attribute_definitions ?? []) as any[]).find((d) => d?.id === c.attr)?.values ?? [];
-    if (Array.isArray(vals) && vals.includes(GI_FRAMEWORK_CLADDING)) {
-      add(`A GI frame or framework with perforated aluminium sheet, with no ${name(String(c.attr))} answered, prices as ${GI_FRAMEWORK_CLADDING}`,
-          `in the ${name(String(c.from_attr ?? ""))}, else the row's own text or its headings: 'GI frame with perforated Al sheet', 'GI framework and perforated aluminium sheet' -- read before the fixing words are set aside; with a line saying 'BoQ says <the words> -> priced as ${GI_FRAMEWORK_CLADDING}'; a ${name(String(c.attr))} the model answered stands`);
+    const gi = codeTarget(ls, "gi_framework");   // CAT-2 (R1): `list_spec.code_targets.gi_framework`, never typed here
+    if (gi && Array.isArray(vals) && vals.includes(gi)) {
+      add(`A GI frame or framework with perforated aluminium sheet, with no ${name(String(c.attr))} answered, prices as ${gi}`,
+          `in the ${name(String(c.from_attr ?? ""))}, else the row's own text or its headings: 'GI frame with perforated Al sheet', 'GI framework and perforated aluminium sheet' -- read before the fixing words are set aside; with a line saying 'BoQ says <the words> -> priced as ${gi}'; a ${name(String(c.attr))} the model answered stands`);
     }
   }
   for (const r of (pr.read_notes ?? []) as any[]) {
@@ -1043,8 +1049,9 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
     }
     // DU-3 (Case 8, QR-1 Q5 (a)): a duct-painting row in the 00380 context is the painting of the ducts above it
     const pw = pr.paint_row as { words?: unknown; family?: unknown; tolerance?: unknown } | undefined;
-    if (pw && typeof pw === "object" && typeof pw.tolerance === "number") {
-      add(`A row whose own words name painting (paint finish, enamel paint) and state no gauge is priced as ${String(pw.family ?? "Paint")}`,
+    // CAT-2 (R1): the family is the config's `paint_row.family` (the load gate checks it); no typed fallback
+    if (pw && typeof pw === "object" && typeof pw.tolerance === "number" && typeof pw.family === "string") {
+      add(`A row whose own words name painting (paint finish, enamel paint) and state no gauge is priced as ${pw.family}`,
           `only when it sits right after its sheet's own duct rows (the unbroken run of duct rows directly above it) and its quantity is within ${String(Math.round(pw.tolerance * 100))}% `
           + `of theirs - the note names those rows; a row failing any test keeps its outcome with a note to price it by hand`, "paint_row");
     }

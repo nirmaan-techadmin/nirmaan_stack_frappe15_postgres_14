@@ -22,27 +22,28 @@ import {
 import { RATE_MASTER_DISCIPLINES, rateMasterPageEntry } from "@/pages/pricing/rate-master/rateMasterRegistry";
 import { CALCULATOR_WORKBOOKS } from "@/pages/pricing/PricingCalculator";
 import { mergeItemsByName } from "./rateHelperPlumbing";
+import { withNewestCodeTargets } from "./codeTargetsOverlay.harness";   // CAT-2 PIN P-COMPAT (QR-COMPAT (a)): the role blocks read from the newest asset
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 type Asset = { discipline: string; items: Array<RateMasterItem & { brand?: string }>; category_configs: RateCategoryConfig[] };
 const DATA = path.resolve(__dirname, "../../../../../nirmaan_stack/services/boq_rate_master/data");
-const V50 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v50.json")));
+const V50 = withNewestCodeTargets(readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v50.json"))));
 const V66 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_electrical_all_v66.json")));
 // VRF-1 (HVAC v55; mechanical authority): the `hvac_vrf` category the registry now lists exists only from v55 on, so the sweep
 // reads ITS config from v55; every other category is still read from v50 / v66 exactly as before.
-const V55 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v55.json")));
+const V55 = withNewestCodeTargets(readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v55.json"))));
 // VP-1 (HVAC v66; mechanical authority): the `hvac_valve_package` category the registry now lists exists only from v66 on, so
 // the sweep reads ITS config and items from v66 (the VRF-1 idiom); `hvac_misc` is fetch_only, never on the page.
-const H66 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v66.json")));
+const H66 = withNewestCodeTargets(readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v66.json"))));
 const H66_ITEMS: RateMasterItem[] = mergeItemsByName(H66.items.map((it) => ({ ...it, discipline: H66.discipline } as RateMasterItem)));
 // DU-1 Part B (HVAC v71; mechanical authority): the `hvac_ducting` category the registry now lists exists only from v71 on, so the
 // sweep reads ITS config and items from v71 with the two configs its sections borrow (the VP-1 idiom)
-const H71 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v71.json")));
+const H71 = withNewestCodeTargets(readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v71.json"))));
 const H71_ITEMS: RateMasterItem[] = mergeItemsByName(H71.items.map((it) => ({ ...it, discipline: H71.discipline } as RateMasterItem)));
 // VAV-1 (HVAC v76; mechanical authority): the `hvac_vav_box` category the registry now lists exists only from v76 on, so the sweep reads
 // ITS config and items from v76 with the two borrow-only configs its sections borrow (Misc, Sensors) -- the DU-1 idiom
-const H76 = readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v76.json")));
+const H76 = withNewestCodeTargets(readJsonFixture<Asset>(pathToFileURL(path.join(DATA, "rate_master_hvac_all_v76.json"))));
 const H76_ITEMS: RateMasterItem[] = mergeItemsByName(H76.items.map((it) => ({ ...it, discipline: H76.discipline } as RateMasterItem)));
 const ADP = "hvac_adp", INS = "hvac_insulation", PIP = "hvac_piping";
 const cfgOf = (a: Asset, id: string) => a.category_configs.find((c) => c.category_id === id)!;

@@ -25,111 +25,14 @@
       "reason": "conductor / armour words: readCableKindWords writes ALUMINIUM / COPPER / ARMOURED / UNARMOURED",
       "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
     },
-    "CPVC": {
-      "count": 1,
-      "reason": "pipe types 'CPVC' / 'PVC' typed in code",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "GI Framework with perforated Al sheet": {
-      "count": 1,
-      "reason": "cladding values typed in code: 'Glass Cloth with paint', '24G/26G Aluminium with Glass Cloth', 'GI Framework with perforated Al sheet'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
     "Glass Cloth with paint": {
       "count": 1,
       "reason": "cladding values typed in code: 'Glass Cloth with paint', '24G/26G Aluminium with Glass Cloth', 'GI Framework with perforated Al sheet'",
       "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
     },
-    "PVC": {
-      "count": 1,
-      "reason": "pipe types 'CPVC' / 'PVC' typed in code",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
     "UNARMOURED": {
       "count": 1,
       "reason": "conductor / armour words: readCableKindWords writes ALUMINIUM / COPPER / ARMOURED / UNARMOURED",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    }
-  },
-  "frontend/src/pages/boq-wizard/rate-helper/pricingSheetHelper.ts": {
-    "2-Way Valve": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Automatic Air Vent": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Balancing Valve": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Ball Valve": {
-      "count": 2,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Dual Plate": {
-      "count": 2,
-      "reason": "NRV 'Dual Plate' typed in code (the d2 line)",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "MS Angle Base Frame Structure": {
-      "count": 1,
-      "reason": "VRF frame families + the central controller family typed in code",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "MS frame / stand for ODU": {
-      "count": 1,
-      "reason": "VRF frame families + the central controller family typed in code",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Modulating": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "NRV / Check Valve": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "PIBCV": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Pressure Gauge": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Sluice / Gate Valve": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Strainer": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Temperature Gauge / Thermometer": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Test Plug / Thermowell": {
-      "count": 1,
-      "reason": "Valve Package family table typed in code (PIBCV, NRV / Check Valve, Ball Valve, Strainer, 2-Way Valve, ...) + 'Modulating'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Touch Screen Central Controller": {
-      "count": 1,
-      "reason": "VRF frame families + the central controller family typed in code",
       "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
     }
   },
@@ -206,11 +109,6 @@
     "Bus bar": {
       "count": 1,
       "reason": "rules-page line gated on the def carrying 'Bus bar'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Paint": {
-      "count": 1,
-      "reason": "rules-page fallback family 'Paint' when the config names none",
       "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
     },
     "Switch": {

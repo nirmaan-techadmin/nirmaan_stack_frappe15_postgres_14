@@ -23,10 +23,11 @@ import {
   type ItemBlockView, type ItemListEditState, type ItemListSuggestion, type ItemListView,
 } from "./pricingSheetHelper";
 import { drainPipeDefault, itemListPricingSpec, listSpecDefs, priceItemList } from "./itemListPricing";
+import { withNewestCodeTargets } from "./codeTargetsOverlay.harness";   // CAT-2 PIN P-COMPAT (QR-COMPAT (a)): the role blocks read from the newest asset
 
 type Asset = { discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] };
 const DATA = "../../../../../nirmaan_stack/services/boq_rate_master/data/";
-const V43 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v43.json`, import.meta.url));
+const V43 = withNewestCodeTargets(readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v43.json`, import.meta.url)));
 const ITEMS: RateMasterItem[] = V43.items.map((it) => ({ ...it, discipline: V43.discipline } as RateMasterItem));
 const CONFIGS = new Map<string, RateCategoryConfig>(V43.category_configs.map((c) => [c.category_id, c]));
 const INS = "hvac_insulation", PIP = "hvac_piping";

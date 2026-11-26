@@ -4765,9 +4765,8 @@ export function clothFacingCladding(
  * ADP-1 (owner F3, 2026-10-19: "GI frame / framework" + "perforated Al sheet", cladding unanswered -> the stocked "GI
  * Framework with perforated Al sheet"). The 12e-6c fixing mask (O3) reads "GI frame" as a FIXING, which is right for a
  * frame alone and wrong for this cladding, so the cladding is told FIRST, on the raw words: a GI word, a frame word,
- * "perforated" and an aluminium word, all present.
+ * "perforated" and an aluminium word, all present. CAT-2: the cladding itself is the config's `code_targets.gi_framework`.
  */
-export const GI_FRAMEWORK_CLADDING = "GI Framework with perforated Al sheet";
 const GI_WORD_RE = /(^|[^a-z0-9])(?:gi|g\.i\.?|galvani[sz]ed)(?![a-z0-9])/i;
 const FRAME_WORD_RE = /(^|[^a-z0-9])frame(?:s|work|works)?(?![a-z0-9])/i;
 const PERFORATED_RE = /(^|[^a-z0-9])perforated(?![a-z0-9])/i;
@@ -4795,14 +4794,16 @@ export function giFrameworkCladding(
   spec: ItemListPricingSpec, attr: string, item: ExtractedListItem, rowText: string,
 ): { to: string; line: string } | null {
   const values = spec.choice_defs?.[attr]?.values ?? [];
-  if (!values.includes(GI_FRAMEWORK_CLADDING)) return null;
+  // CAT-2 (R1): the GI framework cladding is the config's `code_targets.gi_framework` (the load gate checks it), never typed here
+  const gi = codeTarget(spec, "gi_framework");
+  if (gi === undefined || !values.includes(gi)) return null;
   for (const e of spec.choice_text ?? []) {
     if (e.attr !== attr) continue;
     const raw = rawValue(item, e.from_attr);
     const said = raw !== null && raw !== "None" ? String(raw).trim() : "";
     const words = (said !== "" ? namesGiFramework(said) : null) ?? namesGiFramework(rowText);
     if (words === null) continue;
-    return { to: GI_FRAMEWORK_CLADDING, line: e.line.replace("{from}", words).replace("{to}", GI_FRAMEWORK_CLADDING) };
+    return { to: gi, line: e.line.replace("{from}", words).replace("{to}", gi) };
   }
   return null;
 }
@@ -4938,7 +4939,9 @@ export function drainPipeDefault(
   rowText: string,
   ownText: string,
 ): { family: string; line: string } | null {
-  if (!spec.family_text?.from_attr || !spec.families[CPVC]) return null;
+  // CAT-2 (R1): the drain pipe's material is the config's `code_targets.cpvc` (the load gate checks it), never typed here
+  const cpvc = codeTarget(spec, "cpvc");
+  if (!spec.family_text?.from_attr || cpvc === undefined || !spec.families[cpvc]) return null;
   const text = [rowText, ownText].join(" | ");
   if (!DRAIN_RE.test(text)) return null;
   const t = text.toLowerCase();
@@ -4948,7 +4951,7 @@ export function drainPipeDefault(
     const w = word.toLowerCase().trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     if (w && new RegExp(`(^|[^a-z0-9])${w}(?![a-z0-9])`).test(t)) return null;
   }
-  return { family: CPVC, line: `drain pipe, no material stated -> priced as ${CPVC}` };
+  return { family: cpvc, line: `drain pipe, no material stated -> priced as ${cpvc}` };
 }
 
 function priceOneItem(
@@ -6814,9 +6817,8 @@ export function cheaperAlternatives(
  * the CHEAPER for this row's size and thickness (supply + install, a composition's layers summed), with the amber line
  * "BoQ allows CPVC or uPVC -> priced as PVC, the lower cost". The person switches it with the family control (a pick
  * is the pricer's and is never second-guessed). None of them prices -> the item as it was (its own refusal stands).
+ * CAT-2 (R1): the two pipe types of the owner's CPVC rule are the config's `code_targets.cpvc` / `.pvc`, never typed here.
  */
-const CPVC = "CPVC";
-const PVC = "PVC";
 function priceOneItemOrCheaper(
   spec: ItemListPricingSpec, projected: RateMasterItem[], rowUnitClass: string, item: ExtractedListItem, index: number,
   unitFactor: UnitFactor | null, rowText: string, ownText: string, odHint: boolean | undefined, headingNoteText = "",
@@ -6851,10 +6853,11 @@ function priceOneItemOrCheaper(
    * should quote for CPVC. this overrides my earlier rule for lesser price item selection." CPVC named with PVC / uPVC
    * -> CPVC, whatever it costs; every other pair of stocked pipe types keeps the cheaper.
    */
-  if (alts.pipes && alts.families.includes(CPVC) && alts.families.includes(PVC)) {
-    const r = priceOneItem(spec, projected, rowUnitClass, as(CPVC), index, unitFactor, rowText, ownText, undefined, odHint, headingNoteText, headings);
-    const line = said(`BoQ allows ${alts.said} -> priced as ${CPVC}`);
-    return { ...r, familyRaw: rawValue(item, fa) === null ? null : String(rawValue(item, fa)), familyLine: line, working: r.composeInto ? r.working : [line, ...r.working], alternativeChosen: CPVC };
+  const cpvc = codeTarget(spec, "cpvc"), pvc = codeTarget(spec, "pvc");
+  if (alts.pipes && cpvc !== undefined && pvc !== undefined && alts.families.includes(cpvc) && alts.families.includes(pvc)) {
+    const r = priceOneItem(spec, projected, rowUnitClass, as(cpvc), index, unitFactor, rowText, ownText, undefined, odHint, headingNoteText, headings);
+    const line = said(`BoQ allows ${alts.said} -> priced as ${cpvc}`);
+    return { ...r, familyRaw: rawValue(item, fa) === null ? null : String(rawValue(item, fa)), familyLine: line, working: r.composeInto ? r.working : [line, ...r.working], alternativeChosen: cpvc };
   }
   let best: { f: string; r: ItemPriceResult; cost: number } | null = null;
   for (const f of alts.families) {

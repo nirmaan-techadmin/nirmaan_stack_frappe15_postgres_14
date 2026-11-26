@@ -20,10 +20,11 @@ import {
 } from "./pricingSheetHelper";
 import { readJsonFixture } from "../../pricing/calculatorPanelParity.harness";
 import { calculatorCtx } from "../../pricing/PricingCalculator";
+import { withNewestCodeTargets } from "./codeTargetsOverlay.harness";   // CAT-2 PIN P-COMPAT (QR-COMPAT (a)): the role blocks read from the newest asset
 
 type Asset = { discipline: string; items: Array<Omit<RateMasterItem, "discipline"> & { brand?: string | null }>; category_configs: RateCategoryConfig[] };
 const DATA = "../../../../../nirmaan_stack/services/boq_rate_master/data/";
-const h66 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v66.json`, import.meta.url));
+const h66 = withNewestCodeTargets(readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v66.json`, import.meta.url)));
 const e72 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_electrical_all_v72.json`, import.meta.url));
 const toItems = (a: Asset) => a.items.map((it) => ({ ...it, discipline: a.discipline, attributes: it.brand ? { ...it.attributes, brand: it.brand } : { ...it.attributes } } as RateMasterItem));
 const ITEMS: RateMasterItem[] = [...toItems(h66), ...toItems(e72)];
