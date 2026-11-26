@@ -574,7 +574,8 @@ physical `validation_warnings` column on `tabBoQ Review Row` persists orphaned u
 formula-computed amount DIVERGE for the same amount cell, the editor FLAGS it (mismatch only -- never auto-fixes; the
 tendering doc is client-owned) and lets the user CHOOSE per cell which value wins, stored stickily per committed version in
 the NEW per-CELL doctype **`BoQ Cell Reconciliation Choice`** (mirrors BoQ Cell Dismissal's freeze-and-supersede model;
-identity adds `col_letter` -> PER-CELL). FOUR LOCKED decisions: **D1 default = DOCUMENT** (an unset/keep_document divergent
+identity adds `col_letter` -> PER-CELL). FOUR LOCKED decisions (D1 REVERSED by BCS-6a, owner R-BCS-158 2026-11-27: the default
+is now the CALCULATED amount - an unset divergent cell shows qty x rate; keep_document only where chosen): **D1 default = DOCUMENT** (an unset/keep_document divergent
 cell shows the document value in BOTH the grid AND the rollup -- REVERSES the prior formula-wins display; take_formula shows
 the formula value); **D2 visualization = BOTH channels** (a STRONG violet cell badge/chooser [muted-grey when resolved] +
 a new "divergence" review-strip kind carrying the unresolved count); **D3 invalidation = AUTO-RESET, SURGICAL, PER-CELL,

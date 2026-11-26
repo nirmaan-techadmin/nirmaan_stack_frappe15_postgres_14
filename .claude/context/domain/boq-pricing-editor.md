@@ -145,14 +145,13 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   (`bcsMarginPercent`); a blank is "no value yet", never 0; the BoQ total's margin stays blank until every listed sheet has a cost.
 - ⚠️ THE FIGURES ARE THE SHEET SUMMARY'S OWN: the block reads the sheet page's three reads per sheet (`get_priced_rows`,
   `get_bcs_state`, `get_sheet_bcs_rates`, fetched one sheet after another) and runs `rollupByParent`; BCS supply = the sheet's
-  BCS total with the install box read as 0, typed installation = with the supply / combined boxes read as 0; the BoQ amount of a
-  row = `boqTotalAmount` (the declared BOQ Total formula, else `bcsAmountColumns`' columns) evaluated on the rollup's OWN,
-  reconciliation-choice-resolved row amounts - so it equals the amount the sheet's Summary shows (BCS-5 Question 4 = (c)).
-  Do not take it from `rollBcsSections`' tendered: with a BOQ Total formula that path drops reconciliation choices (open item).
+  BCS total with the install box read as 0, typed installation = with the supply / combined boxes read as 0; the BoQ amount IS
+  the rollup's tendered - the denominator the sheet's grid and Summary panel divide by (BCS-6a, below).
 - THE TICKED BLOCK (R2): the user ticks the sheets one Electrical installation cost covers (default ticks: sheets whose Suggest
   population is majority Electrical). They are ONE clubbed block: each shows its own BoQ amount, BCS supply and rows; the block
   shows ONE installation figure and ONE margin, then a "Ticked block" sub-total. A ticked sheet's installation TYPED on its rows
-  is NOT counted (the area figure replaces it); an UNticked sheet's typed installation counts, marked "typed".
+  is NOT counted (the area figure replaces it); an UNticked sheet's typed installation counts, with no label after it (owner
+  R6, BCS-6a).
 - THE INSTALLATION FIGURE (R3 - R6): area x the live Pricing Input `elec_bcs_install_per_sqft` (`rates.amount`, read from the
   database, never the withheld HTTP payload) + floor cutting at our cost. The area starts empty; the project's `carpet_area`, when
   set, shows beside it as a one-click "use it". Both parts can be edited or removed ("changed by user", "Back to system figure").
@@ -173,4 +172,23 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   `save_row_bcs_rates`, no helper edit, no rate file or Pricing Input.
 - The sheet's own Summary gains ONE line on a ticked sheet, for a cost viewer (`BoqSummarySheetLine` in `SummaryPanel`): "This
   sheet's margin counts installation typed on its rows. ... margin there <the block's margin> for the ticked sheets."
+
+### Every margin from the amount on screen - BCS-6a (2026-11-27)
+- Owner R1 / R2 (26 Nov), R3 / R5 / R6 (27 Nov), R-BCS-156 - 159: the sheet's % Margin column, its Summary panel and the BoQ
+  summary all work the margin from the amount ON SCREEN - the user's chosen rates - as 1 - BCS cost / BoQ amount.
+- THE DEFAULT (R-BCS-158): where the uploaded file's amount and qty x rate differ and the user made NO choice, the CALCULATED
+  amount is used - in the Amount column and every margin. "Keep the document's amount" applies only where the user picked it.
+- ONE-SIDED ROWS (R3 "d3 yes"; QR-POISON = (a)): a row priced on one side only counts that side - in every margin AND in its
+  Amount (Total) cell (a supply + install sum adds 0 for the unpriced side while the other is priced; no side priced = blank).
+- NO RATE ANYWHERE (R-BCS-158 1, POINT 4): a row with no rate in the app or in the file AND no amount on screen is left out of
+  every margin, amount and cost; a no-rate row that shows an amount (a lump sum in the file) counts at that amount.
+- ONLY PRICEABLE ROWS (Preamble / Line Item) carry a BoQ amount for a margin: a "Total" row's file figure is never added beside
+  the lines it totals.
+- THE NOTE (R-BCS-156 / 158 / 159, R5 / R6), for Admin and Estimates: on the sheet's Summary panel, below its table, "How the BoQ
+  amount was taken on this sheet" - "Every row: quantity x the rate you chose, as shown in the Amount column. Three exceptions,
+  listed by row:" (1) priced in the app, but the uploaded file's amount kept ("keep the document's amount" chosen); (2) not
+  priced in the app yet, so the rate written in the uploaded file is used (a row whose ANY rate comes from the file - owner
+  Q-NOTE-2 (a)); (3) no rate in the app or in the uploaded file, so left out of the margin (amount and cost). Each lists its rows
+  or "none on this sheet"; a long list shows the count, ranges and "show all"; a row number goes to that row. The BoQ summary
+  shows a short grey line per exception under a sheet's name and a yellow box "How these figures are worked out".
 

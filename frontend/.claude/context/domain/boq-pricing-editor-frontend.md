@@ -107,7 +107,12 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
   missing from that last one exports as a BLANK cell, silently dropping the formula.
 - **An empty qty / amount operand reads as the number 0 inside a formula; a missing rate never does
   (owner ruling; narrows F2's fail-safe).** An empty per-area quantity is a FACT the
-  document states ("none of this in that area"), so `(20 + <empty>) x 40` is 800. An UNPRICED RATE is a PENDING ACTION and still blanks the row, and that verdict
+  document states ("none of this in that area"), so `(20 + <empty>) x 40` is 800. ★ **THE ONE-SIDED ROW (owner QR-POISON = (a),
+  2026-11-27, "option a"): in a SUPPLY + INSTALL sum -- `Amount (Supply) + Amount (Install)`, or `qty x (supply + install)` -- the
+  unpriced side counts 0 while the other side is priced**, so a row priced on one side only shows that side in its total
+  (`amountFormula.supplyInstallPair` + `FoldOptions.missingRateSideIsZero`). This REPLACES the rate half of the 2026-09-04 rule for
+  that case only: a row priced on NO side, a `x` with a missing rate, and every `+` that is not a supply + install pair (per-area
+  totals included) still blank. Otherwise an UNPRICED RATE is a PENDING ACTION and still blanks the row, and that verdict
   PROPAGATES (`EvalResult.missing: "rate" | "value"`), so an enclosing `+` cannot zero-fill a node that
   blanked on a rate two levels down. ⚠️ **ZERO-FILL IS OPT-IN PER CALLER (`FoldOptions.missingValueIsZero`)
   and `amountFormula.evalNode` is the ONLY site that opts in** — every `bcsColumns` caller passes nothing,
@@ -153,8 +158,12 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
   the SAME call `PricingGrid`'s header cells and `MarginFormulaBuilder`'s chips render through**, so a chip
   can never name a column differently from the header above it. A role alone is NOT an identity: a sheet
   may map two `qty` columns, and naming both "Quantity" left one of them unreachable.
-- **`reconcile.ts` is a PURE LEAF** (imports only types): the SHARED `amountsEqual` epsilon + `resolveDivergence`
-  (D1 = DOCUMENT default). It exists so PricingGrid / priceability / pricingRollup share one comparison with NO cycle
+- **`reconcile.ts` is a PURE LEAF** (imports only types): the SHARED `amountsEqual` epsilon + `resolveDivergence`.
+  ⚠️ **THE DEFAULT IS THE CALCULATED AMOUNT (owner R-BCS-158, 2026-11-27: "defaulyt case should be to keep the calculated
+  amount"):** a divergent cell with NO choice shows qty x rate; "keep document" applies only where the user picked it for that
+  cell (the old D1 document default is gone). `resolved` stays `"unset"` on that arm, so the review strip still lists the cell
+  for a choice; the cell's chooser highlights "Use formula" when nothing is chosen and its reset reads "Use default (formula)"
+  (owner QR-DEFAULT = (a)). It exists so PricingGrid / priceability / pricingRollup share one comparison with NO cycle
   (PricingGrid must NOT import pricingRollup). Divergence fires only on `cell.kind === "value"`.
 - **`priceability.ts` is the shared "qty-bearing priceable line" spine** — the ONE definition for flags / the N-of-M
   count / rollup alignment. It imports PricingGrid's leaf predicates; **PricingGrid NEVER imports priceability**
@@ -743,6 +752,24 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
       ("List price" / "BCS price" / "BoQ price", " (install)"); the title and the code name stay; the download keeps `key [Label]`.
       Pins: `bcsw2RateMasterTags.dom.test.tsx`.
 
+- ★ **EVERY BCS MARGIN DIVIDES BY THE AMOUNT ON SCREEN (BCS-6a; owner R1 "the actual rates ... which the user has selcted").**
+  The grid's % Margin (`computeBcsRowCells`), the Summary panel (`pricingRollup`'s per-row tendered) and the BoQ summary
+  (`sheetFigures`, which reads that tendered) read each amount column through the SAME `evaluateAmountCell` + `shownAmountValue`
+  the Amount cell renders through, and fold it in the SAME `bcsColumns.boqTotalAmount`:
+  - a BOQ Total formula ref is resolved to the sheet's REAL column (value_field + value_key + rate_subkey, null = undefined)
+    before `evaluate` sees it, because both callers look the reconciliation choice up by `entry.col` (`refEntry`; the made-up
+    `col: ""` entry only when nothing matches);
+  - with no BOQ Total formula and no confirmed amount source the panel falls back to the sheet's own amount columns
+    (`bcsAmountColumns`) like the grid -- the panel always uses the per-row path (`rollBcsSections`' `ownTendered`);
+  - a one-sided row counts its one side in a `+` (`marginFold`; owner R3 "d3 yes"), and a blank amount column whose own formula
+    sums amount columns is unfolded into its sides (`marginColumnAmount`);
+  - only a PRICEABLE row (`isPriceableType`: Preamble / Line Item) has a BoQ amount for the margin -- a "Total" / note row shows
+    the file's committed figure and would otherwise be added beside the lines it totals;
+  - a row with NO rate in the app or the file AND no amount on screen is left out, amount AND cost
+    (`PricingGrid.rowLeftOutOfMargin`; owner R-BCS-158 1 + POINT 4: a no-rate row WITH an amount counts at that amount).
+  ⚠️ On a sheet with no amount formula, a row whose rate was never entered in the app SHOWS its committed (uploaded-file) amount
+  (`evaluateAmountCell`'s no-formula fallback), so that is what its margin divides by -- not qty x the file's rate.
+
 ### Filters, selection and Suggest rates
 
 - **Header column filters + the Row Type label (UI slice, owner-locked).** The pricing grid's Row Type
@@ -874,6 +901,14 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
 - Saves go through `save_boq_summary_inputs` only; a typed area saves after `SUMMARY_SAVE_PAUSE_MS` (1 s, slice 4's pause); the
   response replaces the SWR data. "" sent = back to the default ticks / not entered / the system's figure.
 - Figures show through `bcsSide.bcsFigureText` (whole rupees, rounded up, en-IN); a zero shows "0" (bcsFigureText(0) returns "-0").
+- **The note (BCS-6a).** `SummaryPanel` shows "How the BoQ amount was taken on this sheet" BELOW its table (the panel is a
+  full-width strip capped at 40vh; a block beside the table would squeeze the amount columns), only when it is given the BCS
+  input (cost viewers with the BCS columns on). Its three lists come from `pricingRollup.amountExceptions` (keep-document chosen /
+  a rate from the uploaded file / left out). `BoqSummaryBlock.RowRangeList` is the long-list form (count, ranges,
+  `ROW_LIST_SHOWN` ranges then "show all"); a row number jumps through `onJumpToRow` (the page passes the grid's `scrollToRow`)
+  or links to the pricing route's `?row=` (`matchRowHref`) from the BoQ summary's grey lines (`SheetExceptionLines`). The
+  panel's hierarchy (expand / collapse by row level) is untouched (R-BCS-159). No "typed" label on an unticked sheet's
+  installation (owner R6).
 
 ## Where the full component contracts live
 
