@@ -142,3 +142,27 @@ describe("BCS-6a POINT 4 -- a row with no rate but WITH an amount counts (owner 
     expect(res.bcs!.grand.cost).toBe(35000);
   });
 });
+
+describe("BCS-6a -- a margin counts PRICEABLE rows only (a Total row's file figure is never added twice)", () => {
+  // BOQ-26-00004 'FPS' shape: no formula, line items priced, and a "Total" row (node type Other) whose committed Amount (Total)
+  // is the sum of the lines - shown on screen as the file's figure. Counting it beside the lines doubled the BoQ amount.
+  const d = (col: string, vf: string) => ({ col, role: vf, value_field: vf, value_key: null, rate_subkey: null, area: null, header_label: col }) as ColumnDescriptor;
+  const descs = [d("D", "qty_total"), d("E", "rate_combined"), d("G", "amount_total")];
+  const line = (idx: number, er: number) => ({ source_row_number: er, row_index: idx, node_type: "Line Item", effective_classification: "line_item",
+    effective_parent_index: null, description: "line", qty_total: 2, rate_combined: 500, priced_rate_combined: true, amount_total: 1000 }) as unknown as PricedRow;
+  const total = { source_row_number: 9, row_index: 2, node_type: "Other", effective_classification: "subtotal", effective_parent_index: null,
+    description: "Total", amount_total: 2000 } as unknown as PricedRow;
+  const rates = new Map([[5, { excel_row: 5, supply_rate: null, install_rate: null, combined_rate: 300, is_filled: 1 }], [6, { excel_row: 6, supply_rate: null,
+    install_rate: null, combined_rate: 300, is_filled: 1 }]]) as never;
+
+  it("(+) the Summary panel's amount is the two lines (2,000), not 4,000 with the Total row", () => {
+    const res = rollupByParent([line(0, 5), line(1, 6), total], descs, [], [], { ratesByExcelRow: rates, kinds: ["combined"], qtySource: null, amountSource: null });
+    expect(res.bcs!.grand.tendered).toBe(2000);
+    expect(round1(value(res.bcs!.grand.margin))).toBe(40.0); // 1 - 1,200 / 2,000
+  });
+  it("(-) the grid: the Total row has no BoQ amount for the margin", () => {
+    const c = computeBcsRowCells({ row: total, bcsRow: undefined, rowBcsDrafts: {}, bcsKinds: ["combined"], bcsQty: null, bcsAmountSource: null,
+      columnDescriptors: descs, columnFormulas: [], rowDraftRates: {}, reconChoiceMap: new Map() });
+    expect(c.amountCell.kind).toBe("blank");
+  });
+});

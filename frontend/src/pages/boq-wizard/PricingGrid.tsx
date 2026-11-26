@@ -2527,7 +2527,10 @@ export function computeBcsRowCells(input: {
   // BCS-6a: `boqTotalAmount` now hands this callback the sheet's REAL column for a formula ref (D1 --
   // so `entry.col` is the real letter and the choice is found), counts a one-sided row's one side
   // (D3, hence `columnFormulas`), and a row with NO rate anywhere AND no amount has no denominator (P2f).
-  const leftOut = rowLeftOutOfMargin(row, columnDescriptors, columnFormulas, rowDraftRates);
+  // BCS-6a: only a PRICEABLE row (Preamble / Line Item -- `isPriceableType`, the owner-locked priceability axis) has a BoQ
+  // amount for the margin. A "Total" / note row ("Other") shows the uploaded file's committed figure on screen, and counting
+  // it beside its line items would add the total twice (P3 found 37,84,210 -> 75,68,420 on BOQ-26-00004 'FPS').
+  const leftOut = !isPriceableType(row.node_type) || rowLeftOutOfMargin(row, columnDescriptors, columnFormulas, rowDraftRates);
   const amountCell = leftOut
     ? ({ kind: "blank", reason: "no_amount" } as BcsComputedCell)
     : bcsTenderedAmountCell(

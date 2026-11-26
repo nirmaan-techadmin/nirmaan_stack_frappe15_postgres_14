@@ -46,6 +46,7 @@ import {
   isAmountDescriptor,
   lookupOperandValue,
   rowLeftOutOfMargin,
+  isPriceableType,
   evaluateAmountCell,
   shownAmountValue,
   isCellPriced,
@@ -494,7 +495,8 @@ export function rollupByParent(
     for (const r of rows) {
       boqByIdx.set(
         r.row_index,
-        rowLeftOutOfMargin(r, columnDescriptors, columnFormulas)
+        // BCS-6a: a non-priceable row ("Other": a total / note row) never adds its committed figure (see computeBcsRowCells).
+        !isPriceableType(r.node_type) || rowLeftOutOfMargin(r, columnDescriptors, columnFormulas)
           ? null
           : boqTotalAmount(
               boqFormula,
