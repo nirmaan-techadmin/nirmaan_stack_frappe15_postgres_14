@@ -245,10 +245,14 @@ def _validate_list_spec(cfg):
         _vthrow("matching_mode 'item_list' needs a list_spec object.")
     # DU-1 Part B: `borrowers_ask_offered_only` -- a borrowed category (Misc) whose borrowers' sections ask the model only for the
     # families THAT section offers (build_items_spec); ABSENT => every borrower asks the category's whole family question, as before
+    # CAT-2 (owner 2026-11-26 00:10 / 01:16, R1; ANSWER to CAT2-4 QR-FORM): `code_targets` -- the catalogue values code rules pick as ONE
+    # target, by role (catalogue_gate.code_target_refs checks each against the catalogue at load). OPTIONAL; ABSENT => those rules do not fire
     unknown = set(spec.keys()) - {"attribute_definitions", "family_attribute_id", "qty_attribute_id", "second_opinion", "pricing",
-                                  SECTIONS_KEY, "borrowers_ask_offered_only"}
+                                  SECTIONS_KEY, "borrowers_ask_offered_only", "code_targets"}
     if unknown:
         _vthrow(f"list_spec: unknown key(s): {', '.join(sorted(unknown))}.")
+    if "code_targets" in spec:
+        _validate_code_targets(spec["code_targets"], spec)
     if "second_opinion" in spec and not isinstance(spec["second_opinion"], bool):
         _vthrow("list_spec.second_opinion must be true or false.")   # CHECK 2 switch (owner 2026-09-23)
     if "borrowers_ask_offered_only" in spec and spec["borrowers_ask_offered_only"] is not True:
@@ -1620,6 +1624,19 @@ def _validate_paint_row(pw, spec):
         _vthrow(f"{loc}.tolerance must be a number between 0 and 1.")
     _sentence(pw, "line", loc, ("{rows}",))
     _sentence(pw, "miss_line", loc, ("{why}",))
+
+
+def _validate_code_targets(ct, spec):
+    """CAT-2 -- `list_spec.code_targets`: {role: {"attr", "value" | "values"[, "section"]}}. The SHAPE only; each value against
+    the catalogue is the gate's (catalogue_gate.code_target_refs, run at every load)."""
+    from nirmaan_stack.services.boq_rate_master.catalogue_gate import code_target_refs
+    if not isinstance(ct, dict) or not ct or not all(isinstance(r, str) and re.fullmatch(r"[a-z][a-z0-9_]*", r) for r in ct):
+        _vthrow("list_spec.code_targets must map snake_case roles to targets.")
+    stubs = {s.get("category_id"): {"category_id": s.get("category_id")}
+             for s in (spec.get("sections") or []) if isinstance(s, dict) and s.get("category_id")}
+    for path, _a, _v, _s, prob in code_target_refs({"list_spec": {**spec, "pricing": {}, "code_targets": ct}}, stubs):
+        if prob:
+            _vthrow(f"{path}: {prob}.")
 
 
 def _validate_sheet_insulation_retired(si, spec):

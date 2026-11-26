@@ -4485,7 +4485,7 @@ function computeItemListOwn(
     unit, unitClass, unitPickable, unitChoices, rowPriced, ...((unshowableReason ?? rowReason) ? { reason: unshowableReason ?? rowReason } : {}),
     ...(priced.unitNote && !blankUnitBarShown ? { unitNote: priced.unitNote } : {}),
     ...(priced.rateUnit ? { rateUnit: priced.rateUnit } : {}),
-    items: blocks, families: offeredFamilies(spec), editState: edits, modelCount: modelItems.length,
+    items: blocks, families: offeredFamilies(spec, items), editState: edits, modelCount: modelItems.length,
     // the ROW's own totals -- the same figures the headline shows, so "Row total" can never disagree
     // with it (see the warning on `rowTotals`)
     ...(rowPriced ? { totals: { ...values } as Partial<Record<RateKind, number>> } : {}),
@@ -8327,10 +8327,11 @@ export function hiddenFamilies(spec: ItemListPricingSpec): string[] {
   return (spec.withdrawn_families ?? []).filter((f) => !ua.has(f));
 }
 
-/** VAV-2b1 (R2 / R8). PURE. The families no list offers per box any more (`hiddenFamilies`), out of the own family list. */
-export function offeredFamilies(spec: ItemListPricingSpec): ReturnType<typeof familyChoices> {
+/** VAV-2b1 (R2 / R8). PURE. The families no list offers per box any more (`hiddenFamilies`), out of the own family list.
+ *  CAT-2 (P1): with the served `items`, only the families an SKU of the block's kinds carries (`familyChoices`). */
+export function offeredFamilies(spec: ItemListPricingSpec, items?: readonly RateMasterItem[]): ReturnType<typeof familyChoices> {
   const w = hiddenFamilies(spec);
-  return w.length ? familyChoices(spec).filter((f) => !w.includes(f.family)) : familyChoices(spec);
+  return w.length ? familyChoices(spec, items).filter((f) => !w.includes(f.family)) : familyChoices(spec, items);
 }
 
 /** VAV-2b1 (R2 / R8). PURE. The model's items without any item of a withdrawn family (own or borrowed), with one line naming each;

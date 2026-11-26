@@ -336,8 +336,8 @@ class TestDeclarationShape(FrappeTestCase):
 
 class TestRegistry(FrappeTestCase):
     def test_reg_the_declared_reference_keys(self):
-        self.assertEqual(len(CG.REFERENCE_KEYS), 22)
+        self.assertEqual(len(CG.REFERENCE_KEYS), 24)   # CAT-2 PIN P-REG91: + code_targets, + paint_row.family (was 22)
         for k in ("defaults", "value_map", "derive_when_none", "override_when", "family_when_none", "companion_items", "sections",
                   "text_notes", "read_notes", "conditions", "extraction_defaults", "synonyms", "sheet_shares", "Pricing Input",
-                  "placeholders", "goldens"):
+                  "placeholders", "goldens", "code_targets", "paint_row"):
             self.assertTrue(any(k in r for r in CG.REFERENCE_KEYS), k)

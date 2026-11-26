@@ -43,7 +43,56 @@ REFERENCE_KEYS = (
     "<any>.input / <any>.*_input (a Pricing Input id)",
     "<any string> {{cat:...}} / {{item:...}} placeholders",
     "goldens / impact_examples (LISTED as INFO, never refused - owner 2026-11-26 00:53, QR-SCOPE-2)",
+    "list_spec.code_targets.<role>.value / .values[] (STRICT; .section -> that delegated section's category)",
+    "list_spec.pricing.paint_row.family (STRICT; the paint_row section's category, its family attribute)",
 )
+
+# CAT-2 (owner 2026-11-26 00:10 / 01:16, R1): THE CODE TARGETS. A catalogue value a code rule picks as ONE target (the Valve Package
+# roles, the VRF frame / controller families, the GI framework cladding, CPVC / PVC) is named in the config, never typed in code:
+# `list_spec.code_targets.<role>` = {"attr", "value"} or {"attr", "values": [...]}, plus "section": <a delegated section id>
+# when the target is a SKU of that section's category. The code reads the role (frontend itemListPricing.codeTarget); a config
+# without the role leaves that rule off. The gate is STRICT here: the attribute must be one the scope's active SKUs carry.
+CODE_TARGETS_KEY = "code_targets"
+CODE_TARGET_KEYS = frozenset({"attr", "value", "values", "section"})
+
+
+def code_target_refs(cfg, configs_by_id):
+    """(path, attr, value, scope_cfg, problem) for every code target of one config and its `paint_row.family`; `problem` is a
+    shape refusal (then attr / value / scope are None)."""
+    ls = cfg.get("list_spec") if isinstance(cfg.get("list_spec"), dict) else {}
+    p = ls.get("pricing") if isinstance(ls.get("pricing"), dict) else {}
+    secs = {s.get("id"): configs_by_id.get(s.get("category_id")) for s in (ls.get("sections") or []) if isinstance(s, dict)}
+    base = f"list_spec.{CODE_TARGETS_KEY}"
+    ct = ls.get(CODE_TARGETS_KEY)
+    if ct is not None and not isinstance(ct, dict):
+        yield base, None, None, None, "must be an object of roles"
+        ct = {}
+    for role, t in (ct or {}).items():
+        path = f"{base}.{role}"
+        if not isinstance(t, dict) or not t.keys() <= CODE_TARGET_KEYS or not isinstance(t.get("attr"), str) or not t["attr"] \
+                or ("value" in t) == ("values" in t):
+            yield path, None, None, None, "needs attr and exactly one of value / values (and optionally section)"
+            continue
+        scope = cfg
+        if "section" in t:
+            scope = secs.get(t["section"])
+            if scope is None:
+                yield path, None, None, None, f"names section '{t['section']}', which is no delegated section of this config"
+                continue
+        vals = [t["value"]] if "value" in t else t["values"]
+        if not isinstance(vals, list) or not vals or not all(isinstance(v, str) and v for v in vals) or len(set(vals)) != len(vals):
+            yield path, None, None, None, "value / values must be non-empty text (values each once)"
+            continue
+        for i, v in enumerate(vals):
+            yield (f"{path}.value" if "value" in t else f"{path}.values[{i}]"), t["attr"], v, scope, None
+    pw = p.get("paint_row")
+    if isinstance(pw, dict) and isinstance(pw.get("family"), str):
+        scope = secs.get(pw.get("section"))
+        fam = _families_of(scope) if scope else None
+        if scope is None or not fam:
+            yield "list_spec.pricing.paint_row.family", None, None, None, "its section names no delegated category with a family"
+        else:
+            yield "list_spec.pricing.paint_row.family", fam, pw["family"], scope, None
 
 
 def _scalar(v):
@@ -284,6 +333,15 @@ def reference_problems(configs, items, discipline=None, linked=None):
             if value in carried[attr] or value in declared_placeholders(scope, attr):
                 continue
             add(REFUSE, cfg, path, f"names {attr} = '{value}' - no active SKU carries it")
+        # -- G-REF: code targets (CAT-2), STRICT: an attribute the scope's SKUs do not carry is refused too --
+        for path, attr, value, scope, prob in code_target_refs(cfg, by_id):
+            if prob:
+                add(REFUSE, cfg, path, prob)
+                continue
+            carried = own if scope is cfg else _carried(by_kind, config_kinds(scope, by_kind))
+            if value not in carried.get(attr, set()):
+                where = "" if scope is cfg else f" of {scope.get('category_id')}"
+                add(REFUSE, cfg, path, f"names {attr} = '{value}' - no active SKU{where} carries it")
         # -- G-REF: item references (share parts) --
         for path, sku in share_parts(cfg):
             if resolve_share_sku(items, sku):
