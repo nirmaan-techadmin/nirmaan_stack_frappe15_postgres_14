@@ -24,6 +24,7 @@ from frappe.tests.utils import FrappeTestCase
 
 from nirmaan_stack.services.boq_rate_master import catalogue_lists as CL
 from nirmaan_stack.services.boq_rate_master import csv_importer, extraction, loader
+from nirmaan_stack.services.boq_rate_master.cat1b_undo_support import as_v89   # CAT-1b PIN P-C1
 
 DATA = os.path.join(os.path.dirname(loader.__file__), "data")
 V88 = "rate_master_hvac_all_v88.json"
@@ -241,6 +242,9 @@ class TestT3Fill(FrappeTestCase):
         from nirmaan_stack.api.boq import rate_master
         raw = {(r.discipline, r.category_id): (json.loads(r.config) if isinstance(r.config, str) else r.config)
                for r in frappe.get_all("BoQ Rate Category Config", filters={"active": 1}, fields=["discipline", "category_id", "config"])}
+        # CAT-1b (HVAC v90 LOADED; PIN P-C1, QR-READER): the stored HVAC wording is placeholders now; the RAW live config with v90's
+        # declared wording edits undone (= the text the fill serves) is what the read points must equal. BEFORE: the raw rows as read
+        raw = {k: (as_v89(c, k[1]) if k[0] == "HVAC" else c) for k, c in raw.items()}
         served = extraction._load_active_configs()
         self.assertEqual(sorted(served), sorted(raw))
         for k, cfg in raw.items():
@@ -255,6 +259,9 @@ class TestT3Fill(FrappeTestCase):
     def test_t3_06_live_requests_through_the_read_point_equal_the_raw_build(self):
         raw = {(r.discipline, r.category_id): (json.loads(r.config) if isinstance(r.config, str) else r.config)
                for r in frappe.get_all("BoQ Rate Category Config", filters={"active": 1}, fields=["discipline", "category_id", "config"])}
+        # CAT-1b (HVAC v90 LOADED; PIN P-C1, QR-READER): the stored HVAC wording is placeholders now; the RAW live config with v90's
+        # declared wording edits undone (= the text the fill serves) is what the read points must equal. BEFORE: the raw rows as read
+        raw = {k: (as_v89(c, k[1]) if k[0] == "HVAC" else c) for k, c in raw.items()}
         served = extraction._load_active_configs()
 
         def req(cfgs, k):

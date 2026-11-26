@@ -2635,6 +2635,12 @@
    "writes": [],
    "reads": []
   },
+  "nirmaan_stack.services.boq_rate_master.test_cat1b_wording": {
+   "seconds": 12.6,
+   "series": [],
+   "writes": [],
+   "reads": []
+  },
   "nirmaan_stack.services.boq_rate_master.test_catalogue_gate": {
    "seconds": 13.3,
    "series": [],

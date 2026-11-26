@@ -1,5 +1,5 @@
 {
- "about": "G-PROSE (CAT-1, 2026-11-26): config wording that names a multi-word catalogue value outside a {{cat:..}} placeholder, frozen by path at today's count on the newest HVAC (v89) and Electrical (v72) files. Owner 2026-11-26 01:47 (QR-C-1 (a)): today's mentions stay typed and CAT-1b / CAT-3 convert them; the counts only go down; a NEW mention fails test_catalogue_guards and is listed by the import gate.",
+ "about": "G-PROSE (CAT-1, 2026-11-26): config wording that names a multi-word catalogue value outside a {{cat:..}} placeholder, frozen by path at today's count on the newest HVAC (v89) and Electrical (v72) files. Owner 2026-11-26 01:47 (QR-C-1 (a)): today's mentions stay typed and CAT-1b / CAT-3 convert them; the counts only go down; a NEW mention fails test_catalogue_guards and is listed by the import gate. CAT-1b (HVAC v90, owner 2026-11-26 01:47 / 11:15): the HVAC counts lowered to v90's -- the converted wording is placeholders now; what is left is the mixed-case mentions kept as words (QR-MIXED).",
  "paths": {
   "cabletray_raceway > rules[0].guidance": {
    "MS POWDER COATED": {
@@ -45,41 +45,8 @@
    "Butterfly Damper With SPIGOT": {
     "count": 1
    },
-   "COLLAR DAMPER": {
-    "count": 1
-   },
-   "access door": {
-    "count": 1
-   },
-   "canvas connection": {
-    "count": 2
-   },
    "control panel": {
     "count": 1
-   },
-   "curved grille": {
-    "count": 2
-   },
-   "door grille": {
-    "count": 1
-   },
-   "double-skin plenum": {
-    "count": 2
-   },
-   "floor grille": {
-    "count": 2
-   },
-   "intake louvre": {
-    "count": 1
-   },
-   "linear grille": {
-    "count": 1
-   },
-   "mixing box / LP plenum": {
-    "count": 2
-   },
-   "square diffuser": {
-    "count": 2
    }
   },
   "hvac_adp > list_spec.attribute_definitions[10].label": {
@@ -88,29 +55,7 @@
    }
   },
   "hvac_adp > list_spec.attribute_definitions[14].note": {
-   "FIRE DAMPER": {
-    "count": 1
-   },
    "GI Rectangular": {
-    "count": 1
-   },
-   "without sleeve": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.attribute_definitions[1].note": {
-   "COLLAR DAMPER": {
-    "count": 1
-   },
-   "curved grille": {
-    "count": 1
-   },
-   "linear grille": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.attribute_definitions[2].note": {
-   "flexible duct": {
     "count": 1
    }
   },
@@ -119,140 +64,18 @@
     "count": 1
    }
   },
-  "hvac_adp > list_spec.pricing.companion_items[0].line": {
-   "linear grille": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.defaults.damper.rule_by_family.curved grille": {
-   "curved grille": {
-    "count": 1
-   }
-  },
   "hvac_adp > list_spec.pricing.defaults.variant.rule": {
-   "FIRE DAMPER": {
-    "count": 1
-   },
    "GI Rectangular": {
-    "count": 1
-   },
-   "without sleeve": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.families.flexible duct.convert.count[0].pipelines.item_install.note": {
-   "flexible duct": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.families.flexible duct.convert.count[0].pipelines.item_install.steps[2].explain": {
-   "flexible duct": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.families.flexible duct.convert.count[0].pipelines.item_supply.note": {
-   "flexible duct": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.families.flexible duct.convert.count[0].pipelines.item_supply.steps[2].explain": {
-   "flexible duct": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.families.flexible duct.convert.count[0].rule": {
-   "flexible duct": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.families.mixing box / LP plenum.convert.count[0].rule": {
-   "mixing box / LP plenum": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.families.mixing box / LP plenum.convert.count[1].rule": {
-   "mixing box / LP plenum": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.families.slot diffuser.convert.count[0].rule": {
-   "slot diffuser": {
     "count": 1
    }
   },
   "hvac_adp > list_spec.pricing.family_merge[0].line": {
    "Butterfly Damper With SPIGOT": {
     "count": 1
-   },
-   "butterfly damper": {
-    "count": 1
    }
   },
   "hvac_adp > list_spec.pricing.family_merge[0].rule": {
    "Butterfly Damper With SPIGOT": {
-    "count": 1
-   },
-   "butterfly damper": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.numbers.slot_count.not_stocked": {
-   "slot diffuser": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.refuse_on_unit_class[0].refuse": {
-   "slot diffuser": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.text_notes[0].line": {
-   "control panel": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.text_notes[0].rule": {
-   "control panel": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.text_notes[1].line": {
-   "square diffuser": {
-    "count": 1
-   }
-  },
-  "hvac_adp > list_spec.pricing.text_notes[1].rule": {
-   "square diffuser": {
-    "count": 1
-   }
-  },
-  "hvac_ducting > list_spec.attribute_definitions[0].note": {
-   "Air Balancing": {
-    "count": 1
-   },
-   "Fire Rated (MS)": {
-    "count": 1
-   },
-   "PIR (Pre Insulated Duct)": {
-    "count": 1
-   },
-   "Rectangular (GI)": {
-    "count": 1
-   },
-   "Spiral / Oval (GI)": {
-    "count": 1
-   },
-   "flexible duct": {
-    "count": 2
-   }
-  },
-  "hvac_ducting > list_spec.attribute_definitions[3].note": {
-   "150 MM DIA": {
-    "count": 1
-   }
-  },
-  "hvac_ducting > list_spec.pricing.no_sku_refusals[0].refuse": {
-   "Valve Package": {
     "count": 1
    }
   },
@@ -261,418 +84,34 @@
     "count": 1
    }
   },
-  "hvac_ducting > list_spec.pricing.no_sku_refusals[6].refuse": {
-   "Sound Attenuator": {
-    "count": 1
-   }
-  },
-  "hvac_ducting > list_spec.pricing.no_sku_refusals[7].refuse": {
-   "flexible duct": {
-    "count": 1
-   }
-  },
-  "hvac_ducting > list_spec.pricing.no_sku_refusals[8].refuse": {
-   "canvas connection": {
-    "count": 1
-   }
-  },
-  "hvac_ducting > list_spec.pricing.text_notes[2].line": {
-   "flexible duct": {
-    "count": 1
-   }
-  },
-  "hvac_ducting > list_spec.pricing.text_notes[2].rule_line": {
-   "flexible duct": {
-    "count": 1
-   }
-  },
-  "hvac_ducting > list_spec.sections[2].family_note": {
-   "Air Balancing": {
-    "count": 1
-   },
-   "Fire Retardant Spray Paint": {
-    "count": 1
-   }
-  },
-  "hvac_insulation > list_spec.attribute_definitions[0].note": {
-   "Acoustic Nitrile Insulation": {
-    "count": 1
-   },
-   "Cladding Only": {
-    "count": 1
-   },
-   "Fiberglass Rigid Board Insulation, Density 48Kg/m3": {
-    "count": 1
-   },
-   "Nitrile Rubber Insulation": {
-    "count": 3
-   },
-   "Thermal Nitrile Insulation": {
-    "count": 3
-   },
-   "Tubular Puf Insulation": {
-    "count": 1
-   }
-  },
   "hvac_insulation > list_spec.attribute_definitions[1].note": {
-   "26G Aluminium": {
-    "count": 1
-   },
-   "26G Aluminium with Glass Cloth": {
-    "count": 1
-   },
    "Aluminium Foil": {
-    "count": 6
-   },
-   "GI Framework with perforated Al sheet": {
-    "count": 3
-   },
-   "Glass Cloth with paint": {
-    "count": 5
-   }
-  },
-  "hvac_insulation > list_spec.attribute_definitions[7].note": {
-   "Glass Cloth with paint": {
-    "count": 1
-   }
-  },
-  "hvac_insulation > list_spec.pricing.refuse_on_unit_class[0].refuse": {
-   "Sheet Insulation": {
-    "count": 1
-   }
-  },
-  "hvac_insulation > list_spec.pricing.refuse_on_unit_class[0].rule": {
-   "Cladding Only": {
-    "count": 1
-   },
-   "Sheet Insulation": {
-    "count": 1
-   }
-  },
-  "hvac_insulation > notes": {
-   "Acoustic Nitrile Insulation": {
-    "count": 1
-   },
-   "Cladding Only": {
-    "count": 2
-   },
-   "GI Framework with perforated Al sheet": {
-    "count": 2
-   },
-   "Glass Cloth with paint": {
-    "count": 2
-   }
-  },
-  "hvac_misc > list_spec.attribute_definitions[0].note": {
-   "Pressure Gauge": {
-    "count": 5
-   },
-   "Temperature Gauge / Thermometer": {
-    "count": 1
-   },
-   "Test Plug / Thermowell": {
-    "count": 2
-   }
-  },
-  "hvac_misc > list_spec.pricing.text_notes[1].rule_line": {
-   "Pressure Gauge": {
-    "count": 1
-   }
-  },
-  "hvac_misc > notes": {
-   "Valve Package": {
-    "count": 1
-   }
-  },
-  "hvac_piping > list_spec.attribute_definitions[2].note": {
-   "Nitrile Rubber Insulation": {
     "count": 1
    }
   },
   "hvac_sensors > list_spec.attribute_definitions[0].note": {
    "CO2 Sensor": {
     "count": 1
-   },
-   "Differential Pressure Switch": {
-    "count": 1
-   }
-  },
-  "hvac_sensors > notes": {
-   "VAV Box": {
-    "count": 1
    }
   },
   "hvac_valve_package > list_spec.attribute_definitions[0].note": {
-   "2-Way Valve": {
-    "count": 3
-   },
-   "Automatic Air Vent": {
-    "count": 3
-   },
-   "BTU Meter": {
-    "count": 1
-   },
-   "Balancing Valve": {
-    "count": 5
-   },
    "Ball Valve": {
-    "count": 12
-   },
-   "Butterfly Valve": {
-    "count": 3
-   },
-   "Dual Plate": {
-    "count": 1
-   },
-   "Foot Valve": {
-    "count": 2
-   },
-   "Motorised Butterfly Valve": {
-    "count": 1
-   },
-   "NRV / Check Valve": {
-    "count": 2
-   },
-   "Pressure Gauge": {
-    "count": 2
-   },
-   "Remote Controller": {
-    "count": 1
-   },
-   "Sluice / Gate Valve": {
-    "count": 1
-   },
-   "Test & Drain Valve": {
     "count": 1
    }
   },
   "hvac_valve_package > list_spec.attribute_definitions[5].note": {
-   "Ball Type": {
-    "count": 1
-   },
-   "Dual Plate": {
-    "count": 3
-   },
    "Flanged NRV": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.defaults.actuation.rule": {
-   "Motorised Butterfly Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.defaults.nrv_type.rule": {
-   "Dual Plate": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.defaults.operation.rule": {
-   "2-Way Valve": {
-    "count": 1
-   },
-   "2-way modulating valve": {
     "count": 1
    }
   },
   "hvac_valve_package > list_spec.pricing.derive_when_none[0].rule": {
    "Flanged NRV": {
-    "count": 2
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.material_text.map[0].rule": {
-   "Ball Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.read_notes[0].line": {
-   "150 mm": {
-    "count": 1
-   },
-   "250 mm": {
-    "count": 1
-   },
-   "Butterfly Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.read_notes[0].rule_line": {
-   "150 mm": {
-    "count": 1
-   },
-   "250 mm": {
-    "count": 1
-   },
-   "300 mm": {
-    "count": 1
-   },
-   "Butterfly Valve": {
-    "count": 2
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[0].detail": {
-   "2-Way Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[10].title": {
-   "2-way modulating valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[14].detail": {
-   "Dual Plate": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[15].title": {
-   "Pressure Gauge": {
-    "count": 2
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[17].title": {
-   "Pressure Gauge": {
-    "count": 1
-   },
-   "Test Plug / Thermowell": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[18].title": {
-   "Balancing Valve": {
-    "count": 2
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[1].detail": {
-   "Dual Plate": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[1].title": {
-   "Dual Plate": {
-    "count": 1
-   },
-   "Dual Plate NRV": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[20].detail": {
-   "Ball Valve": {
-    "count": 3
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[20].title": {
-   "Ball Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[23].detail": {
-   "Test Plug / Thermowell": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[3].title": {
-   "Pressure Gauge": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[4].detail": {
-   "Ball Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[4].title": {
-   "Ball Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[5].detail": {
-   "Ball Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[5].title": {
-   "Ball Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[7].detail": {
-   "Ball Valve": {
-    "count": 2
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[7].title": {
-   "Ball Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[8].detail": {
-   "Balancing Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.rule_lines[9].title": {
-   "Test Plug / Thermowell": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.text_notes[1].line": {
-   "Balancing Valve": {
-    "count": 1
-   },
-   "Flanged Balancing Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.text_notes[1].rule_line": {
-   "Balancing Valve": {
-    "count": 1
-   },
-   "Flanged Balancing Valve": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.text_notes[3].line": {
-   "Automatic Air Vent": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > list_spec.pricing.text_notes[3].rule_line": {
-   "Automatic Air Vent": {
-    "count": 1
-   }
-  },
-  "hvac_valve_package > notes": {
-   "Valve Package": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > attribute_definitions[1].note": {
-   "VAV Box": {
     "count": 1
    }
   },
   "hvac_vav_box > list_spec.attribute_definitions[0].note": {
-   "BACnet over IP controller": {
-    "count": 2
-   },
-   "Conical piece": {
-    "count": 1
-   },
-   "Duct connection": {
-    "count": 4
-   },
-   "Integrator cabling": {
-    "count": 1
-   },
    "VAV Box": {
-    "count": 3
-   },
-   "VAV Integrator": {
     "count": 2
-   },
-   "flexible duct": {
-    "count": 1
    }
   },
   "hvac_vav_box > list_spec.attribute_definitions[10].note": {
@@ -680,28 +119,8 @@
     "count": 3
    }
   },
-  "hvac_vav_box > list_spec.attribute_definitions[12].note": {
-   "Duct Static Pressure Sensor": {
-    "count": 1
-   },
-   "Pressure Gauge": {
-    "count": 1
-   }
-  },
   "hvac_vav_box > list_spec.attribute_definitions[3].note": {
-   "AHRI Certified": {
-    "count": 1
-   },
-   "AHRI Certified Imported": {
-    "count": 1
-   },
-   "Nothing specific mentioned": {
-    "count": 2
-   },
    "VAV Box": {
-    "count": 1
-   },
-   "VAV Integrator": {
     "count": 1
    }
   },
@@ -710,28 +129,8 @@
     "count": 1
    }
   },
-  "hvac_vav_box > list_spec.attribute_definitions[6].note": {
-   "200 MM DIA": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.attribute_definitions[7].note": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.attribute_definitions[8].note": {
-   "Integrator cabling": {
-    "count": 1
-   }
-  },
   "hvac_vav_box > list_spec.pricing.add_group.combos[0].label": {
    "CO2 Sensor": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.chain_values[2].line": {
-   "Digital Thermostat": {
     "count": 1
    }
   },
@@ -750,54 +149,8 @@
     "count": 1
    }
   },
-  "hvac_vav_box > list_spec.pricing.defaults.vav_type.note": {
-   "Nothing specific mentioned": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.defaults.vav_type.rule": {
-   "Nothing specific mentioned": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[0].why": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[12].why": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
   "hvac_vav_box > list_spec.pricing.derivation_reasons[19].why": {
-   "BACnet over IP controller": {
-    "count": 1
-   },
    "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[1].why": {
-   "BACnet over IP controller": {
-    "count": 1
-   },
-   "Conical piece": {
-    "count": 1
-   },
-   "Duct connection": {
-    "count": 1
-   },
-   "Integrator cabling": {
-    "count": 1
-   },
-   "VAV Box": {
-    "count": 1
-   },
-   "VAV Integrator": {
-    "count": 1
-   },
-   "VAV installation - any size": {
     "count": 1
    }
   },
@@ -826,15 +179,7 @@
     "count": 1
    }
   },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[30].why": {
-   "Duct Static Pressure Sensor": {
-    "count": 1
-   }
-  },
   "hvac_vav_box > list_spec.pricing.derivation_reasons[34].why": {
-   "Differential Pressure Switch": {
-    "count": 1
-   },
    "Duct Static Pressure Sensor": {
     "count": 1
    }
@@ -844,76 +189,18 @@
     "count": 1
    }
   },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[38].why": {
-   "Integrator cabling": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[39].why": {
-   "Duct Static Pressure Sensor": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[3].why": {
-   "Integrator cabling": {
-    "count": 1
-   },
-   "VAV Box": {
-    "count": 1
-   }
-  },
   "hvac_vav_box > list_spec.pricing.derivation_reasons[41].title": {
    "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[43].why": {
-   "Duct Static Pressure Sensor": {
     "count": 1
    }
   },
   "hvac_vav_box > list_spec.pricing.derivation_reasons[45].why": {
    "CO2 Sensor": {
     "count": 1
-   },
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[4].why": {
-   "VAV Box": {
-    "count": 1
-   },
-   "VAV Integrator": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[51].why": {
-   "Digital Thermostat": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[5].why": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.derivation_reasons[8].why": {
-   "Digital Thermostat": {
-    "count": 1
-   },
-   "Temperature Gauge / Thermometer": {
-    "count": 1
-   },
-   "Transformation Pieces": {
-    "count": 1
    }
   },
   "hvac_vav_box > list_spec.pricing.derivation_reasons[9].why": {
    "CO2 Sensor": {
-    "count": 1
-   },
-   "Differential Pressure Switch": {
     "count": 1
    }
   },
@@ -929,96 +216,6 @@
   },
   "hvac_vav_box > list_spec.pricing.existing_boxes.kinds[2].label": {
    "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.BACnet over IP controller.units.count.pipelines.install.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.BACnet over IP controller.units.count.pipelines.supply.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.Conical piece.units.count.pipelines.install.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.Conical piece.units.count.pipelines.supply.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.Duct connection.units.count.pipelines.install.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.Duct connection.units.count.pipelines.supply.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.Integrator cabling.units.count.pipelines.install.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.Integrator cabling.units.count.pipelines.supply.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.VAV Integrator.units.count.pipelines.install.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.VAV Integrator.units.count.pipelines.supply.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.VAV box.units.count.pipelines.install.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.VAV box.units.count.pipelines.supply.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.VAV installation - any size.units.count.pipelines.install.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.families.VAV installation - any size.units.count.pipelines.supply.steps[0].explain": {
-   "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.integrator_cabling.lines.added": {
-   "Integrator cabling": {
-    "count": 2
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.integrator_cabling.lines.input_missing": {
-   "Integrator cabling": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.integrator_cabling.lines.low_length": {
-   "Integrator cabling": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.integrator_cabling.lines.priced_separately": {
-   "Integrator cabling": {
     "count": 1
    }
   },
@@ -1057,11 +254,6 @@
     "count": 1
    }
   },
-  "hvac_vav_box > list_spec.pricing.scope.rule.install_row_texts.integrator_cabling.lines.priced_separately": {
-   "Integrator cabling": {
-    "count": 1
-   }
-  },
   "hvac_vav_box > list_spec.pricing.scope.rule.install_row_texts.sheet_shares.lines.blank_rows": {
    "VAV Box": {
     "count": 1
@@ -1069,11 +261,6 @@
   },
   "hvac_vav_box > list_spec.pricing.scope.rule.notes.C_qty": {
    "VAV Box": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.sheet_shares.double_count.with[4].line": {
-   "Duct Static Pressure Sensor": {
     "count": 1
    }
   },
@@ -1092,32 +279,8 @@
     "count": 1
    }
   },
-  "hvac_vav_box > list_spec.pricing.sheet_shares.whole[0].heading": {
-   "BACnet over IP controller": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.sheet_shares.whole[0].label": {
-   "BACnet over IP controller": {
-    "count": 1
-   }
-  },
-  "hvac_vav_box > list_spec.pricing.sheet_shares.whole[1].label": {
-   "DDC Panel/ Controller": {
-    "count": 1
-   }
-  },
   "hvac_vav_box > list_spec.sections[1].family_note": {
    "CO2 Sensor": {
-    "count": 2
-   },
-   "Digital Thermostat": {
-    "count": 3
-   },
-   "Temperature Gauge / Thermometer": {
-    "count": 3
-   },
-   "Transformation Pieces": {
     "count": 1
    },
    "VAV Box": {
@@ -1126,82 +289,18 @@
   },
   "hvac_vav_box > list_spec.sections[2].family_note": {
    "CO2 Sensor": {
-    "count": 4
-   },
-   "Digital Thermostat": {
-    "count": 1
-   },
-   "Duct Static Pressure Sensor": {
-    "count": 1
+    "count": 2
    },
    "VAV Box": {
     "count": 2
-   }
-  },
-  "hvac_vav_box > notes": {
-   "VAV Box": {
-    "count": 2
-   },
-   "VAV Integrator": {
-    "count": 1
-   },
-   "VAV installation - any size": {
-    "count": 1
    }
   },
   "hvac_vrf > attribute_definitions[4].note": {
    "Blue Star": {
     "count": 1
    },
-   "Cool Only": {
-    "count": 1
-   },
    "Heat Pump": {
-    "count": 3
-   }
-  },
-  "hvac_vrf > attribute_definitions[6].note": {
-   "Single Compressor": {
     "count": 1
-   }
-  },
-  "hvac_vrf > attribute_definitions[9].note": {
-   "12.5 / 15.0TR": {
-    "count": 1
-   },
-   "Outdoor Unit": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[0].note": {
-   "BACnet Integration Controller for VRF Units": {
-    "count": 1
-   },
-   "Drain Pump": {
-    "count": 4
-   },
-   "FOUR-WAY COMPACT": {
-    "count": 1
-   },
-   "MS Angle Base Frame Structure": {
-    "count": 1
-   },
-   "MS frame / stand for ODU": {
-    "count": 2
-   },
-   "Refrigerant Gas Filling (R-410)": {
-    "count": 1
-   },
-   "Single Skin Treated Fresh Air": {
-    "count": 1
-   },
-   "Touch Screen Central Controller": {
-    "count": 3
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[11].note": {
-   "Drain Pump": {
-    "count": 2
    }
   },
   "hvac_vrf > list_spec.attribute_definitions[27].note": {
@@ -1209,123 +308,17 @@
     "count": 1
    }
   },
-  "hvac_vrf > list_spec.attribute_definitions[35].label": {
-   "Drain Pump": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[35].note": {
-   "Drain Pump": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[36].label": {
-   "Drain Pump": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[36].note": {
-   "Drain Pump": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[37].label": {
-   "Drain Pump": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[38].label": {
-   "Drain Pump": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[38].note": {
-   "Drain Pump": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[39].label": {
-   "Remote Controller": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[39].note": {
-   "Remote Controller": {
-    "count": 1
-   }
-  },
   "hvac_vrf > list_spec.attribute_definitions[3].note": {
    "Blue Star": {
     "count": 1
    },
-   "Cool Only": {
-    "count": 1
-   },
    "Heat Pump": {
-    "count": 4
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[40].label": {
-   "Remote Controller": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[40].note": {
-   "Remote Controller": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[41].label": {
-   "Remote Controller": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[42].label": {
-   "Remote Controller": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[42].note": {
-   "Remote Controller": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[47].note": {
-   "Outdoor Unit": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[4].note": {
-   "Side Discharge": {
-    "count": 1
-   },
-   "Top Discharge": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[54].note": {
-   "Outdoor Unit": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[5].note": {
-   "Single Compressor": {
     "count": 1
    }
   },
   "hvac_vrf > list_spec.attribute_definitions[63].label": {
    "Drain Pump": {
     "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[6].note": {
-   "FOUR-WAY COMPACT": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.attribute_definitions[8].note": {
-   "Outdoor Unit": {
-    "count": 2
    }
   },
   "hvac_vrf > list_spec.pricing.defaults.brand.rule": {
@@ -1358,26 +351,8 @@
     "count": 2
    }
   },
-  "hvac_vrf > list_spec.pricing.defaults.cooling.rule": {
-   "Cool Only": {
-    "count": 1
-   },
-   "Heat Pump": {
-    "count": 1
-   }
-  },
   "hvac_vrf > list_spec.pricing.defaults.discharge.rule": {
    "Top Discharge": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.pricing.extras.accessories[1].qty_per_size.line": {
-   "Outdoor Unit": {
-    "count": 2
-   }
-  },
-  "hvac_vrf > list_spec.pricing.extras.accessories[4].builtin.line": {
-   "Drain Pump": {
     "count": 1
    }
   },
@@ -1396,31 +371,6 @@
     "count": 1
    }
   },
-  "hvac_vrf > list_spec.pricing.extras.lines.drain_cable_line": {
-   "Drain Pump": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.pricing.extras.lines.drain_cable_line_silent": {
-   "Drain Pump": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.pricing.extras.lines.drain_cable_row_line": {
-   "Drain Pump": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.pricing.extras.prepare.implied_includes[3].line": {
-   "Outdoor Unit": {
-    "count": 1
-   }
-  },
-  "hvac_vrf > list_spec.pricing.extras.prepare.tfa_outdoor.line": {
-   "Outdoor Unit": {
-    "count": 1
-   }
-  },
   "hvac_vrf > list_spec.pricing.value_map[0].rule": {
    "Blue Star": {
     "count": 2
@@ -1429,12 +379,6 @@
   "hvac_vrf > notes": {
    "Blue Star": {
     "count": 4
-   },
-   "Drain Pump": {
-    "count": 2
-   },
-   "Outdoor Unit": {
-    "count": 3
    }
   },
   "point_wiring > attribute_definitions[27].label": {
