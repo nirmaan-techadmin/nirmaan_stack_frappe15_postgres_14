@@ -48,10 +48,12 @@ import {
   rowLeftOutOfMargin,
   evaluateAmountCell,
   shownAmountValue,
+  isCellPriced,
+  isRateDescriptor,
 } from "./PricingGrid";
 import { evaluateAmountColumn, pickFormula } from "./amountFormula";
 import { computeDepths, resolveDescriptorValue } from "./reviewRender";
-import { isRowIncomplete } from "./priceability";
+import { isPriceableLine, isRowIncomplete } from "./priceability";
 // BCS-S5: the cost axis of the SAME tree. The arithmetic lives in bcsColumns (unchanged); the
 // section rolling + the recomputed ratio live in the pure bcsRollup leaf.
 import { rollBcsSections, type BcsRollupResult } from "./bcsRollup";
@@ -513,6 +515,78 @@ export function rollupByParent(
   }
 
   return { columns, roots, grandTotals, integrityErrors, bcs };
+}
+
+// ── BCS-6a P2g: the note's three exception lists ─────────────────────────────────────────────────
+/**
+ * "How the BoQ amount was taken on this sheet" (owner R-BCS-156 / 158 / 159, R3 / R5 / R6; mockup board 2): every row's
+ * BoQ amount is quantity x the rate chosen, as shown in the Amount column, except the rows listed here, by Excel row number
+ * (ascending, each once). Saved-only, as every other Summary figure.
+ *   keptDocument -- an amount cell whose document and calculated amounts differ and where the user CHOSE "keep the
+ *                   document's amount" (`resolveDivergence` -> keep_document). Since BCS-6a that happens only by choice.
+ *   fileRate     -- a priceable line (priceability's owner-locked rule) at least one of whose rates comes from the uploaded
+ *                   file, not from the app (a rate that `lookupOperandValue` reads, without the "priced in the app" marker).
+ *                   Owner Q-NOTE-2 = (a), 2026-11-27 01:43: "ANY rate it uses comes from the uploaded file".
+ *   leftOut      -- no rate in the app or in the file AND no amount on screen (`rowLeftOutOfMargin`, P2f + POINT 4), on a
+ *                   priceable line or on a row that carries a BCS cost (`costRows`) -- its amount and its cost are left out.
+ */
+export interface AmountExceptions {
+  keptDocument: number[];
+  fileRate: number[];
+  leftOut: number[];
+}
+
+export function amountExceptions(
+  rows: PricedRow[],
+  columnDescriptors: ColumnDescriptor[],
+  columnFormulas: ColumnFormula[] = [],
+  reconChoices: ReconciliationChoiceRef[] = [],
+  costRows?: ReadonlySet<number>,
+): AmountExceptions {
+  const choiceMap = buildReconChoiceMap(reconChoices);
+  const amountDescs = columnDescriptors.filter(isAmountDescriptor);
+  const rateDescs = columnDescriptors.filter(isRateDescriptor);
+  const kept = new Set<number>();
+  const file = new Set<number>();
+  const out = new Set<number>();
+  for (const r of rows) {
+    const er = r.source_row_number;
+    if (typeof er !== "number") continue;
+    const priceable = isPriceableLine(r, columnDescriptors);
+    if (rowLeftOutOfMargin(r, columnDescriptors, columnFormulas)) {
+      if (priceable || costRows?.has(er)) out.add(er);
+      continue;
+    }
+    for (const d of amountDescs) {
+      const cell = evaluateAmountCell(d, r, columnDescriptors, columnFormulas, {});
+      if (cell.kind !== "value") continue;
+      const raw = resolveDescriptorValue(r, d);
+      const rec = resolveDivergence(typeof raw === "number" ? raw : null, cell.value, choiceMap.get(reconChoiceKey(er, d.col)));
+      if (rec.diverges && rec.resolved === "keep_document") kept.add(er);
+    }
+    if (
+      priceable &&
+      rateDescs.some(
+        (d) =>
+          !isCellPriced(r, d) &&
+          lookupOperandValue(r, { value_field: d.value_field, value_key: d.value_key, rate_subkey: d.rate_subkey }, columnDescriptors, {}) !== undefined,
+      )
+    )
+      file.add(er);
+  }
+  const sorted = (x: Set<number>) => [...x].sort((a, b) => a - b);
+  return { keptDocument: sorted(kept), fileRate: sorted(file), leftOut: sorted(out) };
+}
+
+/** Consecutive row numbers joined into ranges: [4,5,6,9] -> [[4,6],[9,9]]. Pure (the note's long-list form). */
+export function rowRanges(rowsAsc: readonly number[]): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  for (const n of rowsAsc) {
+    const last = out[out.length - 1];
+    if (last && n === last[1] + 1) last[1] = n;
+    else out.push([n, n]);
+  }
+  return out;
 }
 
 // ── Summary-panel default-view helpers (display support; rollupByParent UNCHANGED) ──

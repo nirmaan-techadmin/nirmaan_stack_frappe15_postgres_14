@@ -13,11 +13,12 @@
  * the only write is `save_boq_summary_inputs` (area, ticks, the two installation parts).
  */
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { FrappeContext, useFrappeGetCall, useFrappePostCall, type FrappeConfig } from "@/lib/frappe";
 import { useUserData } from "@/hooks/useUserData";
 import { canSeeBcsCost } from "./boqAccess";
-import { rollupByParent, type RollupNode } from "./pricingRollup";
+import { amountExceptions, rollupByParent, rowRanges, type AmountExceptions, type RollupNode } from "./pricingRollup";
+import { matchRowHref } from "./rate-helper/PreviouslyPricedMatches";
 import { bcsAmountColumns, bcsLiveRateKinds, bcsMarginPercent, formatBcsMargin } from "./bcsColumns";
 import type { BcsSectionTotals } from "./bcsRollup";
 import { bcsFigureText } from "./rate-helper/bcsSide";
@@ -50,6 +51,8 @@ export interface SheetReads {
 }
 export interface SheetFigures {
   boqAmount: number | null; bcsSupply: number | null; typedInstall: number | null; rowsWithAmount: number; rowsWithSupply: number;
+  /** BCS-6a: the note's three exception lists for this sheet (`amountExceptions`), only where BCS is on (a margin is shown). */
+  exceptions?: AmountExceptions | null;
 }
 
 /** The stored cost rows keyed by Excel row, with one side read as 0 (install for BCS supply; supply + combined for install). */
@@ -102,11 +105,14 @@ export function sheetFigures(r: SheetReads): SheetFigures {
     n.children.forEach(walk);
   };
   sup.roots.forEach(walk);
+  const costRows = new Set(r.rates.filter((x) => Number(x.supply_rate) || Number(x.install_rate) || Number(x.combined_rate))
+    .map((x) => x.excel_row));
   return {
     boqAmount,
     bcsSupply: r.bcsOn ? (sup.bcs?.grand.cost ?? null) : null,
     typedInstall: r.bcsOn ? (ins.bcs?.grand.cost ?? null) : null,
     rowsWithAmount, rowsWithSupply,
+    exceptions: r.bcsOn ? amountExceptions(r.rows, r.descriptors, r.formulas, r.recon, costRows) : null,
   };
 }
 
@@ -210,6 +216,55 @@ const fig = (v: number | null | undefined): string => {
 };
 const pct = (v: number | null): string => (v === null ? "" : formatBcsMargin(v));
 const td = "px-2 py-1.5 text-right tabular-nums align-top";
+
+/** How many ranges the long list shows before "show all" (owner R5, 00:28: "the long list format is correct, but it should be
+ *  shown in the block itself"). */
+export const ROW_LIST_SHOWN = 8;
+
+/**
+ * BCS-6a -- THE LONG-LIST FORM (owner R5 00:26 "how do wew show all these ows in the list on the note"; mockup board 2): the
+ * count first, the row numbers joined into ranges, "show all" opening the full list, each row number taking the user to that
+ * row -- by `onJump` (the sheet page's own grid jump) or by `hrefFor` (the pricing route's `?row=` link, `matchRowHref`). An
+ * empty list reads "none on this sheet". Shared by the sheet's Summary panel note and the BoQ summary's grey lines.
+ */
+export function RowRangeList({ rows, onJump, hrefFor }: { rows: readonly number[]; onJump?: (excelRow: number) => void;
+  hrefFor?: (excelRow: number) => string }) {
+  const [all, setAll] = useState(false);
+  if (rows.length === 0) return <span>none on this sheet</span>;
+  const ranges = rowRanges(rows);
+  const shown = all ? ranges : ranges.slice(0, ROW_LIST_SHOWN);
+  const num = (n: number) => onJump
+    ? <button type="button" aria-label={`Go to row ${n}`} className="text-primary hover:underline" onClick={() => onJump(n)}>{n}</button>
+    : hrefFor ? <Link aria-label={`Go to row ${n}`} className="text-primary hover:underline" to={hrefFor(n)}>{n}</Link> : <span>{n}</span>;
+  return (
+    <span>
+      {rows.length} {rows.length === 1 ? "row" : "rows"}:{" "}
+      {shown.map(([a, b], k) => (
+        <span key={a}>{k > 0 ? ", " : ""}{num(a)}{b !== a && <>-{num(b)}</>}</span>
+      ))}
+      {ranges.length > ROW_LIST_SHOWN && (
+        <>{!all && " ..."} <button type="button" className="text-primary hover:underline" onClick={() => setAll(!all)}>
+          {all ? "show fewer" : "show all"}</button></>
+      )}
+    </span>
+  );
+}
+
+/** The BoQ summary's short grey lines under a sheet's name, one per exception that applies (owner R3 / R5; mockup board 1). */
+export function SheetExceptionLines({ ex, boqId, sheet }: { ex: AmountExceptions | null | undefined; boqId: string | undefined;
+  sheet: string }) {
+  if (!ex) return null;
+  const href = (n: number) => matchRowHref({ boq: boqId ?? "", sheet_name: sheet, excel_row: n });
+  const line = (label: string, rows: number[]) => rows.length === 0 ? null : (
+    <span className="block text-[11px] text-muted-foreground">{label}: <RowRangeList rows={rows} hrefFor={href} /></span>);
+  return (
+    <>
+      {line("Priced, but the uploaded file's amount kept", ex.keptDocument)}
+      {line("Not priced in the app yet - the uploaded file's rate used", ex.fileRate)}
+      {line("No rate anywhere - left out", ex.leftOut)}
+    </>
+  );
+}
 
 /** "Edit" / "Remove" (or "Back to system figure" once changed) for one installation part (R-BCS-144). */
 function PartControls({ changed, onSave }: { changed: boolean; onSave: (v: string) => void }) {
@@ -348,10 +403,11 @@ function BoqSummaryBody({ boqId, summary, mutate }: { boqId: string | undefined;
                   const spanFirst = l.ticked && l === ticked[0];
                   return (
                     <tr key={l.sheet} className="border-b border-border">
-                      <td className="px-2 py-1.5">{l.ticked ? "[x] " : ""}{l.sheet.trim() || l.sheet}</td>
+                      <td className="px-2 py-1.5">{l.ticked ? "[x] " : ""}{l.sheet.trim() || l.sheet}
+                        <SheetExceptionLines ex={l.fig?.exceptions} boqId={boqId} sheet={l.sheet} /></td>
                       <td className={td}>{fig(l.fig?.boqAmount)}</td>
                       <td className={td}>{fig(l.fig?.bcsSupply)}</td>
-                      {!l.ticked && <td className={td}>{l.install === null ? "" : `${fig(l.install)} typed`}</td>}
+                      {!l.ticked && <td className={td}>{fig(l.install)}</td>}
                       {spanFirst && <td className={td} rowSpan={ticked.length}>{table.needsArea ? ENTER_AREA : fig(table.block?.install)}</td>}
                       <td className={td}>{l.fig ? rows(l.fig) : ""}</td>
                       {!l.ticked && <td className={td}>{pct(l.margin)}</td>}
@@ -378,9 +434,18 @@ function BoqSummaryBody({ boqId, summary, mutate }: { boqId: string | undefined;
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-muted-foreground">Margin = 1 - (BCS supply + BCS installation) / BoQ amount. A blank means no value
-            yet (never 0). The BoQ total&rsquo;s margin stays blank until every listed sheet has a cost. No area entered:
-            installation, block margin and total margin read &ldquo;{ENTER_AREA}&rdquo;.</p>
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+            data-box="how-worked-out">
+            <p className="font-medium">How these figures are worked out</p>
+            <ul className="mt-1 list-disc pl-5 space-y-0.5">
+              <li>BoQ amount = the amount shown on each row (qty x the chosen rate; a row priced on one side only counts its one amount).</li>
+              <li>The exceptions are listed by row under each sheet&rsquo;s name.</li>
+              <li>A sheet outside the installation block uses the installation entered on its rows; the block uses the one installation figure.</li>
+              <li>Margin = 1 - (BCS supply + BCS installation) / BoQ amount.</li>
+              <li>A blank means no value yet (never 0). The BoQ total&rsquo;s margin stays blank until every listed sheet has a cost. No area
+                entered: installation, block margin and total margin read &ldquo;{ENTER_AREA}&rdquo;.</li>
+            </ul>
+          </div>
           {loading && <p className="text-xs text-muted-foreground">Loading the sheets&rsquo; figures&hellip;</p>}
           {failed.length > 0 && <p className="text-xs text-destructive">Could not load: {failed.map((f) => f.trim()).join(", ")}.</p>}
         </div>

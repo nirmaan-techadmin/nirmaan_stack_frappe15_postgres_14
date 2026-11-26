@@ -32,12 +32,13 @@ import { cn } from "@/lib/utils";
 import {
   rollupByParent,
   defaultCollapsedSet,
+  amountExceptions,
   type BcsRollupInput,
   type RollupNode,
 } from "./pricingRollup";
 import { bcsBlankReasonText, formatBcsMargin, type BcsComputedCell } from "./bcsColumns";
 import type { BcsSectionTotals } from "./bcsRollup";
-import { BoqSummarySheetLine } from "./BoqSummaryBlock";
+import { BoqSummarySheetLine, RowRangeList } from "./BoqSummaryBlock";
 import type {
   ColumnDescriptor,
   ColumnFormula,
@@ -154,13 +155,25 @@ interface SummaryPanelProps {
   bcs?: BcsRollupInput | null;
   sheetName: string;
   onClose: () => void;
+  /** BCS-6a: the note's row numbers take the user to that row -- the page's own grid jump (`scrollToRow`). Absent (the
+   *  read-only viewer) = the numbers are plain text. */
+  onJumpToRow?: (excelRow: number) => void;
 }
 
-const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, bcs, sheetName, onClose }: SummaryPanelProps) => {
+const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, bcs, sheetName, onClose, onJumpToRow }: SummaryPanelProps) => {
   const { columns, roots, grandTotals, integrityErrors, bcs: bcsRollup } = useMemo(
     () => rollupByParent(rows, columnDescriptors, columnFormulas, reconChoices, bcs),
     [rows, columnDescriptors, columnFormulas, reconChoices, bcs],
   );
+
+  // BCS-6a P2g: the note's three exception lists -- only where the cost axis shows (the BCS input is given to cost viewers
+  // only, Admin + Estimates), exactly as the cost columns themselves.
+  const exceptions = useMemo(() => {
+    if (!bcs) return null;
+    const costRows = new Set<number>();
+    for (const [er, r] of bcs.ratesByExcelRow) if (Number(r.supply_rate) || Number(r.install_rate) || Number(r.combined_rate)) costRows.add(er);
+    return amountExceptions(rows, columnDescriptors, columnFormulas, reconChoices, costRows);
+  }, [rows, columnDescriptors, columnFormulas, reconChoices, bcs]);
 
   // Default view = expanded down to the shallowest preamble tier (computed from data).
   const [collapsed, setCollapsed] = useState<Set<number>>(() => defaultCollapsedSet(roots));
@@ -410,6 +423,23 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
               </tr>
             </tfoot>
           </table>
+        </div>
+      )}
+      {/* BCS-6a P2g -- THE NOTE (owner R-BCS-156 / 158 / 159, R3 / R5 / R6; mockup board 2), wording verbatim. BELOW the
+          table: the panel is a full-width strip capped at 40vh above the grid, so a block beside the table would squeeze the
+          amount columns (decided on the screen at the cert). The panel's hierarchy above is untouched (R-BCS-159). */}
+      {exceptions && (
+        <div className="px-3 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground" data-note="how-boq-amount-taken">
+          <p className="font-medium text-foreground">How the BoQ amount was taken on this sheet</p>
+          <p className="mt-0.5">Every row: quantity x the rate you chose, as shown in the Amount column. Three exceptions, listed by row:</p>
+          <ol className="mt-1 list-decimal pl-5 space-y-0.5">
+            <li data-exception="kept-document">Priced in the app, but the uploaded file&rsquo;s amount was kept instead of quantity x your rate (you
+              chose &ldquo;keep the document&rsquo;s amount&rdquo;): <RowRangeList rows={exceptions.keptDocument} onJump={onJumpToRow} /></li>
+            <li data-exception="file-rate">Not priced in the app yet (no rate entered here), so the rate written in the uploaded file is used:{" "}
+              <RowRangeList rows={exceptions.fileRate} onJump={onJumpToRow} /></li>
+            <li data-exception="left-out">No rate in the app or in the uploaded file, so left out of the margin (amount and cost):{" "}
+              <RowRangeList rows={exceptions.leftOut} onJump={onJumpToRow} /></li>
+          </ol>
         </div>
       )}
       <BoqSummarySheetLine />

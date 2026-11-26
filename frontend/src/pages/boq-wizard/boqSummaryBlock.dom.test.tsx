@@ -4,7 +4,8 @@
 //   (+) it renders for a cost user (Admin / Estimates), at the top of the hub (under the header, above the general-spec box);
 //   (-) for anyone else nothing renders and NO cost read fires (the summary read's key is null, no per-sheet read is made);
 //   (+) the clubbed block: ONE installation figure and ONE margin across the ticked sheets; a "Ticked block" sub-total;
-//   (+) a ticked sheet's typed installation is not counted; an unticked sheet's is, marked "typed";
+//   (+) a ticked sheet's typed installation is not counted; an unticked sheet's is (BCS-6a: no "typed" label after it, owner R6);
+//   (+) BCS-6a: the grey exception lines under a sheet's name (row links to the pricing route's ?row=) and the yellow box;
 //   (+) blank (never 0) where there is no value; the BoQ total's margin blank until every listed sheet has a cost;
 //   (+) "- enter the area" with no area; (+) edit / remove show "changed by user" and "Back to system figure" and save the right
 //       values; (+) the carpet-area hint copies its figure into the save.
@@ -35,7 +36,8 @@ vi.mock("@/lib/frappe", async () => {
     useFrappePostCall: () => ({ call: h.save }),
   };
 });
-import { BoqSummaryBlock, ENTER_AREA } from "./BoqSummaryBlock";
+import { BoqSummaryBlock, ENTER_AREA, SheetExceptionLines } from "./BoqSummaryBlock";
+import { MemoryRouter } from "react-router-dom";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const d = (col: string, vf: string) => ({ col, role: vf, area: null, value_field: vf, value_key: null, rate_subkey: null });
@@ -127,7 +129,8 @@ describe("BCS-5 the BoQ summary block", () => {
     expect(a[5].textContent).toBe("20.5%"); // 1 - (700 + 750 + 300) / 2,200
     expect(cells("[x] B")).toHaveLength(4); // B shares the spanned installation and margin
     expect([...cells("Ticked block")].map((c) => c.textContent)).toEqual(["Ticked block", "2,200", "1,450", "300", "2 of 2", "20.5%"]);
-    expect(cells("C")[3].textContent).toBe("100 typed"); // an unticked sheet: its typed install counts
+    // BCS-6a MOVED CHECK (owner R6, 27 Nov 00:12, board 1: "nop label is needed for that"): the figure, no "typed" after it.
+    expect(cells("C")[3].textContent).toBe("100"); // an unticked sheet: its typed install counts
     expect(cells("C")[5].textContent).toBe("41.7%");
   });
   it("(+) blank (never 0) where no value; (+) total margin blank until every listed sheet has a cost", async () => {
@@ -171,5 +174,36 @@ describe("BCS-5 the BoQ summary block", () => {
     expect(at("<BoqSummaryBlock boqId={boqId} />")).toBeGreaterThan(at("Header strip (M2.18)"));
     expect(at("<BoqSummaryBlock boqId={boqId} />")).toBeLessThan(at("Removed-sheet advisory (ADR-0014 D4)"));
     expect(at("Removed-sheet advisory (ADR-0014 D4)")).toBeLessThan(at("Declare General Specification sheets"));
+  });
+});
+
+describe("BCS-6a the BoQ summary's exception lines and the yellow box (mockup board 1)", () => {
+  it("(+) the yellow box 'How these figures are worked out' under the table, with the board's lines", async () => {
+    await mount(summary());
+    const box = host!.querySelector("[data-box='how-worked-out']")!;
+    expect(box.textContent).toContain("How these figures are worked out");
+    expect(box.textContent).toContain("BoQ amount = the amount shown on each row (qty x the chosen rate; a row priced on one side only counts its one amount).");
+    expect(box.textContent).toContain("The exceptions are listed by row under each sheet’s name.");
+    expect(box.textContent).toContain("Margin = 1 - (BCS supply + BCS installation) / BoQ amount.");
+    expect(box.textContent).toContain("A blank means no value yet (never 0).");
+    expect(host!.querySelector("table")!.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+  it("(+) a grey line per exception that applies, in the long-list form, each row a link to that row", async () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const ex = { keptDocument: [], fileRate: [4, 5, 6, 9], leftOut: [30] };
+    await act(async () => root!.render(<MemoryRouter><SheetExceptionLines ex={ex} boqId="BOQ-X" sheet="ELV BOQ" /></MemoryRouter>));
+    expect(host!.textContent).toBe("Not priced in the app yet - the uploaded file's rate used: 4 rows: 4-6, 9"
+      + "No rate anywhere - left out: 1 row: 30");
+    expect(host!.textContent).not.toContain("amount kept"); // (-) no line where the exception does not apply
+    expect(host!.querySelector("a[aria-label='Go to row 30']")!.getAttribute("href")).toBe("/upload-boq/hub/BOQ-X/pricing/ELV%20BOQ?row=30");
+  });
+  it("(-) no lines on a sheet with BCS off (no margin shown there)", async () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => root!.render(<MemoryRouter><SheetExceptionLines ex={null} boqId="BOQ-X" sheet="A" /></MemoryRouter>));
+    expect(host!.textContent).toBe("");
   });
 });

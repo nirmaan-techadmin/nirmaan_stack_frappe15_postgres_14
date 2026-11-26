@@ -5272,6 +5272,7 @@ const SheetPricingPage = () => {
           grid renders (no new backend call). The grid stays usable below. */}
       {!isGridOnly && summaryOpen && sheetLoad.isUsable && (
         <SummaryPanel
+          onJumpToRow={(excelRow: number) => gridRef.current?.scrollToRow(excelRow)}
           rows={rows}
           columnDescriptors={columnDescriptors}
           columnFormulas={columnFormulas}
