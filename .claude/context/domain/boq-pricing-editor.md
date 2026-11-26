@@ -133,3 +133,44 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   not the cost gate). A Billing user can open the page but is outside that set: their change works in the open panel and is not
   kept. The other refusals (no committed cell, locked sheet, another editor's lock) are `save_row_bcs_rates`' own; the BCS readiness
   gate is not run (an edit is not a cost). A save also takes the single-editor pricing lock, as every pricing write does.
+
+### The BoQ summary on the BoQ's main page - BCS-5 (2026-11-26)
+- Owner R1 - R8 (approved mockup 26 Nov 14:07): for Admin and Estimates only (`boqAccess.canSeeBcsCost`; the server's
+  `bcs._require_bcs_cost_access` on both endpoints) a foldable "BoQ summary" box sits at the TOP of the BoQ's main page, under
+  the BoQ name / version, above "Declare General Specification sheets" (`BoqSummaryBlock.tsx`, mounted in `BoqHubPage.tsx`).
+  Anyone else sees the page as before and no cost read fires.
+- ONE LINE PER PRICEABLE SHEET (current committed `treat_as = "data"` sheets) in sheet order: BoQ amount, BCS supply, BCS
+  installation, rows with BCS supply ("x of y": rows with a BoQ amount, and of them rows with a BCS supply), margin. Summary /
+  spec tabs and sheets not committed are not listed. Margin = 1 - (BCS supply + BCS installation) / BoQ amount
+  (`bcsMarginPercent`); a blank is "no value yet", never 0; the BoQ total's margin stays blank until every listed sheet has a cost.
+- ⚠️ THE FIGURES ARE THE SHEET SUMMARY'S OWN: the block reads the sheet page's three reads per sheet (`get_priced_rows`,
+  `get_bcs_state`, `get_sheet_bcs_rates`, fetched one sheet after another) and runs `rollupByParent`; BCS supply = the sheet's
+  BCS total with the install box read as 0, typed installation = with the supply / combined boxes read as 0; the BoQ amount of a
+  row = `boqTotalAmount` (the declared BOQ Total formula, else `bcsAmountColumns`' columns) evaluated on the rollup's OWN,
+  reconciliation-choice-resolved row amounts - so it equals the amount the sheet's Summary shows (BCS-5 Question 4 = (c)).
+  Do not take it from `rollBcsSections`' tendered: with a BOQ Total formula that path drops reconciliation choices (open item).
+- THE TICKED BLOCK (R2): the user ticks the sheets one Electrical installation cost covers (default ticks: sheets whose Suggest
+  population is majority Electrical). They are ONE clubbed block: each shows its own BoQ amount, BCS supply and rows; the block
+  shows ONE installation figure and ONE margin, then a "Ticked block" sub-total. A ticked sheet's installation TYPED on its rows
+  is NOT counted (the area figure replaces it); an UNticked sheet's typed installation counts, marked "typed".
+- THE INSTALLATION FIGURE (R3 - R6): area x the live Pricing Input `elec_bcs_install_per_sqft` (`rates.amount`, read from the
+  database, never the withheld HTTP payload) + floor cutting at our cost. The area starts empty; the project's `carpet_area`, when
+  set, shows beside it as a one-click "use it". Both parts can be edited or removed ("changed by user", "Back to system figure").
+  No area -> the installation, the block margin and the total margin read "- enter the area".
+- THE FLOOR RULE (R-BCS-30, Q2 = (a); `boq_summary.floor_cutting`): a row of a TICKED sheet adds qty x the live
+  `tray_cutting_amount` when its category is Cable Tray & Raceway, its reading says floor_cutting = Yes (the row's current
+  `BoQ Row Helper Edit` first, else the active Suggest run at the sheet's committed version), the BoQ charges for it (a current
+  install or combined rate > 0) AND its unit is a LENGTH (`boq_summary.LENGTH_UNITS` / `is_length_unit`, the one declared list;
+  `mt` is not a length). A Yes row failing the charge or the unit is "Mentioned, not added" with its reason; a row with no reading
+  is counted only. The Miscellaneous "Floor Cutting and Chipping" item is not used.
+- STORED (`BoQ Summary Inputs`, one current record per BoQ, freeze-and-supersede): the area (blank or <= 0 = not entered), the
+  ticks (`{"sheets": [...]}`, blank = the defaults) and each installation part as a Currency figure + a Check (Check 0 = the
+  system's figure; Check 1 = the user's, 0 = removed) - a Check because Frappe writes a blank Currency as 0. Keyed by the BoQ: a
+  sheet re-commit and "Merge BoQs" keep it; `revision.confirm_revision_mapping` (where both revision entry paths end) copies it to
+  a revision - area and overrides as they are, ticks mapped through the confirmed mapping (an unmapped tick drops, named in the
+  response's `summary_inputs`).
+- ⚠️ IT NEVER WRITES A PRICE OR A COST: `boq_summary.py` writes only `BoQ Summary Inputs`; no `save_cell_price`, no
+  `save_row_bcs_rates`, no helper edit, no rate file or Pricing Input.
+- The sheet's own Summary gains ONE line on a ticked sheet, for a cost viewer (`BoqSummarySheetLine` in `SummaryPanel`): "This
+  sheet's margin counts installation typed on its rows. ... margin there <the block's margin> for the ticked sheets."
+

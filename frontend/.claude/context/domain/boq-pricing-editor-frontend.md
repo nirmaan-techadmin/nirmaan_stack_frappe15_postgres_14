@@ -865,6 +865,16 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
   Insulation and ADP (`dropdown`) keep the "Change item" picker alone.
 - **Rate-helper panel + Rate Master attribute semantics:** every invariant moved to `frontend/.claude/context/domain/pricing-rate-master-frontend.md` -- load it before any rate-helper work.
 
+### The BoQ summary block and the sheet-summary line (BCS-5)
+- `BoqSummaryBlock.tsx` holds the block, its pure figures (`sheetFigures`, `summaryTable`, `marginOf`) and `BoqSummarySheetLine`.
+  The cost gate is `canSeeBcsCost` inside `useBoqSummary`: for anyone else the summary read's SWR key is null, so neither the
+  summary nor any per-sheet read fires (the render line in `BoqSummaryBlock` is a second guard, not the working one).
+- The per-sheet reads are fetched ONE SHEET AFTER ANOTHER through `FrappeContext.call.get` (as the view page's download does),
+  never N parallel hooks; the figures run the sheet Summary's own functions (rules in `boq-pricing-editor.md`).
+- Saves go through `save_boq_summary_inputs` only; a typed area saves after `SUMMARY_SAVE_PAUSE_MS` (1 s, slice 4's pause); the
+  response replaces the SWR data. "" sent = back to the default ticks / not entered / the system's figure.
+- Figures show through `bcsSide.bcsFigureText` (whole rupees, rounded up, en-IN); a zero shows "0" (bcsFigureText(0) returns "-0").
+
 ## Where the full component contracts live
 
 The FULL per-slice component contracts (keyboard-nav matrix, the row-memo anti-defeat rule, the formula engine F1–F4, reconciliation, collapse/expand, lock/unlock, the two-ribbon toolbar, search/column-hide, export/download, review-screen render contracts, etc.) live in **`frontend/.claude/context/domain/boq-frontend.md`**. Load it before pricing-editor / review-screen frontend work.

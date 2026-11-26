@@ -1912,6 +1912,15 @@ change carries to the row's other helpers". ⚠️ Its read index is created wit
 (built from the field names alone) is the one `BoQ Row BCS Rate`'s index already holds, so `CREATE INDEX IF NOT EXISTS`
 skipped it silently on the first migrate.
 
+**`BoQ Summary Inputs`** (BCS-5) — standalone, `track_changes: 0`, autoname `BSI-.YY.-.#####`: what the user enters on the BoQ
+summary of a BoQ's main page - ONE current record per BoQ (freeze-and-supersede: `input_version` / `is_current` / `edited_at`):
+`area_sqft`, `covered_sheets` JSON `{"sheets": [...]}`, and per installation part a Currency figure + a Check
+(`area_cost_override` / `area_cost_overridden`, `floor_cut_override` / `floor_cut_overridden`). Endpoints in
+`api/boq/wizard/boq_summary.py`: `get_boq_summary_inputs` (GET), `save_boq_summary_inputs` (POST), Admin + Estimates only;
+`carry_summary_inputs` is internal (`revision.confirm_revision_mapping`). Its one DocPerm row is `BoQ Row BCS Rate`'s Nirmaan
+Estimates Executive row; no `boq` search index (the bare name `boq` is taken); its read index has the explicit name
+`boq_summary_inputs_boq_current_index`. Rules: `boq-pricing-editor.md` § "The BoQ summary on the BoQ's main page".
+
 ### Endpoints — `api/boq/wizard/bcs.py`
 
 | Endpoint | Kind |

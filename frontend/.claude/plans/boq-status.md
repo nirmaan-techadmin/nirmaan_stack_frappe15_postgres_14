@@ -8,14 +8,14 @@ the commit message, not here.
 The last recorded main-line slice is **DU-3**, the fix slice from the DU-2 review of the Ducting rows. Its
 record is the last `## Slice DU-3` section of `boq-upload-plan.md`.
 
-**BCS lane (branch `feature/boq-bcs`, dev2):** slice **BCS-4** took main in at `c4a3d5fa1` (VAV-MT's parallel
-plan) and built the carry: a field changed in any view of a row's rate helper (Supply, Install, Combined or the
-BCS supply box) is saved for the row (`BoQ Row Helper Edit`) and shows in the row's other views, tagged
-"changed by you" / "from ... helper" below the field; only suggestions change; a fresh Suggest run replaces the
-edits of the rows it writes (owner R-BCS-140, superseding R-BCS-45) (rules:
-`.claude/context/domain/boq-pricing-editor.md` § "A change carries to the row's other helpers"). Left for the
-BCS phase: slice 5 (the BoQ summary), slice 6 ("Previously priced" and the spreadsheet removal), then the
-final fix slice (the full test sets).
+**BCS lane (branch `feature/boq-bcs`, dev2):** slice **BCS-5** took main in at `31d29db45` and built the BoQ
+summary: for Admin and Estimates, a foldable box at the top of a BoQ's main page with one line per priceable sheet
+(BoQ amount, BCS supply, BCS installation, margin), the ticked sheets as one clubbed block with one installation
+figure (area x the live Rs per sq ft + floor cutting at our cost, both parts editable / removable), stored per BoQ
+in the new `BoQ Summary Inputs` and carried to a revision; plus one line on a ticked sheet's own Summary (rules:
+`.claude/context/domain/boq-pricing-editor.md` § "The BoQ summary on the BoQ's main page"). Left for the BCS phase:
+slice 6 ("Previously priced" and the spreadsheet removal), then the final fix slice (the full test sets, and the
+open item that the sheet Summary's % Margin denominator drops reconciliation choices under a BOQ Total formula).
 
 The session that starts the next slice replaces this section with: the slice's name, what it must
 deliver, and what is left.
