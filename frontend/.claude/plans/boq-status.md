@@ -16,9 +16,11 @@ Load-bearing invariants, "THE CATALOGUE DECIDES ...".
   whole-value texts and the mixed-case mentions kept as words); the TypeScript fill for the rate-file
   test readers, pinned to the Python fill by a parity test; the replay dump reads the served configs; C1
   in the commit hook. Nothing a pricer sees changes except the four rules-page lines.
-- **Push:** CAT-1 + CAT-1b go together (owner 2026-11-26 10:37). Origin moved to a develop sync
-  (31d29db45) after CAT-1 started, so the push needs a merge + migrate + re-test first, in its own
-  slice (owner 2026-11-26 11:01, QR-ORIGIN (a)).
+- **CAT-M (the merge), built:** origin's develop sync 31d29db45 is merged over CAT-1 + CAT-1b as one
+  merge commit (no conflict; our commits keep their hashes), and main dev is migrated for it. The re-test
+  set, the replay (0 figure / 0 wording moves) and the 21 AI requests are unchanged on the merged code.
+- **Push:** CAT-1 + CAT-1b + the merge go together, by the owner, after the CAT-M review (owner
+  2026-11-26 10:37 / 11:01). The branch now contains origin, so the push is a fast-forward.
 - **Left:** CAT-2 (HVAC code words, the family picker; the next free HVAC version), CAT-3a / CAT-3b
   (Electrical, incl. its 53 placeholders and the Electrical lists), CAT-4 (item notes, the deactivate
   warning, Rate Master screens), the Suggest run store. Candidate for CAT-2: the raw readers (CSV export
