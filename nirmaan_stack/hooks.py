@@ -159,6 +159,11 @@ has_permission = {
     # Reimbursements (2026-10-22): your own claims, or every claim for Admin / HR / Accounts; writes only
     # through api/reimbursements.
     "Reimbursement": "nirmaan_stack.integrations.controllers.reimbursement.has_permission",
+    # SRS-1 (2026-11-27): the AI Suggest run store -- Administrator or the Admin profile only (System Manager rides on
+    # Estimates / PMO / HR too); the Suggest worker writes it by raw SQL.
+    "BoQ AI Suggest Question": "nirmaan_stack.services.boq_suggest_store.permissions.has_permission",
+    "BoQ AI Suggest Run Record": "nirmaan_stack.services.boq_suggest_store.permissions.has_permission",
+    "BoQ AI Suggest Row Record": "nirmaan_stack.services.boq_suggest_store.permissions.has_permission",
 }
 
 permission_query_conditions = {
@@ -170,6 +175,10 @@ permission_query_conditions = {
     "Work Order Items": "nirmaan_stack.integrations.controllers.work_order_items.get_permission_query_conditions",
     "Nirmaan Versions": "nirmaan_stack.integrations.controllers.nirmaan_versions.get_permission_query_conditions",
     "Reimbursement": "nirmaan_stack.integrations.controllers.reimbursement.get_permission_query_conditions",
+    # SRS-1 (2026-11-27): the AI Suggest run store -- Admin only (see has_permission above).
+    "BoQ AI Suggest Question": "nirmaan_stack.services.boq_suggest_store.permissions.get_permission_query_conditions",
+    "BoQ AI Suggest Run Record": "nirmaan_stack.services.boq_suggest_store.permissions.get_permission_query_conditions",
+    "BoQ AI Suggest Row Record": "nirmaan_stack.services.boq_suggest_store.permissions.get_permission_query_conditions",
 }
 
 # DocType Class
