@@ -10,7 +10,11 @@ import {
   rollupByParent,
   minPreambleDepth,
   defaultCollapsedSet,
+  amountExceptions,
+  rateWithoutQuantity,
+  installAboveSupply,
 } from "./pricingRollup";
+import { SUSPECT_INSTALL_TO_SUPPLY_RATIO } from "./reconcile";
 import type {
   AmountFormulaNode,
   AmountFormulaRef,
@@ -771,5 +775,55 @@ describe("rollupByParent -- the BCS cost axis (BCS-S5)", () => {
     expect(res.bcs!.grand.tendered).toBe(180000); // and the margin counts it
     expect(res.bcs!.grand.cost).toBe(125000);
     expect(res.bcs!.grand.margin).toEqual({ kind: "value", value: (1 - 125000 / 180000) * 100 });
+  });
+});
+
+// ── BCS-6a K2c: the note's 4th point (owner ANSWER 12, 2026-11-27 10:43) ────────────────────────────────────────────────
+// "The rates/amounts on these rows appear incorrect." A Preamble / Line Item row is listed when (1) a rate is present but the
+// quantity is missing or 0, or (2) the install rate is more than SUSPECT_INSTALL_TO_SUPPLY_RATIO x the supply rate (both > 0).
+// No comparison with the uploaded file's amount. It drops out once the user picked a value on one of its amount cells.
+describe("BCS-6a K2c -- rows whose rates appear incorrect (the note's 4th point)", () => {
+  const D = [desc("D", "qty_total", "qty_total"), desc("E", "rate_supply", "rate_supply"), desc("F", "rate_install", "rate_install"),
+    desc("G", "amount_supply", "amount_supply"), desc("H", "amount_install", "amount_install")];
+  const line = (er: number, p: Partial<PricedRow>) => prow({ row_index: er, source_row_number: er, effective_parent_index: null,
+    effective_classification: "line_item", node_type: "Line Item", description: `r${er}`, ...p });
+  // BOQ-26-00186 'HVAC WORKS' row 49: qty 460, supply 945, an AMOUNT (4,34,700) read into the install rate column.
+  const r49 = line(49, { qty_total: 460, rate_supply: 945, rate_install: 434700 });
+  // BOQ-26-00012 'HVAC - Low side' row 48: no quantity, supply 3,600, install 360.
+  const r48 = line(48, { rate_supply: 3600, rate_install: 360 });
+
+  it("the ratio is a named setting (1.5)", () => {
+    expect(SUSPECT_INSTALL_TO_SUPPLY_RATIO).toBe(1.5);
+  });
+  it("(+) rule (2): 00186 row 49 shape - install 4,34,700 > 1.5 x supply 945", () => {
+    expect(installAboveSupply(r49, D)).toBe(true);
+    expect(rateWithoutQuantity(r49, D)).toBe(false);
+    expect(amountExceptions([r49], D).suspect).toEqual([49]);
+  });
+  it("(+) rule (1): 00012 row 48 shape - a rate (3,600) and no quantity", () => {
+    expect(rateWithoutQuantity(r48, D)).toBe(true);
+    expect(amountExceptions([r48], D).suspect).toEqual([48]);
+  });
+  it("(+) a rate typed in the app counts (a priced supply with no quantity)", () => {
+    expect(rateWithoutQuantity(line(50, { rate_supply: 120, priced_rate_supply: true }), D)).toBe(true);
+  });
+  it("(-) install EXACTLY 1.5 x supply is not listed", () => {
+    expect(amountExceptions([line(51, { qty_total: 2, rate_supply: 100, rate_install: 150 })], D).suspect).toEqual([]);
+  });
+  it("(-) install 0.4% of supply (00308 'LMS' row 4 shape) is not listed - no lower limit", () => {
+    expect(amountExceptions([line(4, { qty_total: 2, rate_supply: 422500, rate_install: 1500 })], D).suspect).toEqual([]);
+  });
+  it("(-) no rates at all is not listed (that is point 3's business)", () => {
+    expect(amountExceptions([line(52, { qty_total: 3, rate_supply: 0, rate_install: 0 })], D).suspect).toEqual([]);
+  });
+  it("(-) a quantity with sane rates is not listed", () => {
+    expect(amountExceptions([line(53, { qty_total: 10, rate_supply: 100, rate_install: 20 })], D).suspect).toEqual([]);
+  });
+  it("(-) the user has picked a value on one of the row's cells -> it drops out", () => {
+    expect(amountExceptions([r49, r48], D, [], [{ excel_row: 49, col_letter: "H", choice: "keep_document" },
+      { excel_row: 48, col_letter: "G", choice: "take_formula" }] as never).suspect).toEqual([]);
+  });
+  it("(-) a non-priceable row (a total / note) is never listed", () => {
+    expect(amountExceptions([prow({ ...r48, node_type: "Other" } as never)], D).suspect).toEqual([]);
   });
 });

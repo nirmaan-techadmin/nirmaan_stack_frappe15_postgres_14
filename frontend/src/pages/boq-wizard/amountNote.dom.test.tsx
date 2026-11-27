@@ -114,6 +114,31 @@ describe("BCS-6a the note on the sheet's Summary panel", () => {
   });
 });
 
+describe("BCS-6a K2c the note's 4th point (owner ANSWER 12)", () => {
+  // Row 14: no quantity but a rate (the 00012 row 48 shape); row 15: an amount read into the install rate (the 00186 row 49 shape).
+  const suspectRows = [...ROWS,
+    row(4, 14, 0, { rate_supply: 3600, rate_install: 360 }),
+    row(5, 15, 0, { qty_total: 460, rate_supply: 945, rate_install: 434700 })];
+
+  it("(+) wording exact, the rows listed, numbered 4 by the list", async () => {
+    const jump = vi.fn();
+    await mount(<SummaryPanel rows={suspectRows as never} columnDescriptors={DESCS} columnFormulas={FORMULAS as never} reconChoices={RECON as never}
+      bcs={BCS as never} sheetName="A" onClose={() => {}} onJumpToRow={jump} />);
+    const li = host!.querySelector("[data-exception='suspect']")!;
+    expect(li.textContent).toBe("The rates/amounts on these rows appear incorrect. Please review them and change if required. 2 rows: 14-15");
+    expect([...note()!.querySelectorAll("ol > li")].indexOf(li)).toBe(3); // the 4th item of the numbered list
+    await act(async () => (host!.querySelector("button[aria-label='Go to row 15']") as HTMLButtonElement).click());
+    expect(jump).toHaveBeenCalledWith(15);
+  });
+
+  it("(-) no such row: no point 4 at all", async () => {
+    await mount(<SummaryPanel rows={ROWS as never} columnDescriptors={DESCS} columnFormulas={FORMULAS as never} reconChoices={RECON as never}
+      bcs={BCS as never} sheetName="A" onClose={() => {}} />);
+    expect(host!.querySelector("[data-exception='suspect']")).toBeNull();
+    expect(note()!.querySelectorAll("ol > li").length).toBe(3);
+  });
+});
+
 describe("BCS-6a the long-list form (RowRangeList)", () => {
   it("(+) the count first, the rows joined into ranges, \"show all\" opens the full list", async () => {
     // 40 rows in 20 separate ranges: 1-2, 4-5, 7-8, ...

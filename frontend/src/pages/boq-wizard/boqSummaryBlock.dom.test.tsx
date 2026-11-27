@@ -192,7 +192,7 @@ describe("BCS-6a the BoQ summary's exception lines and the yellow box (mockup bo
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    const ex = { keptDocument: [], fileRate: [4, 5, 6, 9], leftOut: [30] };
+    const ex = { keptDocument: [], fileRate: [4, 5, 6, 9], leftOut: [30], suspect: [] };
     await act(async () => root!.render(<MemoryRouter><SheetExceptionLines ex={ex} boqId="BOQ-X" sheet="ELV BOQ" /></MemoryRouter>));
     expect(host!.textContent).toBe("Not priced in the app yet - the uploaded file's rate used: 4 rows: 4-6, 9"
       + "No rate anywhere - left out: 1 row: 30");

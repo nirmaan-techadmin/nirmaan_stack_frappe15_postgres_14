@@ -54,7 +54,7 @@ import {
 } from "./PricingGrid";
 import { evaluateAmountColumn, pickFormula } from "./amountFormula";
 import { computeDepths, resolveDescriptorValue } from "./reviewRender";
-import { isPriceableLine, isRowIncomplete } from "./priceability";
+import { hasAnyQty, isPriceableLine, isRowIncomplete } from "./priceability";
 // BCS-S5: the cost axis of the SAME tree. The arithmetic lives in bcsColumns (unchanged); the
 // section rolling + the recomputed ratio live in the pure bcsRollup leaf.
 import { rollBcsSections, type BcsRollupResult } from "./bcsRollup";
@@ -75,6 +75,7 @@ import {
   buildReconChoiceMap,
   reconChoiceKey,
   resolveDivergence,
+  SUSPECT_INSTALL_TO_SUPPLY_RATIO,
 } from "./reconcile";
 import { ROLE_LABELS } from "./boqTypes";
 import type {
@@ -531,11 +532,47 @@ export function rollupByParent(
  *                   Owner Q-NOTE-2 = (a), 2026-11-27 01:43: "ANY rate it uses comes from the uploaded file".
  *   leftOut      -- no rate in the app or in the file AND no amount on screen (`rowLeftOutOfMargin`, P2f + POINT 4), on a
  *                   priceable line or on a row that carries a BCS cost (`costRows`) -- its amount and its cost are left out.
+ *   suspect      -- BCS-6a K2c, the 4th point (owner ANSWER 12, 2026-11-27 10:25 / 10:43): "The rates/amounts on these rows
+ *                   appear incorrect." A Preamble / Line Item row whose effective rates (as the grid reads them) show
+ *                   `rateWithoutQuantity` OR `installAboveSupply` -- NEVER a comparison with the uploaded file's amount (owner:
+ *                   "no relation to the uploaded numbers"). It drops out once the user has picked a value on one of its amount
+ *                   cells ("Use formula" or "Keep document"), or has typed a rate that clears the condition.
  */
 export interface AmountExceptions {
   keptDocument: number[];
   fileRate: number[];
   leftOut: number[];
+  suspect: number[];
+}
+
+/** The row's effective rate for one rate column, as the grid reads it (saved price incl. a deliberate 0, else a non-zero file rate). */
+function effectiveRate(row: PricedRow, d: ColumnDescriptor, descriptors: ColumnDescriptor[]): number | undefined {
+  return lookupOperandValue(row, { value_field: d.value_field, value_key: d.value_key, rate_subkey: d.rate_subkey }, descriptors, {});
+}
+
+/** K2c rule (1), owner "1 ok": a rate is present (supply, install or combined > 0) but the quantity is missing or 0 everywhere. */
+export function rateWithoutQuantity(row: PricedRow, descriptors: ColumnDescriptor[]): boolean {
+  if (hasAnyQty(row)) return false;
+  return descriptors.filter(isRateDescriptor).some((d) => (effectiveRate(row, d, descriptors) ?? 0) > 0);
+}
+
+/** K2c rule (2): the install rate is more than `SUSPECT_INSTALL_TO_SUPPLY_RATIO` times the supply rate (both > 0), per scalar pair or per
+ *  area. No lower limit (owner: "some installation rates may be below 10% of the supply rate"). */
+export function installAboveSupply(row: PricedRow, descriptors: ColumnDescriptor[]): boolean {
+  const rates = descriptors.filter(isRateDescriptor);
+  const pairs: Array<[ColumnDescriptor | undefined, ColumnDescriptor | undefined]> = [
+    [rates.find((d) => d.value_field === "rate_supply"), rates.find((d) => d.value_field === "rate_install")],
+  ];
+  for (const area of new Set(rates.filter((d) => d.value_field === "rate_by_area").map((d) => d.value_key))) {
+    const inArea = rates.filter((d) => d.value_field === "rate_by_area" && d.value_key === area);
+    pairs.push([inArea.find((d) => d.rate_subkey === "supply_rate"), inArea.find((d) => d.rate_subkey === "install_rate")]);
+  }
+  return pairs.some(([s, i]) => {
+    if (!s || !i) return false;
+    const sv = effectiveRate(row, s, descriptors) ?? 0;
+    const iv = effectiveRate(row, i, descriptors) ?? 0;
+    return sv > 0 && iv > 0 && iv > SUSPECT_INSTALL_TO_SUPPLY_RATIO * sv;
+  });
 }
 
 export function amountExceptions(
@@ -551,10 +588,15 @@ export function amountExceptions(
   const kept = new Set<number>();
   const file = new Set<number>();
   const out = new Set<number>();
+  const suspect = new Set<number>();
   for (const r of rows) {
     const er = r.source_row_number;
     if (typeof er !== "number") continue;
     const priceable = isPriceableLine(r, columnDescriptors);
+    // K2c: the 4th point - a Preamble / Line Item row whose rates look wrong, until the user picks a value on one of its cells.
+    const picked = amountDescs.some((d) => choiceMap.has(reconChoiceKey(er, d.col)));
+    if (isPriceableType(r.node_type) && !picked
+      && (rateWithoutQuantity(r, columnDescriptors) || installAboveSupply(r, columnDescriptors))) suspect.add(er);
     if (rowLeftOutOfMargin(r, columnDescriptors, columnFormulas)) {
       if (priceable || costRows?.has(er)) out.add(er);
       continue;
@@ -577,7 +619,7 @@ export function amountExceptions(
       file.add(er);
   }
   const sorted = (x: Set<number>) => [...x].sort((a, b) => a - b);
-  return { keptDocument: sorted(kept), fileRate: sorted(file), leftOut: sorted(out) };
+  return { keptDocument: sorted(kept), fileRate: sorted(file), leftOut: sorted(out), suspect: sorted(suspect) };
 }
 
 /** Consecutive row numbers joined into ranges: [4,5,6,9] -> [[4,6],[9,9]]. Pure (the note's long-list form). */

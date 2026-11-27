@@ -23,6 +23,14 @@ import type { ReconChoice, ReconciliationChoiceRef } from "./boqTypes";
 export const RECON_EPSILON_ABS = 0.01;
 export const RECON_EPSILON_REL = 1e-9;
 
+/**
+ * BCS-6a K2c -- the install-to-supply rate ratio above which a row's rates "appear incorrect" (the note's 4th point). Owner
+ * ANSWER 12 (2026-11-27 10:43, "yes....proceed"): a row is flagged when its install rate is MORE than this times its supply rate
+ * (both > 0); no lower limit. Basis: dev2's uploaded files (N5, 5,636 rows / 64 BoQs) - every row above 1.5 held an AMOUNT in a
+ * rate column (qty x supply = install); between 1 and 1.5 sat only 2 genuine rows. A named setting, never a bare number.
+ */
+export const SUSPECT_INSTALL_TO_SUPPLY_RATIO = 1.5;
+
 /** Are two finite amounts EQUAL within the shared tolerance? (the one comparison primitive). */
 export function amountsEqual(a: number, b: number): boolean {
   const tol = Math.max(RECON_EPSILON_ABS, RECON_EPSILON_REL * Math.max(Math.abs(a), Math.abs(b)));

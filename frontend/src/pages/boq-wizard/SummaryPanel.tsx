@@ -439,6 +439,11 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
               <RowRangeList rows={exceptions.fileRate} onJump={onJumpToRow} /></li>
             <li data-exception="left-out">No rate in the app or in the uploaded file, so left out of the margin (amount and cost):{" "}
               <RowRangeList rows={exceptions.leftOut} onJump={onJumpToRow} /></li>
+            {/* K2c (owner ANSWER 12, 2026-11-27): the 4th point, wording exact (the list numbers it "4."), only when such rows exist. */}
+            {exceptions.suspect.length > 0 && (
+              <li data-exception="suspect">The rates/amounts on these rows appear incorrect. Please review them and change if required.{" "}
+                <RowRangeList rows={exceptions.suspect} onJump={onJumpToRow} /></li>
+            )}
           </ol>
         </div>
       )}
