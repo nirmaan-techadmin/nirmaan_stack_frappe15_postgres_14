@@ -36,6 +36,14 @@ is readable only by Administrator or the Admin profile, and is purged daily afte
 for "priced"**: the four rate fields read 0 until it says priced (Frappe Currency is NOT NULL DEFAULT 0), so no screen, report
 or download may show a 0 as a price. Details: § BoQ Rate Suggestion (RM-3) -> The Suggest run store.
 
+**EVERY STORED ROW GETS ITS SUGGESTED RATES FROM THE SERVER PRICING STEP, IN A FOLLOW-UP JOB (SRS-2, 2026-11-27).** Owner R1 (25
+Nov 23:30), QR-RATES (a) / QR-WHERE (a) (27 Nov 12:50). After every Suggest pass that wrote store rows, one background operation
+prices them with `pricing_step.price_rows` (the panel's own code, never a Python copy) and writes "priced" / "not priced:
+<reason>" / "rates not computed: <reason>"; it never touches the run, and an older job never overwrites a row a later pass
+re-read. `bcs_supply_rate` is never written there: every reader shows "not yet - added when the BCS branch merges". The records
+are read on the Admin-only "AI Suggest Records" page (`/suggest-records`, under Rate Master) and its two Excel downloads.
+Details: the same section.
+
 **THE CATALOGUE DECIDES WHAT EVERY SCREEN AND THE AI OFFER; NOTHING TYPES A CATALOGUE NAME (CAT-1 / CAT-1b / CAT-2, 2026-11-26/27).** The owner's
 words, verbatim: 2026-11-24 18:42 - 19:38 (the mechanism: lists rebuilt from the catalogue, linked by reference); 2026-11-26 00:06 /
 00:10 (full coverage); 00:14 "also we need to put guards that future builds cant bypass these again" / "and the build follows this
@@ -5298,9 +5306,10 @@ Code: `services/boq_suggest_store/` (`split.py`, `store.py`, `permissions.py`, `
   {discipline: stamp}, `batches` (per call: rows, question sha, attempt, usage, failures, what could not be split, write ms) and
   rows read / written. AI Suggest ONLY: no `source` field; historical matching gets its own store later (R5).
 - **`rates_status` is the ONLY truth for "priced" (QR-C3, ruled 2026-11-27 15:03).** Frappe makes Currency columns NOT NULL
-  DEFAULT 0 on Postgres, so every read writes the four rates as 0 with `rates_status = "pending"`; SRS-2 fills them and sets
-  priced / not priced: <reason> / not computed: <reason>. A screen, report or Excel download shows a rate ONLY when the status
-  says priced - never a 0 as a price. The doctype's field descriptions say the same.
+  DEFAULT 0 on Postgres, so every read writes the four rates as 0 with `rates_status = "pending"`; SRS-2's job fills them and
+  sets "priced" / "not priced: <reason>" / "rates not computed: <reason>". A screen, report or Excel download shows a rate ONLY
+  when the status says priced and the kind is in the pricer's scope - never a 0 as a price. The doctype's field descriptions
+  say the same.
 - **The write point: the one runner.** `extraction._extract_batch` OBSERVES each call beside its capture write
   (`_store_observe`, only when the runner put a `store_obs` list in the capture context; the capture line is unchanged);
   `run_extraction(store_cb=...)` hands each sub-batch's observations, its result rows (built as the checkpoint's) and its OWN
@@ -5334,6 +5343,53 @@ Code: `services/boq_suggest_store/` (`split.py`, `store.py`, `permissions.py`, `
   two are named in `on_doctype_update`; and EVERY index a new DocType declares (each `search_index` field and each
   `add_index` / `add_unique` call) gets its entry in `services/index_manifest.py` in the SAME slice - `test_index_manifest`
   fails otherwise, and `ensure_indexes()` builds the table-unique twin after the next migrate (SRS-1 K3b).
+- **The rates (SRS-2): every stored row gets the suggested rates, from the server pricing step, in a follow-up job.** After
+  `store.finish`, `_suggest_worker` calls `rates.queue_after_pass(store)`: for a pass whose Run Record wrote rows (complete OR
+  halted; never a pass that read nothing) it starts ONE `background_ops` operation (kind `boq_suggest_rates`, queue long; a raw
+  `frappe.enqueue` is refused by residence check Q1) and commits; it never raises and never touches the run (a failing queue
+  call writes one "BoQ suggest store rates trigger failed" Error Log). The job, `rates.price_run_record(run_record)`, prices the
+  pass's Row Records through `pricing_step.price_rows` (the panel's own code under `node`; no pricing logic in Python) and
+  writes `supply_rate` / `install_rate` / `combined_rate`, `rates_status`, `rates_detail` (scope, the priced lines, what was
+  read, the job's time) and `pricing_stamp` (`<code hash>|<asset version>`). Measured on dev: `price_rows` ~124 ms a row;
+  reading a sheet's inputs ~5 - 8 s; the job ran ~23 s after the run's commit (RQ queue wait) and took ~9 s for 2 rows.
+- **The row records come from the store plus the sheet (QR-INPUTS (a)).** `attributes` / `items` / `description` / category from
+  `final_attributes` (the run's own result row); the unit (`BOQ Nodes.unit`), the headings (`build_sheet_context`), the
+  resolved category / discipline (`extraction._resolved_categories`) and the page rows (`review_screen.get_committed_rows`,
+  called, never edited) are read at pricing time by the same functions `pricing_step.sheet_inputs` uses for the tracked replay,
+  ONLY when the sheet's current committed version is the record's (else "rates not computed: the sheet was re-committed
+  (version N, now M)"). `sheet_inputs` itself is not used: it reads the ACTIVE run, which skips a partial pass.
+- **The statuses.** "priced" (figures real for the kinds in `rates_detail.scope`; a kind outside it stays 0 and is never shown);
+  "not priced: <reason>" (the step ran, the helper priced nothing for the row); "rates not computed: <reason>" (no bundle, a
+  timeout, an error, a re-committed sheet, or the pricer failing on that row). A failure marks the pass's rows "rates not
+  computed" and writes ONE "BoQ suggest store rates failed" Error Log. `bcs_supply_rate` is never written (the BCS lane fills
+  it after its merge); every reader shows the text "not yet - added when the BCS branch merges" in its place (ANSWER 1).
+- **A re-read row is never overwritten by an older job.** Each UPDATE names the read it priced (`run_record` AND `run_date`): a
+  row a later pass re-read (reset to 0 + "pending" by the store) is left for that pass's own job.
+- **The bundle must exist where the job runs.** `_build/pricing_step.mjs` (git-ignored) is made by the frontend `build` script
+  (`node scripts/build_pricing_step.mjs`; production's `bench build` runs it). Without it every row reads "rates not computed:
+  pricing step bundle missing ...". On a dev bench build it by hand from `frontend/` with that command (~5 s).
+- **The page: "AI Suggest Records"** (`/suggest-records`, `frontend/src/pages/suggest-records/`), the sidebar item directly under
+  Rate Master, both behind Rate Master's own guard (`RoleRoute allowed={RATE_MASTER_ACCESS}` / `isNirmaanAdmin`). Filters (run
+  dates default to the last 30 days, project, BoQ, sheet, discipline, category, rates status, run by, description search), a
+  server-paged list (50 a page, newest run first) with a green / amber / red / grey status chip, and the row detail below
+  (identity; the row's AI input; the shared question FOLDED; the raw reply; final values with confidence; rates with status and
+  stamps). Read only. Endpoints `api/boq/suggest_records.py` (`list_records`, `filter_options`, `get_record`, `export_records`,
+  `reprice_run_record`), each checking `pricing._is_nirmaan_admin` FIRST; the reads and the display rules live in
+  `services/boq_suggest_store/records.py` (`shown_rates`: a figure only for a priced row and a kind in scope; `final_pairs`: an
+  item's attributes labelled "<section> / <attr>", as the approved mockup).
+- **The two Excel downloads** (`services/boq_suggest_store/export.py`, openpyxl directly: `xlsx_io` writes one sheet with no
+  links). Summary (cap 50,000 rows): the approved sample's 20 columns in its order + "Read me". Full (cap 5,000): + the AI
+  question fingerprint as a LINK to its row on "AI questions" (fingerprint, category, size, part, text in parts of at most
+  30,000 characters, "Used by rows" = a COUNTIF over the records sheet), the row's AI input and raw reply. Final values: one text
+  column when the rows span more than one category, one column per attribute (the category's `attribute_definitions` order,
+  then the rest in the row's order) when they are one category. Over a cap: a clear refusal, nothing partial. A row's input or
+  reply over 30,000 characters is FLAGGED in its cell and listed on "Read me" (never cut silently). A cell starting "=" is
+  written as text.
+- **Repricing by hand:** `suggest_records.reprice_run_record(name)` (Admin only, synchronous, no screen button) prices one Run
+  Record's rows through the same function the job runs.
+- **Tests that drive the real worker on a fixture pass** that ends partial make the worker write its own "BoQ suggest run halted
+  (partial saved)" Error Log: the store family's `purge_store_fixtures` deletes it when its message names a fixture BoQ
+  (`boq=BOQ-TEST-SRS1-...`), never a real run's.
 
 ---
 
