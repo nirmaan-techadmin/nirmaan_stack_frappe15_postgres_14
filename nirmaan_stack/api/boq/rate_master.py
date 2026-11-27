@@ -211,6 +211,7 @@ from nirmaan_stack.services.boq_rate_master import freeze  # noqa: E402  (deploy
 from nirmaan_stack.services.boq_rate_master import spec_reader  # noqa: E402  (slice 1c: item text -> attributes)
 from nirmaan_stack.services.boq_rate_master import csv_exporter  # noqa: E402  (12c FINISH: the computed cladding projection)
 from nirmaan_stack.services.boq_suggest_store import store as suggest_store  # noqa: E402  (SRS-1: the Suggest run store)
+from nirmaan_stack.services.boq_suggest_store import rates as suggest_rates  # noqa: E402  (SRS-2: the stored rows' rates)
 from nirmaan_stack.api.boq.wizard import pricing  # noqa: E402  (D8 gate reuse; import UP api->api)
 
 RUN_DOCTYPE = "BoQ Rate Suggestion Run"
@@ -936,6 +937,9 @@ def _suggest_worker(boq=None, sheet_name=None, resume_run_id=None, only_rows=Non
         frappe.db.commit()  # the operation reads "finished" only after this commit
         store.finish(model=env.get("model"), ai_status=ai_status, run_status="complete" if complete else "partial",
                      halt_reason=env.get("halt_reason"))  # SRS-1: after the run's commit; never raises
+        # SRS-2: the pass's stored rows get their suggested rates in a follow-up job (complete OR halted; only when the
+        # pass wrote rows). Queued after the commit above; never raises and never touches the run.
+        suggest_rates.queue_after_pass(store)
         payload = {
             "status": "success" if complete else "partial",
             "boq": boq,

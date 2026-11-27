@@ -11,6 +11,8 @@ import frappe
 
 FIXTURE_BOQ_PREFIX = "BOQ-TEST-SRS1-"
 STORE_TABLES = ("tabBoQ AI Suggest Row Record", "tabBoQ AI Suggest Run Record")
+# the store family's own Error Log titles (SRS-1 store write; SRS-2 rates job and its trigger) - purged by time, never others
+ERROR_LOG_TITLES = ("BoQ suggest store write failed", "BoQ suggest store rates failed", "BoQ suggest store rates trigger failed")
 
 
 def fixture_boq(tag=""):
@@ -78,8 +80,8 @@ def purge_store_fixtures(question_names=(), error_logs_since=None):
     if names:
         scopes.append(('delete from "tabBoQ AI Suggest Question" where name in %s', (tuple(names),)))
     if error_logs_since is not None:
-        scopes.append(('delete from "tabError Log" where method = %s and creation >= %s',
-                       ("BoQ suggest store write failed", error_logs_since)))
+        scopes.append(('delete from "tabError Log" where method in %s and creation >= %s',
+                       (ERROR_LOG_TITLES, error_logs_since)))
     for sql, params in scopes:
         try:
             frappe.db.sql(sql, params)

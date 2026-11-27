@@ -3226,6 +3226,26 @@
     "tabBoQ Rate Suggestion Run"
    ]
   },
+  "nirmaan_stack.services.boq_suggest_store.test_rates": {
+   "seconds": 20.1,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Question",
+    "tabBoQ AI Suggest Row Record",
+    "tabBoQ AI Suggest Run Record"
+   ],
+   "reads": [
+    "tabAssignment Rule",
+    "tabBOQs",
+    "tabBlock Module",
+    "tabBoQ Rate Category Config",
+    "tabBoQ Rate Master Item",
+    "tabBoQ Rate Master Snapshot",
+    "tabBoQ Sheet",
+    "tabServer Script",
+    "tabWorkflow"
+   ]
+  },
   "nirmaan_stack.services.boq_suggest_store.test_split": {
    "seconds": 9.2,
    "series": [],
