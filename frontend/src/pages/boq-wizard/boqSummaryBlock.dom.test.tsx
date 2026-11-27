@@ -3,7 +3,7 @@
 // BCS-5 -- THE BoQ SUMMARY BLOCK ON THE BoQ'S MAIN PAGE (owner R1 - R8; the approved mockup).
 //   (+) it renders for a cost user (Admin / Estimates), at the top of the hub (under the header, above the general-spec box);
 //   (-) for anyone else nothing renders and NO cost read fires (the summary read's key is null, no per-sheet read is made);
-//   (+) the clubbed block: ONE installation figure and ONE margin across the ticked sheets; a "Ticked block" sub-total;
+//   (+) the clubbed block: ONE installation figure and ONE margin across the ticked sheets; the "Block total" line inside the band, directly under the ticked sheets (BCS-6b);
 //   (+) a ticked sheet's typed installation is not counted; an unticked sheet's is (BCS-6a: no "typed" label after it, owner R6);
 //   (+) BCS-6a: the grey exception lines under a sheet's name (row links to the pricing route's ?row=) and the yellow box;
 //   (+) blank (never 0) where there is no value; the BoQ total's margin blank until every listed sheet has a cost;
@@ -36,7 +36,7 @@ vi.mock("@/lib/frappe", async () => {
     useFrappePostCall: () => ({ call: h.save }),
   };
 });
-import { BoqSummaryBlock, ENTER_AREA, SheetExceptionLines } from "./BoqSummaryBlock";
+import { BLOCK_TOTAL, BoqSummaryBlock, ENTER_AREA, SheetExceptionLines, blockHeading } from "./BoqSummaryBlock";
 import { MemoryRouter } from "react-router-dom";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -94,7 +94,8 @@ async function mount(s: BoqSummaryResponse) {
   await act(async () => root!.render(<BoqSummaryBlock boqId="BOQ-X" />));
   await tick();
 }
-const cells = (rowText: string) => [...host!.querySelectorAll("tr")].find((tr) => tr.textContent?.startsWith(rowText))!
+// BCS-6b moved check K3-1 (board 1): the band's heading row ("Electrical installation block ...") is skipped, so cells("E") finds sheet E.
+const cells = (rowText: string) => [...host!.querySelectorAll("tr")].find((tr) => tr.getAttribute("data-row") !== "block-heading" && tr.textContent?.startsWith(rowText))!
   .querySelectorAll("td");
 const click = async (text: string) => {
   const b = [...host!.querySelectorAll("button")].find((x) => x.textContent === text)!;
@@ -123,12 +124,13 @@ describe("BCS-5 the BoQ summary block", () => {
   });
   it("(+) the clubbed block: one installation and one margin; (+) a ticked sheet's typed install is not counted", async () => {
     await mount(summary());
-    const a = cells("[x] A");
+    const a = cells("A"); // BCS-6b moved check K3-2 (board 1: no "[x]" before names)
     expect(a[3].getAttribute("rowspan")).toBe("2");
     expect(a[3].textContent).toBe("300"); // the installation figure, not A's typed 50
     expect(a[5].textContent).toBe("20.5%"); // 1 - (700 + 750 + 300) / 2,200
-    expect(cells("[x] B")).toHaveLength(4); // B shares the spanned installation and margin
-    expect([...cells("Ticked block")].map((c) => c.textContent)).toEqual(["Ticked block", "2,200", "1,450", "300", "2 of 2", "20.5%"]);
+    expect(cells("B")).toHaveLength(4); // B shares the spanned installation and margin
+    expect([...cells("Block total")].map((c) => c.textContent)).toEqual(["Block total", "2,200", "1,450", "300", "2 of 2", "20.5%"]); // K3-3
+    expect([...host!.querySelectorAll("tr")].some((tr) => tr.textContent?.startsWith("[x]"))).toBe(false); // K3-2: no "[x]"
     // BCS-6a MOVED CHECK (owner R6, 27 Nov 00:12, board 1: "nop label is needed for that"): the figure, no "typed" after it.
     expect(cells("C")[3].textContent).toBe("100"); // an unticked sheet: its typed install counts
     expect(cells("C")[5].textContent).toBe("41.7%");
@@ -149,8 +151,8 @@ describe("BCS-5 the BoQ summary block", () => {
   it("(+) no area: installation, block margin and total margin read '- enter the area'", async () => {
     await mount(summary({ area_sqft: null, installation: { area_part_system: null, area_part: null, area_part_changed: false,
       floor_part_system: 50, floor_part: 50, floor_part_changed: false, total: null } }));
-    expect(cells("[x] A")[3].textContent).toBe(ENTER_AREA);
-    expect(cells("Ticked block")[5].textContent).toBe(ENTER_AREA);
+    expect(cells("A")[3].textContent).toBe(ENTER_AREA);
+    expect(cells("Block total")[5].textContent).toBe(ENTER_AREA);
     expect(cells("BoQ total")[5].textContent).toBe(ENTER_AREA);
   });
   it("(+) an edited part shows 'changed by user' and 'Back to system figure'; Remove / Back save the right values", async () => {
@@ -205,5 +207,48 @@ describe("BCS-6a the BoQ summary's exception lines and the yellow box (mockup bo
     root = createRoot(host);
     await act(async () => root!.render(<MemoryRouter><SheetExceptionLines ex={null} boqId="BOQ-X" sheet="A" /></MemoryRouter>));
     expect(host!.textContent).toBe("");
+  });
+});
+
+describe("BCS-6b the Electrical installation block band (owner R1, R-BCS-152 Q6 a; board 1)", () => {
+  const order = () => [...host!.querySelectorAll("tbody tr")].map((tr) => tr.getAttribute("data-row") === "block-heading" ? "HEADING"
+    : (tr.querySelector("td")?.childNodes[0]?.textContent ?? "").trim());
+  it("(+) ticked sheets NOT next to each other: grouped where the first ticked one stands, heading first, Block total directly under, then the rest, then BoQ total", async () => {
+    await mount(summary({}, ["C", "A", "D", "B"], ["A", "B"]));
+    expect(order()).toEqual(["C", "HEADING", "A", "B", BLOCK_TOTAL, "D", "BoQ total"]);
+  });
+  it("(+) the band: heading, ticked rows and the Block total tinted; the ticked rows indented; the other sheets neither", async () => {
+    await mount(summary({}, ["C", "A", "D", "B"], ["A", "B"]));
+    const trs = [...host!.querySelectorAll("tbody tr")];
+    const band = trs.filter((tr) => tr.className.includes("bg-sky-50")).map((tr) => tr.getAttribute("data-row"));
+    expect(band).toEqual(["block-heading", "block-sheet", "block-sheet", "ticked-block"]);
+    const nameCell = (t: string) => cells(t)[0];
+    expect(nameCell("A").className).toContain("pl-6");
+    expect(nameCell("B").className).toContain("pl-6");
+    expect(nameCell("C").className).not.toContain("pl-6");
+    expect(nameCell("D").className).not.toContain("pl-6");
+  });
+  it("(+) the heading reads the Rs figure from the setting (42 -> 55 follows)", async () => {
+    await mount(summary());
+    const heading = () => host!.querySelector("tr[data-row='block-heading']")!.textContent;
+    expect(heading()).toBe("Electrical installation block · one installation figure (area x Rs 42 + floor cutting) for these sheets");
+    act(() => root?.unmount()); host?.remove();
+    await mount(summary({ rates: { install_per_sqft: 55, tray_cutting: 200 } }));
+    expect(heading()).toBe(blockHeading(55));
+    expect(heading()).toContain("area x Rs 55 +");
+  });
+  it("(+) every figure as before: the ticked rows, the Block total (= the old ticked sub-total) and the BoQ total", async () => {
+    await mount(summary());
+    expect([...cells("A")].map((c) => c.textContent)).toEqual(["A", "1,200", "700", "300", "1 of 1", "20.5%"]);
+    expect([...cells("B")].map((c) => c.textContent)).toEqual(["B", "1,000", "750", "1 of 1"]);
+    expect([...cells("C")].map((c) => c.textContent)).toEqual(["C", "1,200", "600", "100", "1 of 1", "41.7%"]);
+    expect([...cells(BLOCK_TOTAL)].map((c) => c.textContent)).toEqual([BLOCK_TOTAL, "2,200", "1,450", "300", "2 of 2", "20.5%"]);
+    expect([...cells("BoQ total")].map((c) => c.textContent)).toEqual(["BoQ total", "3,400", "2,050", "400", "3 of 3", "27.9%"]);
+  });
+  it("(-) no ticked sheet: no band, no heading, no Block total", async () => {
+    await mount(summary({}, ["A", "B", "C"], []));
+    expect(host!.querySelector("tr[data-row='block-heading']")).toBeNull();
+    expect(host!.querySelector("tr[data-row='ticked-block']")).toBeNull();
+    expect(order()).toEqual(["A", "B", "C", "BoQ total"]);
   });
 });

@@ -150,7 +150,9 @@ describe("BCS-6a K2d point 4 on every sheet, for every Summary viewer (owner ANS
       sheetName="A" onClose={() => {}} />);
     expect(note()).toBeNull(); // the cost note (points 1-3) is absent
     const block = host!.querySelector("[data-note='rates-appear-incorrect']")!;
-    expect(block.querySelector("ol")!.getAttribute("start")).toBe("4"); // still numbered 4
+    // BCS-6b moved check K3-5 (owner R4, 27 Nov 14:22): shown ALONE, point 4 carries no number "4." (no list at all)
+    expect(block.querySelector("ol")).toBeNull();
+    expect(block.textContent).not.toMatch(/^\s*4\./);
     // (-) no cost figure leaks: the block is the fixed sentence and row numbers only
     expect(block.textContent).toBe(`${SENTENCE} 2 rows: 14-15`);
     expect(host!.textContent).not.toContain("left out of the margin");

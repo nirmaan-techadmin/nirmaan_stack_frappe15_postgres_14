@@ -12,7 +12,7 @@
  * installation) / BoQ amount (`bcsMarginPercent`). A blank is "no value yet", never 0. Nothing here writes a price or a cost:
  * the only write is `save_boq_summary_inputs` (area, ticks, the two installation parts).
  */
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { FrappeContext, useFrappeGetCall, useFrappePostCall, type FrappeConfig } from "@/lib/frappe";
 import { useUserData } from "@/hooks/useUserData";
@@ -30,6 +30,10 @@ const SAVE = "nirmaan_stack.api.boq.wizard.boq_summary.save_boq_summary_inputs";
 /** The pause before a typed area saves, as slice 4's helper-edit saves (`SheetPricingPage.HELPER_EDIT_SAVE_PAUSE_MS`). */
 export const SUMMARY_SAVE_PAUSE_MS = 1000;
 export const ENTER_AREA = "- enter the area";
+/** BCS-6b (board 1): the label of the ticked sheets' sub-total line, directly under them inside the band. */
+export const BLOCK_TOTAL = "Block total";
+/** BCS-6b (board 1): the band's tint (the same sky tint as the ticked sheet's own Summary line). */
+const BLOCK_BAND = "bg-sky-50 dark:bg-sky-950/40";
 
 // ── the server's answer ───────────────────────────────────────────────────────────────────────────────────────────────
 export interface FloorRow { sheet_name: string; excel_row: number; text: string; qty: number; unit: string; reason?: string }
@@ -216,6 +220,11 @@ const fig = (v: number | null | undefined): string => {
 };
 const pct = (v: number | null): string => (v === null ? "" : formatBcsMargin(v));
 const td = "px-2 py-1.5 text-right tabular-nums align-top";
+/** BCS-6b (board 1; "dont hardcode it"): the band's heading. The Rs per sq ft is the figure the installation cost itself uses,
+ * from the server (`rates.install_per_sqft`), never typed here. */
+export function blockHeading(installPerSqft: number | null | undefined): string {
+  return `Electrical installation block · one installation figure (area x Rs ${fig(installPerSqft)} + floor cutting) for these sheets`;
+}
 
 /** How many ranges the long list shows before "show all" (owner R5, 00:28: "the long list format is correct, but it should be
  *  shown in the block itself"). */
@@ -399,31 +408,44 @@ function BoqSummaryBody({ boqId, summary, mutate }: { boqId: string | undefined;
                   <th key={h} className={i === 0 ? "px-2 py-1.5 text-left font-medium" : "px-2 py-1.5 text-right font-medium"}>{h}</th>))}
               </tr></thead>
               <tbody>
+                {/* BCS-6b (owner R1, R-BCS-152 Q6 a; board 1): the ticked sheets together where the first one stands, in ONE tinted
+                    band (heading, rows indented, "Block total" = the old ticked sub-total directly under them); figures unchanged. */}
                 {ordered.map((l) => {
                   const spanFirst = l.ticked && l === ticked[0];
+                  const lastTicked = l.ticked && l === ticked[ticked.length - 1];
                   return (
-                    <tr key={l.sheet} className="border-b border-border">
-                      <td className="px-2 py-1.5">{l.ticked ? "[x] " : ""}{l.sheet.trim() || l.sheet}
-                        <SheetExceptionLines ex={l.fig?.exceptions} boqId={boqId} sheet={l.sheet} /></td>
-                      <td className={td}>{fig(l.fig?.boqAmount)}</td>
-                      <td className={td}>{fig(l.fig?.bcsSupply)}</td>
-                      {!l.ticked && <td className={td}>{fig(l.install)}</td>}
-                      {spanFirst && <td className={td} rowSpan={ticked.length}>{table.needsArea ? ENTER_AREA : fig(table.block?.install)}</td>}
-                      <td className={td}>{l.fig ? rows(l.fig) : ""}</td>
-                      {!l.ticked && <td className={td}>{pct(l.margin)}</td>}
-                      {spanFirst && <td className={td} rowSpan={ticked.length}>{table.needsArea ? ENTER_AREA : pct(table.block?.margin ?? null)}</td>}
-                    </tr>
+                    <Fragment key={l.sheet}>
+                      {spanFirst && (
+                        <tr className={BLOCK_BAND} data-row="block-heading">
+                          <td colSpan={6} className="px-2 pt-2 pb-1 text-xs font-medium text-sky-900 dark:text-sky-100">
+                            {blockHeading(summary.rates.install_per_sqft)}
+                          </td>
+                        </tr>
+                      )}
+                      <tr className={l.ticked ? `${BLOCK_BAND} border-b border-border` : "border-b border-border"}
+                        data-row={l.ticked ? "block-sheet" : undefined}>
+                        <td className={l.ticked ? "py-1.5 pl-6 pr-2" : "px-2 py-1.5"}>{l.sheet.trim() || l.sheet}
+                          <SheetExceptionLines ex={l.fig?.exceptions} boqId={boqId} sheet={l.sheet} /></td>
+                        <td className={td}>{fig(l.fig?.boqAmount)}</td>
+                        <td className={td}>{fig(l.fig?.bcsSupply)}</td>
+                        {!l.ticked && <td className={td}>{fig(l.install)}</td>}
+                        {spanFirst && <td className={td} rowSpan={ticked.length}>{table.needsArea ? ENTER_AREA : fig(table.block?.install)}</td>}
+                        <td className={td}>{l.fig ? rows(l.fig) : ""}</td>
+                        {!l.ticked && <td className={td}>{pct(l.margin)}</td>}
+                        {spanFirst && <td className={td} rowSpan={ticked.length}>{table.needsArea ? ENTER_AREA : pct(table.block?.margin ?? null)}</td>}
+                      </tr>
+                      {lastTicked && table.block && (
+                        <tr className={`${BLOCK_BAND} border-b border-border font-medium`} data-row="ticked-block">
+                          <td className="px-2 py-1.5">{BLOCK_TOTAL}</td><td className={td}>{fig(table.block.boqAmount)}</td>
+                          <td className={td}>{fig(table.block.bcsSupply)}</td>
+                          <td className={td}>{table.needsArea ? ENTER_AREA : fig(table.block.install)}</td>
+                          <td className={td}>{rows(table.block)}</td>
+                          <td className={td}>{table.needsArea ? ENTER_AREA : pct(table.block.margin)}</td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
-                {table.block && (
-                  <tr className="border-b border-border font-medium" data-row="ticked-block">
-                    <td className="px-2 py-1.5">Ticked block</td><td className={td}>{fig(table.block.boqAmount)}</td>
-                    <td className={td}>{fig(table.block.bcsSupply)}</td>
-                    <td className={td}>{table.needsArea ? ENTER_AREA : fig(table.block.install)}</td>
-                    <td className={td}>{rows(table.block)}</td>
-                    <td className={td}>{table.needsArea ? ENTER_AREA : pct(table.block.margin)}</td>
-                  </tr>
-                )}
                 <tr className="font-semibold" data-row="boq-total">
                   <td className="px-2 py-1.5">BoQ total</td><td className={td}>{fig(table.total.boqAmount)}</td>
                   <td className={td}>{fig(table.total.bcsSupply)}</td>

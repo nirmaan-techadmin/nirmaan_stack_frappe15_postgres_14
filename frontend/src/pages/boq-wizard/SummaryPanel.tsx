@@ -449,13 +449,13 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
           </ol>
         </div>
       )}
-      {/* K2d (owner ANSWER 13): without the cost axis (BCS off, or a viewer without cost access) point 4 shows ALONE, still numbered 4. */}
+      {/* K2d (owner ANSWER 13): without the cost axis (BCS off, or a viewer without cost access) point 4 shows ALONE.
+          BCS-6b (owner 27 Nov 14:22, R4): shown alone it carries NO number "4." (there are no points 1 - 3 above it); in the note
+          above, with points 1 - 3, it stays the 4th numbered item. Wording unchanged. */}
       {!showCostNote && exceptions.suspect.length > 0 && (
         <div className="px-3 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground" data-note="rates-appear-incorrect">
-          <ol start={4} className="list-decimal pl-5">
-            <li data-exception="suspect">The rates/amounts on these rows appear incorrect. Please review them and change if required.{" "}
-              <RowRangeList rows={exceptions.suspect} onJump={onJumpToRow} /></li>
-          </ol>
+          <p data-exception="suspect">The rates/amounts on these rows appear incorrect. Please review them and change if required.{" "}
+            <RowRangeList rows={exceptions.suspect} onJump={onJumpToRow} /></p>
         </div>
       )}
       <BoqSummarySheetLine />
