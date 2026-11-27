@@ -1,0 +1,80 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "prompt",
+ "creation": "2026-11-27 14:30:11.502783",
+ "description": "SRS-1: each distinct FILLED AI Suggest question text, once; named by its sha256. Written only by the Suggest worker (services/boq_suggest_store); Admin only; purged when no Row Record references it.",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "question_text",
+  "category_id",
+  "discipline",
+  "bytes",
+  "first_seen",
+  "last_used"
+ ],
+ "fields": [
+  {
+   "description": "Everything the request said before its ROWS: block, placeholders resolved.",
+   "fieldname": "question_text",
+   "fieldtype": "Long Text",
+   "label": "Question text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "category_id",
+   "fieldtype": "Data",
+   "label": "Category",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discipline",
+   "fieldtype": "Data",
+   "label": "Discipline",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bytes",
+   "fieldtype": "Int",
+   "label": "Bytes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "first_seen",
+   "fieldtype": "Datetime",
+   "label": "First seen",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_used",
+   "fieldtype": "Datetime",
+   "label": "Last used",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "in_create": 1,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-27 14:30:11.502783",
+ "modified_by": "Administrator",
+ "module": "Nirmaan Stack",
+ "name": "BoQ AI Suggest Question",
+ "naming_rule": "Set by user",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

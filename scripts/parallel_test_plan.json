@@ -3187,6 +3187,127 @@
    "writes": [],
    "reads": []
   },
+  "nirmaan_stack.services.boq_suggest_store.test_doctypes": {
+   "seconds": 14.1,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Row Record"
+   ],
+   "reads": [
+    "tabBoQ AI Suggest Run Record"
+   ]
+  },
+  "nirmaan_stack.services.boq_suggest_store.test_export": {
+   "seconds": 25.1,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Question"
+   ],
+   "reads": [
+    "tabAssignment Rule",
+    "tabBlock Module",
+    "tabBoQ AI Suggest Row Record",
+    "tabBoQ AI Suggest Run Record",
+    "tabGoogle Calendar",
+    "tabMilestone Tracker",
+    "tabServer Script",
+    "tabWorkflow"
+   ]
+  },
+  "nirmaan_stack.services.boq_suggest_store.test_permissions": {
+   "seconds": 15.4,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Question",
+    "tabBoQ AI Suggest Row Record",
+    "tabBoQ AI Suggest Run Record",
+    "tabHas Role",
+    "tabNirmaan Users",
+    "tabUser"
+   ],
+   "reads": [
+    "tabBlock Module",
+    "tabServer Script"
+   ]
+  },
+  "nirmaan_stack.services.boq_suggest_store.test_purge": {
+   "seconds": 11.4,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Question",
+    "tabBoQ AI Suggest Row Record",
+    "tabBoQ AI Suggest Run Record"
+   ],
+   "reads": [
+    "tabBOQs",
+    "tabBoQ Rate Suggestion Run"
+   ]
+  },
+  "nirmaan_stack.services.boq_suggest_store.test_rates": {
+   "seconds": 20.1,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Question",
+    "tabBoQ AI Suggest Row Record",
+    "tabBoQ AI Suggest Run Record"
+   ],
+   "reads": [
+    "tabAssignment Rule",
+    "tabBOQs",
+    "tabBlock Module",
+    "tabBoQ Rate Category Config",
+    "tabBoQ Rate Master Item",
+    "tabBoQ Rate Master Snapshot",
+    "tabBoQ Sheet",
+    "tabServer Script",
+    "tabWorkflow"
+   ]
+  },
+  "nirmaan_stack.services.boq_suggest_store.test_records": {
+   "seconds": 44.1,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Question",
+    "tabBoQ AI Suggest Row Record",
+    "tabBoQ AI Suggest Run Record",
+    "tabHas Role",
+    "tabNirmaan Users",
+    "tabUser"
+   ],
+   "reads": [
+    "tabAssignment Rule",
+    "tabBlock Module",
+    "tabBoQ Rate Category Config",
+    "tabBoQ Rate Match Run",
+    "tabMilestone Tracker",
+    "tabProjects",
+    "tabServer Script",
+    "tabWorkflow"
+   ]
+  },
+  "nirmaan_stack.services.boq_suggest_store.test_split": {
+   "seconds": 9.2,
+   "series": [],
+   "writes": [],
+   "reads": []
+  },
+  "nirmaan_stack.services.boq_suggest_store.test_store": {
+   "seconds": 15.8,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Question",
+    "tabBoQ AI Suggest Row Record",
+    "tabBoQ AI Suggest Run Record"
+   ],
+   "reads": [
+    "tabAssignment Rule",
+    "tabBOQs",
+    "tabBlock Module",
+    "tabBoQ Sheet",
+    "tabServer Script",
+    "tabWorkflow"
+   ]
+  },
   "nirmaan_stack.services.test_index_manifest": {
    "seconds": 30.4,
    "series": [],

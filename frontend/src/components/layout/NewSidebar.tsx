@@ -496,7 +496,9 @@ export function NewSidebar() {
     // Rate Master (RM-2) -- one static flat item beside the pricing workbooks. RM-ACCESS-1 (owner
     // 2026-10-20): ADMIN ONLY, narrower than the workbooks above -- the same check as its route guard.
     ...(isNirmaanAdmin(role, user_id)
-      ? [{ key: "/rate-master", icon: Table2, label: "Rate Master" }]
+      ? [{ key: "/rate-master", icon: Table2, label: "Rate Master" },
+        // AI Suggest Records (SRS-2): directly under Rate Master, the same Admin-only check as its route guard.
+        { key: "/suggest-records", icon: Table2, label: "AI Suggest Records" }]
       : []),
 
 
@@ -940,6 +942,8 @@ export function NewSidebar() {
     ...PRICING_WORKBOOKS.map((w) => w.path.slice(1)),
     // Rate Master (RM-2).
     "rate-master",
+    // AI Suggest Records (SRS-2).
+    "suggest-records",
     // Bulk Import Transactions (S3).
     "bulk-import-transactions",
     "upload-boq/templates",
@@ -1004,6 +1008,8 @@ export function NewSidebar() {
     ),
     // Rate Master (RM-2): single-segment key drives the active-item highlight.
     "/rate-master": ["rate-master"],
+    // AI Suggest Records (SRS-2): single-segment key drives the active-item highlight.
+    "/suggest-records": ["suggest-records"],
     // Bulk Import Transactions: the deep-link route /bulk-import-transactions/:id falls back to the first
     // segment, so the item stays highlighted when a link scopes the table to one import. (The
     // /new child route went away at X4 -- uploading is a dialog on the same screen now.)
@@ -1146,6 +1152,8 @@ export function NewSidebar() {
                     ...PRICING_WORKBOOKS.map((w) => w.label),
                     // Rate Master (RM-2): flat nav button.
                     "Rate Master",
+                    // AI Suggest Records (SRS-2): flat nav button - leave this label out and it renders as an empty group.
+                    "AI Suggest Records",
                     // Bulk Import Transactions (S3): flat nav button. OMITTING THIS LABEL would
                     // drop the item into the collapsible-group branch below and render it wrong.
                     // ⚠️ IT IS MATCHED BY LABEL, so the B8a rename had to move BOTH this string and

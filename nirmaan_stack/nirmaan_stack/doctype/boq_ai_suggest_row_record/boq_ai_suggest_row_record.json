@@ -1,0 +1,282 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2026-11-27 14:30:18.230893",
+ "description": "SRS-1: one per (boq, sheet_name, committed_version, excel_row), overwritten by the row's next AI Suggest read. Written only by the Suggest worker (services/boq_suggest_store); Admin only; purged one year after run_date.",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "boq",
+  "project",
+  "sheet_name",
+  "committed_version",
+  "excel_row",
+  "boq_node",
+  "description",
+  "col_cat",
+  "discipline",
+  "category_id",
+  "run_record",
+  "run_id",
+  "run_date",
+  "question",
+  "batch_no",
+  "batch_rows",
+  "sec_ai",
+  "ai_input",
+  "raw_reply",
+  "reply_status",
+  "final_attributes",
+  "coercion_trail",
+  "earlier_replies",
+  "sec_rates",
+  "supply_rate",
+  "install_rate",
+  "combined_rate",
+  "bcs_supply_rate",
+  "col_rates",
+  "rates_status",
+  "rates_detail",
+  "pricing_stamp",
+  "catalogue_stamp"
+ ],
+ "fields": [
+  {
+   "fieldname": "boq",
+   "fieldtype": "Link",
+   "label": "BoQ",
+   "options": "BOQs",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Projects",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "sheet_name",
+   "fieldtype": "Data",
+   "label": "Sheet name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "committed_version",
+   "fieldtype": "Int",
+   "label": "Committed version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "excel_row",
+   "fieldtype": "Int",
+   "label": "Excel row",
+   "read_only": 1
+  },
+  {
+   "fieldname": "boq_node",
+   "fieldtype": "Link",
+   "label": "BoQ node",
+   "options": "BOQ Nodes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_cat",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "discipline",
+   "fieldtype": "Data",
+   "label": "Discipline",
+   "read_only": 1
+  },
+  {
+   "fieldname": "category_id",
+   "fieldtype": "Data",
+   "label": "Category",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "run_record",
+   "fieldtype": "Link",
+   "label": "Run record",
+   "options": "BoQ AI Suggest Run Record",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "run_id",
+   "fieldtype": "Data",
+   "label": "Run id",
+   "read_only": 1
+  },
+  {
+   "description": "When this row was read. The purge key.",
+   "fieldname": "run_date",
+   "fieldtype": "Datetime",
+   "label": "Run date",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "question",
+   "fieldtype": "Link",
+   "label": "Question",
+   "options": "BoQ AI Suggest Question",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "batch_no",
+   "fieldtype": "Int",
+   "label": "Batch no",
+   "read_only": 1
+  },
+  {
+   "fieldname": "batch_rows",
+   "fieldtype": "Int",
+   "label": "Batch rows",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_ai",
+   "fieldtype": "Section Break",
+   "label": "AI input and reply"
+  },
+  {
+   "description": "The row's own payload element, exactly as the request serialised it.",
+   "fieldname": "ai_input",
+   "fieldtype": "Long Text",
+   "label": "AI input",
+   "read_only": 1
+  },
+  {
+   "description": "The row's own reply element, its exact characters from the reply.",
+   "fieldname": "raw_reply",
+   "fieldtype": "Long Text",
+   "label": "Raw reply",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reply_status",
+   "fieldtype": "Data",
+   "label": "Reply status",
+   "read_only": 1
+  },
+  {
+   "description": "The run's own result row for this row, never re-derived.",
+   "fieldname": "final_attributes",
+   "fieldtype": "JSON",
+   "label": "Final attributes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "coercion_trail",
+   "fieldtype": "JSON",
+   "label": "Coercion trail",
+   "read_only": 1
+  },
+  {
+   "description": "{\"replies\": [...]}: a re-ask's first reply, a second-opinion verdict.",
+   "fieldname": "earlier_replies",
+   "fieldtype": "JSON",
+   "label": "Earlier replies",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_rates",
+   "fieldtype": "Section Break",
+   "label": "Suggested rates (SRS-2)"
+  },
+  {
+   "description": "Suggested supply rate (SRS-2). NOT a price until rates_status says priced: Frappe stores 0 here until then (Currency is NOT NULL DEFAULT 0 on Postgres). Read it only when rates_status = 'priced'; never show a 0 as a price (SRS-1 QR-C3).",
+   "fieldname": "supply_rate",
+   "fieldtype": "Currency",
+   "label": "Supply rate",
+   "read_only": 1
+  },
+  {
+   "description": "Suggested install rate (SRS-2). NOT a price until rates_status says priced: Frappe stores 0 here until then (Currency is NOT NULL DEFAULT 0 on Postgres). Read it only when rates_status = 'priced'; never show a 0 as a price (SRS-1 QR-C3).",
+   "fieldname": "install_rate",
+   "fieldtype": "Currency",
+   "label": "Install rate",
+   "read_only": 1
+  },
+  {
+   "description": "Suggested combined rate (SRS-2). NOT a price until rates_status says priced: Frappe stores 0 here until then (Currency is NOT NULL DEFAULT 0 on Postgres). Read it only when rates_status = 'priced'; never show a 0 as a price (SRS-1 QR-C3).",
+   "fieldname": "combined_rate",
+   "fieldtype": "Currency",
+   "label": "Combined rate",
+   "read_only": 1
+  },
+  {
+   "description": "The BCS lane's supply figure (filled after its merge). NOT a price until rates_status says priced: Frappe stores 0 here until then (Currency is NOT NULL DEFAULT 0 on Postgres). Read it only when rates_status = 'priced'; never show a 0 as a price (SRS-1 QR-C3).",
+   "fieldname": "bcs_supply_rate",
+   "fieldtype": "Currency",
+   "label": "BCS supply rate",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_rates",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The ONLY truth for whether the rates are a price: 'pending' (written by every read; the rates are 0), then SRS-2's 'priced' / 'not priced: &lt;reason&gt;' / 'not computed: &lt;reason&gt;'.",
+   "fieldname": "rates_status",
+   "fieldtype": "Data",
+   "label": "Rates status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rates_detail",
+   "fieldtype": "JSON",
+   "label": "Rates detail",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pricing_stamp",
+   "fieldtype": "Data",
+   "label": "Pricing stamp",
+   "read_only": 1
+  },
+  {
+   "fieldname": "catalogue_stamp",
+   "fieldtype": "Data",
+   "label": "Catalogue stamp",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "in_create": 1,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-27 15:24:40.738338",
+ "modified_by": "Administrator",
+ "module": "Nirmaan Stack",
+ "name": "BoQ AI Suggest Row Record",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

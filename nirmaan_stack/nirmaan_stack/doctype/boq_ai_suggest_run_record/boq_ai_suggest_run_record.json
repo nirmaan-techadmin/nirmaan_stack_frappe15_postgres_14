@@ -1,0 +1,189 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "hash",
+ "creation": "2026-11-27 14:30:17.982222",
+ "description": "SRS-1: one per AI Suggest pass (whole sheet, selected rows or resume). Written only by the Suggest worker (services/boq_suggest_store); Admin only; purged when older than a year and no Row Record points to it.",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "run_id",
+  "suggestion_run",
+  "boq",
+  "project",
+  "sheet_name",
+  "committed_version",
+  "pass_kind",
+  "run_by",
+  "col_times",
+  "started_at",
+  "finished_at",
+  "model",
+  "ai_status",
+  "run_status",
+  "halt_reason",
+  "sec_batches",
+  "catalogue_stamps",
+  "batches",
+  "rows_read",
+  "rows_written",
+  "store_failures"
+ ],
+ "fields": [
+  {
+   "fieldname": "run_id",
+   "fieldtype": "Data",
+   "label": "Run id",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "suggestion_run",
+   "fieldtype": "Link",
+   "label": "Suggestion run",
+   "options": "BoQ Rate Suggestion Run",
+   "read_only": 1
+  },
+  {
+   "fieldname": "boq",
+   "fieldtype": "Link",
+   "label": "BoQ",
+   "options": "BOQs",
+   "read_only": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Projects",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sheet_name",
+   "fieldtype": "Data",
+   "label": "Sheet name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "committed_version",
+   "fieldtype": "Int",
+   "label": "Committed version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pass_kind",
+   "fieldtype": "Select",
+   "label": "Pass kind",
+   "options": "whole_sheet\nselected_rows\nresume",
+   "read_only": 1
+  },
+  {
+   "description": "The user id (Data, not a Link: a Link to User would block deleting that user).",
+   "fieldname": "run_by",
+   "fieldtype": "Data",
+   "label": "Run by",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_times",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "started_at",
+   "fieldtype": "Datetime",
+   "label": "Started at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "finished_at",
+   "fieldtype": "Datetime",
+   "label": "Finished at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_status",
+   "fieldtype": "Data",
+   "label": "AI status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "run_status",
+   "fieldtype": "Data",
+   "label": "Run status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "halt_reason",
+   "fieldtype": "Small Text",
+   "label": "Halt reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_batches",
+   "fieldtype": "Section Break",
+   "label": "Batches"
+  },
+  {
+   "description": "{discipline: catalogue stamp} the requests were built with.",
+   "fieldname": "catalogue_stamps",
+   "fieldtype": "JSON",
+   "label": "Catalogue stamps",
+   "read_only": 1
+  },
+  {
+   "description": "{\"batches\": [...]}: per AI call category, rows, question sha, attempt, token usage, failures, what could not be split, write ms.",
+   "fieldname": "batches",
+   "fieldtype": "JSON",
+   "label": "Batches",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rows_read",
+   "fieldtype": "Int",
+   "label": "Rows read",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rows_written",
+   "fieldtype": "Int",
+   "label": "Rows written",
+   "read_only": 1
+  },
+  {
+   "fieldname": "store_failures",
+   "fieldtype": "Int",
+   "label": "Store failures",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "in_create": 1,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-11-27 14:30:17.982222",
+ "modified_by": "Administrator",
+ "module": "Nirmaan Stack",
+ "name": "BoQ AI Suggest Run Record",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

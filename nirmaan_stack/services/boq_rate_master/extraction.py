@@ -318,6 +318,23 @@ def _capture_common(capture_ctx, rows_batch, kind):
     }
 
 
+def _store_observe(capture_ctx, rows_batch, kind, **fields):
+    """SRS-1 (the Suggest run store): OBSERVATION ONLY. When the runner was handed a `store_cb`, it puts a list under
+    `capture_ctx["store_obs"]`; each capture point of `_extract_batch` then also appends what that call sent and got
+    back (the same objects the capture line is written from), for the store to split per row. Absent the list (every
+    caller but the Suggest worker) this does nothing. It never raises and never feeds back into the batch's result;
+    the capture line itself is unchanged (`_capture_common` reads only `boq` / `reask` from the context)."""
+    try:
+        obs = (capture_ctx or {}).get("store_obs")
+        if obs is None:
+            return
+        first = rows_batch[0] if rows_batch else {}
+        obs.append(dict(fields, kind=kind, reask=bool(capture_ctx.get("reask")),
+                        category_id=first.get("category_id"), discipline=first.get("discipline")))
+    except Exception:  # noqa: BLE001 -- an observation can never break the thing it observes
+        pass
+
+
 def _capture_run_header(boq, sheet_name, committed_version, model, row_count, categories,
                         ai_enabled):
     """THE ANTI-SILENCE DEVICE. Written once per run, UNCONDITIONALLY -- including for a run that
@@ -3082,6 +3099,8 @@ def _extract_batch(client, model, prompt_text, attr_defs, rows_batch, synonyms=N
                     stop_reason="max_tokens", usage=_usage_of(resp),
                     max_tokens=_AI_MAX_TOKENS, batch_size=len(rows_batch),
                 ))
+                _store_observe(capture_ctx, rows_batch, "ceiling_cut", model=model, attempt=attempt, content=content,
+                               payload_items=payload_items, stop_reason="max_tokens", usage=_usage_of(resp))
                 raise ReplyCeilingExceeded(len(rows_batch), _AI_MAX_TOKENS)
             text = "".join(getattr(b, "text", "") for b in resp.content)
             out = {}
@@ -3439,6 +3458,9 @@ def _extract_batch(client, model, prompt_text, attr_defs, rows_batch, synonyms=N
                 declared_attributes=sorted(defs_by_id),
                 mapping=cap_map, drops=drops,
             ))
+            _store_observe(capture_ctx, rows_batch, "batch", model=model, attempt=attempt, content=content, text=text,
+                           stop_reason=getattr(resp, "stop_reason", None), usage=_usage_of(resp),
+                           payload_items=payload_items, mapping=cap_map, drops=drops)
             return out
         except ReplyCeilingExceeded:
             # SR-2: NOT retried on purpose. The cut is deterministic for this batch -- an identical
@@ -3456,6 +3478,8 @@ def _extract_batch(client, model, prompt_text, attr_defs, rows_batch, synonyms=N
                 response_text=text, error=repr(exc),
                 transient=bool(_is_transient(exc)),
             ))
+            _store_observe(capture_ctx, rows_batch, "attempt_failed", model=model, attempt=attempt, content=content,
+                           text=text, payload_items=payload_items, error=repr(exc))
             # SR-1: classify BEFORE retrying. A TERMINAL error (usage limit / auth / invalid
             # request) will not clear in six seconds, so retrying it burns two guaranteed-failed
             # calls and delays the partial save. Fail fast and let the caller keep what it has.
@@ -3667,7 +3691,7 @@ def _group_context_body(cfg, catalog, disc, is_composite):
     }
 
 def run_extraction(boq, sheet_name, client=None, progress_cb=None, checkpoint_cb=None, skip_rows=None,
-                   only_rows=None):
+                   only_rows=None, store_cb=None):
     """Assemble the population and extract attributes ACROSS ALL eligible categories (EA-2). Returns
     {committed_version, ai_status, model, results} where results =
     [{excel_row, description, category_id, attributes:{id:{value, confidence, corroborated}}}].
@@ -3699,6 +3723,12 @@ def run_extraction(boq, sheet_name, client=None, progress_cb=None, checkpoint_cb
         tolerates a partial ai_out), returning the additive keys `complete` / `halted` /
         `halt_reason` / `attempted_rows`. ai_status is deliberately NOT widened -- it keeps its own
         3-value vocabulary, which the doctype and the frontend both treat as a contract.
+
+    SRS-1 addition (`store_cb`, also ADDITIVE -- absent => byte-identical): the Suggest run store's callback
+    (`services/boq_suggest_store/store.SuggestPass.on_batch`), called right after `checkpoint_cb` for every
+    completed sub-batch with (what the call(s) sent and got back, observed by `_store_observe`; the sub-batch's
+    result rows, built exactly as the checkpoint's; the sub-batch's own attempted rows). The callback owns its
+    writes and its failures; this function still performs no frappe.db write.
     """
     from nirmaan_stack.api.boq.wizard.ai_settings import (
         get_boq_ai_api_key,
@@ -3833,13 +3863,15 @@ def run_extraction(boq, sheet_name, client=None, progress_cb=None, checkpoint_cb
             gc = group_ctx[(disc, cat)]
             for b in range(0, len(grp_rows), _BATCH):
                 batch = grp_rows[b : b + _BATCH]
+                _store_obs = []   # SRS-1: what this batch's calls sent / got back, for `store_cb` only
 
                 def _call(rows_, _gc=gc, _reask=False):
                     # `boq` is NOT on the row dict -- it lives only in this enclosing scope, so the
                     # capture's join key is threaded in from here.
                     return _extract_batch(client, model, _gc["prompt"], _gc["defs"], rows_, _gc["synonyms"], _gc["defaults"], _gc["none_guidance"], _gc["slot_spec"], _gc["resolution_rules"], _gc["rules"], _gc["pole_catalog"], _gc["code_attrs"], _gc["absent_rules"], _gc["conductor_groups"],
                                           _gc["paired_fill"], _gc["module_count_attrs"], _gc["inch_trade"], _gc.get("items_spec"),
-                                          capture_ctx={"boq": boq, **({"reask": True} if _reask else {})})
+                                          capture_ctx={"boq": boq, **({"reask": True} if _reask else {}),
+                                                       **({"store_obs": _store_obs} if store_cb else {})})
 
                 required = required_item_attrs(gc.get("items_spec"))
 
@@ -3875,6 +3907,11 @@ def run_extraction(boq, sheet_name, client=None, progress_cb=None, checkpoint_cb
                             [_row_result(r, ai_out.get(r["excel_row"])) for r in sub_batch],
                             sorted(attempted),
                         )
+                    # SRS-1 STORE: after the checkpoint (already committed), the same rows + what was sent / got back.
+                    if store_cb:
+                        store_cb(list(_store_obs), [_row_result(r, ai_out.get(r["excel_row"])) for r in sub_batch],
+                                 [r["excel_row"] for r in sub_batch])
+                        _store_obs.clear()
     except ExtractionHalted as halt:
         # Stop cleanly and KEEP everything extracted so far. Falls through to the same assembly the
         # complete path uses -- which already tolerates a partial ai_out.

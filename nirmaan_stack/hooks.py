@@ -161,6 +161,11 @@ has_permission = {
     "Reimbursement": "nirmaan_stack.integrations.controllers.reimbursement.has_permission",
     # BCS-3 (owner 2026-11-24 "2a"): BCS cost records -- Administrator + the pricing-access set (Admin, Estimates) only.
     "BoQ Row BCS Rate": "nirmaan_stack.api.boq.wizard.bcs.has_bcs_rate_permission",
+    # SRS-1 (2026-11-27): the AI Suggest run store -- Administrator or the Admin profile only (System Manager rides on
+    # Estimates / PMO / HR too); the Suggest worker writes it by raw SQL.
+    "BoQ AI Suggest Question": "nirmaan_stack.services.boq_suggest_store.permissions.has_permission",
+    "BoQ AI Suggest Run Record": "nirmaan_stack.services.boq_suggest_store.permissions.has_permission",
+    "BoQ AI Suggest Row Record": "nirmaan_stack.services.boq_suggest_store.permissions.has_permission",
 }
 
 permission_query_conditions = {
@@ -173,6 +178,10 @@ permission_query_conditions = {
     "Nirmaan Versions": "nirmaan_stack.integrations.controllers.nirmaan_versions.get_permission_query_conditions",
     "Reimbursement": "nirmaan_stack.integrations.controllers.reimbursement.get_permission_query_conditions",
     "BoQ Row BCS Rate": "nirmaan_stack.api.boq.wizard.bcs.bcs_rate_query_conditions",
+    # SRS-1 (2026-11-27): the AI Suggest run store -- Admin only (see has_permission above).
+    "BoQ AI Suggest Question": "nirmaan_stack.services.boq_suggest_store.permissions.get_permission_query_conditions",
+    "BoQ AI Suggest Run Record": "nirmaan_stack.services.boq_suggest_store.permissions.get_permission_query_conditions",
+    "BoQ AI Suggest Row Record": "nirmaan_stack.services.boq_suggest_store.permissions.get_permission_query_conditions",
 }
 
 # DocType Class
@@ -760,6 +769,11 @@ scheduler_events = {
 		],
 		"0 6 7 * *": [
 			"nirmaan_stack.tasks.asset_audit.close_last_month_audits"
+		],
+		# SRS-1 (owner R-BCS-138; daily, 27 Nov walk-through): the AI Suggest run store's one-year purge - records read more
+		# than 365 days ago, 1,000 at a time, at most 200 batches a night; then empty run records and unused questions.
+		"30 1 * * *": [
+			"nirmaan_stack.services.boq_suggest_store.purge.run_daily"
 		]
 	}
 }

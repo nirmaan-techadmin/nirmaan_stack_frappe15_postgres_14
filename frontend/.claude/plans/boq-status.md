@@ -20,17 +20,37 @@ Load-bearing invariants, "THE CATALOGUE DECIDES ...".
   merge commit (no conflict; our commits keep their hashes), and main dev is migrated for it. The re-test
   set, the replay (0 figure / 0 wording moves) and the 21 AI requests are unchanged on the merged code.
 - **Pushed:** CAT-1 + CAT-1b + the merge (owner, 2026-11-26 20:35).
-- **CAT-2 (HVAC v91), built, awaiting review (not pushed):** the HVAC values code rules picked from
+- **CAT-2 (HVAC v91), pushed (on origin since 2026-11-27):** the HVAC values code rules picked from
   typed constants (the Valve Package review-net families, the VRF frame / controller families, the GI
   framework cladding, CPVC / PVC) are `list_spec.code_targets` roles the load gate checks; the code
   reads the roles and the constants are deleted (C1 115 -> 95 entries); the rules page's Paint reads
   `paint_row.family`; the "Change to..." picker offers only families an SKU carries. Nothing a pricer
-  sees changes (replay 0 / 0, 21 AI requests byte-identical). The owner pushes after the review.
+  sees changes (replay 0 / 0, 21 AI requests byte-identical).
 - **Left:** CAT-3a / CAT-3b (Electrical, incl. its 53 placeholders, the Electrical lists, the labels;
   and the four Electrical rules-page words CAT-2 left: ARMOURED / UNARMOURED, Switch, Bus bar), CAT-4
-  (item notes, the deactivate warning, Rate Master screens), the Suggest run store. Still a candidate:
+  (item notes, the deactivate warning, Rate Master screens). Still a candidate:
   the raw readers (CSV export `category_display`, the load validators) filling, so the 15 whole-value
   texts can become references.
+
+**The Suggest run store (SRS).** Every AI Suggest pass keeps, per row it reads, what was sent, what came
+back and the final values; Admin only; purged after a year. The rules are in
+`.claude/context/domain/boq-rate-master.md` § Load-bearing invariants, "EVERY ROW AN AI SUGGEST PASS READS
+IS KEPT ...", and § The Suggest run store.
+
+- **SRS-D0, the design:** accepted 2026-11-27 (the page and the rates later combined into one SRS-2).
+- **SRS-1 (store + write + purge), pushed (owner, 2026-11-27 17:15):** three DocTypes (Question, Run
+  Record, Row Record) with the Admin-only hooks; the write from the one runner (carried rows untouched,
+  never fails a run); the daily one-year purge. Abhishek is told of the hooks.py lines and the new DocTypes
+  before the pull request.
+- **SRS-2 (the rates + the page + the downloads), built, awaiting review (not pushed):** after every
+  Suggest pass that wrote rows, a follow-up job prices them through the server pricing step (the panel's
+  own code) and writes priced / not priced / rates not computed; the Admin-only "AI Suggest Records" page
+  under Rate Master (filters, a 50-a-page list, the row detail) and its Summary / Full Excel downloads. No
+  migrate, no DocType change. The pricing-step bundle must be built on a dev bench by hand (`node
+  scripts/build_pricing_step.mjs` from `frontend/`). Nothing on the pricing page changes. Abhishek is told
+  of the new page and route, the sidebar line, the rates job and the bundle before the pull request.
+- **Left:** the BCS supply figure (the BCS lane, after its merge; every reader shows "not yet"); a store
+  for historical matching (later, separate).
 
 Before CAT: **DU-3**, the fix slice from the DU-2 review of the Ducting rows (the last `## Slice DU-3`
 section of `boq-upload-plan.md`).

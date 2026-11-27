@@ -994,6 +994,16 @@ export const appRoutes: RouteObject[] = [
             ],
           },
 
+          // AI Suggest Records (SRS-2, owner QR-WHERE (a) 2026-11-27): every AI Suggest run's rows with their AI input,
+          // reply, final values and suggested rates. ADMIN ONLY -- Rate Master's own guard; the server checks too.
+          {
+            path: "suggest-records",
+            element: <RoleRoute allowed={RATE_MASTER_ACCESS} what="the AI Suggest Records" />,
+            children: [
+              { index: true, lazy: () => import("@/pages/suggest-records/SuggestRecordsPage") },
+            ],
+          },
+
           // Bulk Import Transactions -- ONE screen (slices X3 + X4): a master table of every staged
           // transfer, with the summary of a chosen import above it and the upload in a dialog.
           // Guarded to Accountant / Accountant Lead / Admin; the backend gate in
