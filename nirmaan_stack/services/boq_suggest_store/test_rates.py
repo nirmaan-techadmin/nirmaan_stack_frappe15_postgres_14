@@ -422,3 +422,9 @@ class TestWorkerByteIdentity(FrappeTestCase):
         boq = fixture_boq("rz")
         _, _, events = self._worker(boq, "on", scope=frozenset({9}))   # row 9 is not in the population: nothing read
         self.assertEqual(events, ["final", "finish"])
+        # the pass ends partial, so the worker writes its own halt log; the family purge removes it (fixture BoQ only)
+        halt = {"method": "BoQ suggest run halted (partial saved)", "creation": [">=", self.started],
+                "error": ["like", "boq=%s%%" % boq]}
+        self.assertEqual(len(frappe.get_all("Error Log", filters=halt)), 1)
+        purge_store_fixtures(error_logs_since=self.started)
+        self.assertEqual(frappe.get_all("Error Log", filters=halt), [], "no live Error Log row is left behind")

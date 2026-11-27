@@ -13,6 +13,7 @@ FIXTURE_BOQ_PREFIX = "BOQ-TEST-SRS1-"
 STORE_TABLES = ("tabBoQ AI Suggest Row Record", "tabBoQ AI Suggest Run Record")
 # the store family's own Error Log titles (SRS-1 store write; SRS-2 rates job and its trigger) - purged by time, never others
 ERROR_LOG_TITLES = ("BoQ suggest store write failed", "BoQ suggest store rates failed", "BoQ suggest store rates trigger failed")
+HALT_LOG_TITLE = "BoQ suggest run halted (partial saved)"   # rate_master._suggest_worker's own, for a partial pass
 
 
 def fixture_boq(tag=""):
@@ -82,6 +83,10 @@ def purge_store_fixtures(question_names=(), error_logs_since=None):
     if error_logs_since is not None:
         scopes.append(('delete from "tabError Log" where method in %s and creation >= %s',
                        (ERROR_LOG_TITLES, error_logs_since)))
+        # the worker's own halt log, when a fixture pass ends partial (SRS-2 test_rates "reads no row"): only those whose
+        # message names a fixture BoQ - never a real run's
+        scopes.append(('delete from "tabError Log" where method = %s and creation >= %s and error like %s',
+                       (HALT_LOG_TITLE, error_logs_since, "boq=" + FIXTURE_BOQ_PREFIX + "%")))
     for sql, params in scopes:
         try:
             frappe.db.sql(sql, params)
