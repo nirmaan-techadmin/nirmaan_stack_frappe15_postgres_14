@@ -191,4 +191,13 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   Q-NOTE-2 (a)); (3) no rate in the app or in the uploaded file, so left out of the margin (amount and cost). Each lists its rows
   or "none on this sheet"; a long list shows the count, ranges and "show all"; a row number goes to that row. The BoQ summary
   shows a short grey line per exception under a sheet's name and a yellow box "How these figures are worked out".
+- POINT 4 OF THE NOTE (owner ANSWER 12 / 13): "The rates/amounts on these rows appear incorrect. Please review them and change if
+  required." Shown on the Summary panel of EVERY sheet to everyone who can open the Summary, BCS on or off - inside the note as its
+  4th item for a cost viewer with BCS on, otherwise alone (still numbered 4); only when such rows exist; row numbers and the fixed
+  sentence only, never a cost figure. A Preamble / Line Item row is listed when, on its rates as the grid shows them (a rate typed
+  in the app counts): (1) a rate is present but the quantity is missing or 0; or (2) the install rate is more than
+  `SUSPECT_INSTALL_TO_SUPPLY_RATIO` (1.5, `reconcile.ts`) times the supply rate, both > 0 - no lower limit. Never a comparison
+  with the uploaded file's amount. A row drops out once the user picks a value on one of its amount cells, or enters a quantity
+  or rate that clears the condition. Rule (1) also lists the rows the parser marked rate-only (`is_rate_only`); whether they
+  should stay listed is the owner's open check.
 

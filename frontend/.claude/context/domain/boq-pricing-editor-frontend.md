@@ -909,6 +909,11 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
   or links to the pricing route's `?row=` (`matchRowHref`) from the BoQ summary's grey lines (`SheetExceptionLines`). The
   panel's hierarchy (expand / collapse by row level) is untouched (R-BCS-159). No "typed" label on an unticked sheet's
   installation (owner R6).
+- **Point 4 (BCS-6a K2c / K2d).** `amountExceptions` also returns `suspect` (`pricingRollup.rateWithoutQuantity` /
+  `installAboveSupply`, the ratio `reconcile.SUSPECT_INSTALL_TO_SUPPLY_RATIO`), and `SummaryPanel` computes the lists ALWAYS: with
+  the BCS input it is the note's 4th `li` (`data-exception="suspect"`); without it (BCS off, or a viewer without cost access) it is
+  its own block `data-note="rates-appear-incorrect"`, an `<ol start={4}>`, the sentence and `RowRangeList` only. Points 1-3 keep
+  the BCS-input gate.
 
 ## Where the full component contracts live
 
