@@ -31,6 +31,30 @@ export const RECON_EPSILON_REL = 1e-9;
  */
 export const SUSPECT_INSTALL_TO_SUPPLY_RATIO = 1.5;
 
+/**
+ * BCS-6a K2e -- the quantity-cell TEXTS that mark a rate-only item (owner ANSWER 16, 2026-11-27 12:33, "agree check for all
+ * variotaion of RO"; "qro" added on the desktop's reading, accepted at ANSWER 18 12:53). Compared after `normaliseQtyText`.
+ * A row whose file quantity cell reads one of these is NOT listed as "a rate but no quantity". "LS" / lump sum is NOT here.
+ * Units found in quantity cells ("Nos", "Rmtrs", "RMT") are NOT rate-only (ANSWER 18); nor is a dash ("-", "--" = a blank).
+ * "ur" (unit rate), "uro", and "r0" (RO typed with a zero, also "R/0") were found on the other dev2 sheets and read as rate-only
+ * on the desktop (DECIDED-WHILE-ABSENT, 2026-11-27 13:4x). A named setting, never inline words.
+ */
+export const RATE_ONLY_QTY_TEXTS: ReadonlySet<string> = new Set([
+  "ro", "rateonly", "rate", "rateonlybasis", "rateonlyitem",
+  "rates", "ratesonly", "ratesonlybasis", "ratesonlyitem",
+  "qro", "uro", "ur", "r0",
+]);
+
+/** Lower case; spaces, dots, slashes, hyphens, underscores and brackets dropped ("R.O." -> "ro", "(RO)" -> "ro"). */
+export function normaliseQtyText(text: string): string {
+  return text.toLowerCase().replace(/[\s./\-_()[\]{}]/g, "");
+}
+
+/** Is this quantity-cell text a rate-only mark in any of its variations? */
+export function isRateOnlyQtyText(text: string | null | undefined): boolean {
+  return typeof text === "string" && RATE_ONLY_QTY_TEXTS.has(normaliseQtyText(text));
+}
+
 /** Are two finite amounts EQUAL within the shared tolerance? (the one comparison primitive). */
 export function amountsEqual(a: number, b: number): boolean {
   const tol = Math.max(RECON_EPSILON_ABS, RECON_EPSILON_REL * Math.max(Math.abs(a), Math.abs(b)));

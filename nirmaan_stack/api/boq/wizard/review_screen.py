@@ -1673,6 +1673,9 @@ _COMMITTED_NODE_FIELDS = [
     "supply_rate", "install_rate", "combined_rate",
     "supply_amount", "install_amount", "total_amount",
     "notes", "append_notes_raw", "description_parts_raw",
+    # BCS-6a K2e: the parser's stored rate-only mark (read only), so the pricing editor's note can leave
+    # rate-only items out of "a rate but no quantity" (owner ANSWER 16 / 18, 2026-11-27).
+    "is_rate_only",
 ]
 # Per-area child fields (BOQ Node Qty By Area) re-collapsed into the nested *_by_area dicts.
 _COMMITTED_CHILD_FIELDS = [
@@ -1785,6 +1788,7 @@ def _committed_node_to_row(node: dict, children: list, sortorder_by_name: dict) 
         "description": node.get("description"),
         "unit": node.get("unit"),
         "make_model": node.get("make_model"),
+        "is_rate_only": node.get("is_rate_only") or 0,  # BCS-6a K2e: the parser's stored mark, read only
         "row_notes": node.get("notes"),
         "append_notes_raw": apn,
         "description_parts_raw": dparts,

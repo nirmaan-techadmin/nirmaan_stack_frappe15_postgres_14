@@ -14,7 +14,7 @@ import {
   rateWithoutQuantity,
   installAboveSupply,
 } from "./pricingRollup";
-import { SUSPECT_INSTALL_TO_SUPPLY_RATIO } from "./reconcile";
+import { SUSPECT_INSTALL_TO_SUPPLY_RATIO, RATE_ONLY_QTY_TEXTS, isRateOnlyQtyText } from "./reconcile";
 import type {
   AmountFormulaNode,
   AmountFormulaRef,
@@ -825,5 +825,45 @@ describe("BCS-6a K2c -- rows whose rates appear incorrect (the note's 4th point)
   });
   it("(-) a non-priceable row (a total / note) is never listed", () => {
     expect(amountExceptions([prow({ ...r48, node_type: "Other" } as never)], D).suspect).toEqual([]);
+  });
+});
+
+// ── BCS-6a K2e: rule (1) leaves rate-only items out (owner ANSWER 16 / 18, 2026-11-27) ───────────────────────────────
+describe("BCS-6a K2e -- a rate-only item is not 'a rate but no quantity'", () => {
+  const D = [desc("D", "qty_total", "qty_total"), desc("E", "rate_supply", "rate_supply"), desc("F", "rate_install", "rate_install")];
+  // The 00012 'HVAC - Low side' row 48 shape: no quantity read, rates present, no rate-only mark.
+  const noQty = (p: Partial<PricedRow>) => prow({ row_index: 48, source_row_number: 48, effective_parent_index: null,
+    effective_classification: "line_item", node_type: "Line Item", description: "r48", rate_supply: 3600, rate_install: 360,
+    is_rate_only: 0, qty_cell_text: null, ...p });
+
+  it("(+) every RO variation in the file's quantity cell is skipped", () => {
+    for (const t of ["RO", "R.O.", "R/O", "Rate Only", "RATE-ONLY", "(RO)", "Qro", "QRO", "rates only", "Rate only basis", "UR", "URO", "R0", "R/0"]) {
+      expect(isRateOnlyQtyText(t), t).toBe(true);
+      expect(rateWithoutQuantity(noQty({ qty_cell_text: t }), D), t).toBe(false);
+    }
+  });
+  it("(+) a row the parser marked rate-only is skipped (blank quantity cell)", () => {
+    expect(rateWithoutQuantity(noQty({ is_rate_only: 1 }), D)).toBe(false);
+    expect(amountExceptions([noQty({ is_rate_only: 1 })], D).suspect).toEqual([]);
+  });
+  it("(-) a number in the file's quantity cell that was not read (00012 row 48 shape) is still listed", () => {
+    expect(rateWithoutQuantity(noQty({}), D)).toBe(true);
+    expect(amountExceptions([noQty({})], D).suspect).toEqual([48]);
+  });
+  it("(-) a blank quantity with no rate-only mark is still listed", () => {
+    expect(rateWithoutQuantity(noQty({ qty_cell_text: null, is_rate_only: 0 }), D)).toBe(true);
+  });
+  it("(-) 'LS' (lump sum), units ('Nos', 'Rmtrs'), a dash and header words are NOT rate-only marks", () => {
+    for (const t of ["LS", "L.S.", "Lump sum", "Nos", "Nos.", "Rmtrs", "RMT", "-", "--", "lot", "Qty"]) {
+      expect(isRateOnlyQtyText(t), t).toBe(false);
+      expect(rateWithoutQuantity(noQty({ qty_cell_text: t }), D), t).toBe(true);
+    }
+  });
+  it("the list is a named setting", () => {
+    expect([...RATE_ONLY_QTY_TEXTS].sort()).toEqual(
+      ["qro", "r0", "rate", "rateonly", "rateonlybasis", "rateonlyitem", "rates", "ratesonly", "ratesonlybasis", "ratesonlyitem", "ro", "ur", "uro"]);
+  });
+  it("rule (2) is unchanged by the rate-only mark", () => {
+    expect(installAboveSupply(noQty({ is_rate_only: 1, qty_total: 460, rate_supply: 945, rate_install: 434700 }), D)).toBe(true);
   });
 });

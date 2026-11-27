@@ -591,6 +591,9 @@ export interface PricedRow extends ReviewRow {
   priced_rate_supply?: boolean;
   priced_rate_install?: boolean;
   priced_rate_combined?: boolean;
+  /** BCS-6a K2e: the uploaded file's own TEXT in this row's quantity column(s) (e.g. "RO", "Qro"), stamped by
+   *  get_priced_rows from the committed grid; null when the cell is a number, blank or absent. */
+  qty_cell_text?: string | null;
   /**
    * Slice 4a: the current per-ROW remark merged by get_priced_rows (null/absent = none).
    * A remark is annotation, NOT a price -- it never affects the priced markers.

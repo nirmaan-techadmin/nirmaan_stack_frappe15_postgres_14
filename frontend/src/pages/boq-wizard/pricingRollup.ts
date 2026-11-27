@@ -76,6 +76,7 @@ import {
   reconChoiceKey,
   resolveDivergence,
   SUSPECT_INSTALL_TO_SUPPLY_RATIO,
+  isRateOnlyQtyText,
 } from "./reconcile";
 import { ROLE_LABELS } from "./boqTypes";
 import type {
@@ -550,9 +551,13 @@ function effectiveRate(row: PricedRow, d: ColumnDescriptor, descriptors: ColumnD
   return lookupOperandValue(row, { value_field: d.value_field, value_key: d.value_key, rate_subkey: d.rate_subkey }, descriptors, {});
 }
 
-/** K2c rule (1), owner "1 ok": a rate is present (supply, install or combined > 0) but the quantity is missing or 0 everywhere. */
+/** K2c rule (1), owner "1 ok": a rate is present (supply, install or combined > 0) but the quantity is missing or 0 everywhere.
+ *  K2e (owner ANSWER 16 / 18): a RATE-ONLY item is never listed - (a) the parser marked it (`is_rate_only`), or (b) the file's
+ *  quantity cell reads a rate-only text (`isRateOnlyQtyText`, the list `RATE_ONLY_QTY_TEXTS`). Still listed: a number in the
+ *  file's quantity cell the row reads as 0, and a blank / 0 quantity with no rate-only mark. */
 export function rateWithoutQuantity(row: PricedRow, descriptors: ColumnDescriptor[]): boolean {
   if (hasAnyQty(row)) return false;
+  if (row.is_rate_only === 1 || isRateOnlyQtyText(row.qty_cell_text)) return false;
   return descriptors.filter(isRateDescriptor).some((d) => (effectiveRate(row, d, descriptors) ?? 0) > 0);
 }
 

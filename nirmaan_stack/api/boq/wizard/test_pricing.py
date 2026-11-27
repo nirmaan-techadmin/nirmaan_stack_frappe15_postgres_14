@@ -516,6 +516,60 @@ class TestGetPricedRows(FrappeTestCase):
                 "priced_by_area carries only rate kinds",
             )
 
+    # -- BCS-6a K2e: the rate-only mark and the file's quantity-cell text (read only) ------
+
+    def _scalar_grid(self, qty_cell_value):
+        """A committed faithful grid for the scalar sheet (qty col C): row 8 blank, row 10 = qty_cell_value."""
+        grid = frappe.new_doc("BoQ Committed Sheet Grid")
+        grid.boq = self.boq
+        grid.source_sheet_name = self.scalar_sheet  # VERBATIM (#152)
+        grid.commit_version = self.cv
+        grid.is_current = 1
+        grid.committed_at = "2026-11-27 12:00:00"
+        grid.append("rows", {"row_number": 8, "row_order": 0, "cells": {"B": "SCALAR PREAMBLE", "C": None}})
+        grid.append("rows", {"row_number": 10, "row_order": 1, "cells": {"B": "scalar item", "C": qty_cell_value, "D": 999.0}})
+        grid.insert(ignore_permissions=True, ignore_links=True)
+        frappe.db.commit()
+
+    def _qty_text_for(self, qty_cell_value):
+        self._scalar_grid(qty_cell_value)
+        try:
+            res = get_priced_rows(boq_name=self.boq, sheet_name=self.scalar_sheet)
+            return self._row(res, 10)["qty_cell_text"], self._row(res, 8)["qty_cell_text"]
+        finally:
+            purge_docs("BoQ Committed Sheet Grid", {"boq": self.boq, "source_sheet_name": self.scalar_sheet})
+            frappe.db.commit()
+
+    def test_qty_cell_text_rate_only_text_is_stamped(self):
+        li_text, pre_text = self._qty_text_for("RO")
+        self.assertEqual(li_text, "RO", "the file's own text in the qty cell")
+        self.assertIsNone(pre_text, "a blank qty cell stamps None")
+
+    def test_qty_cell_text_any_text_is_stamped_verbatim_trimmed(self):
+        self.assertEqual(self._qty_text_for("  Qro ")[0], "Qro")
+
+    def test_qty_cell_text_number_is_none(self):
+        self.assertIsNone(self._qty_text_for(5.0)[0], "a numeric cell is not text")
+        self.assertIsNone(self._qty_text_for("1,250")[0], "a number written as text (commas) is not text")
+        self.assertIsNone(self._qty_text_for("   ")[0], "a blank string is not text")
+
+    def test_qty_cell_text_none_without_a_grid(self):
+        res = get_priced_rows(boq_name=self.boq, sheet_name=self.scalar_sheet)
+        self.assertIn("qty_cell_text", self._row(res, 10), "the key is always present on a committed row")
+        self.assertIsNone(self._row(res, 10)["qty_cell_text"], "no committed grid -> None")
+
+    def test_is_rate_only_reaches_priced_rows(self):
+        res = get_priced_rows(boq_name=self.boq, sheet_name=self.scalar_sheet)
+        self.assertEqual(self._row(res, 10)["is_rate_only"], 0, "a node without the mark reads 0")
+        frappe.db.set_value("BOQ Nodes", self.scalar_node, "is_rate_only", 1, update_modified=False)
+        frappe.db.commit()
+        try:
+            res = get_priced_rows(boq_name=self.boq, sheet_name=self.scalar_sheet)
+            self.assertEqual(self._row(res, 10)["is_rate_only"], 1, "the parser's stored mark reaches the grid")
+        finally:
+            frappe.db.set_value("BOQ Nodes", self.scalar_node, "is_rate_only", 0, update_modified=False)
+            frappe.db.commit()
+
     # -- NEGATIVE / edge ----------------------------------------------------
 
     def test_uncommitted_sheet_returns_empty_merged_shape(self):

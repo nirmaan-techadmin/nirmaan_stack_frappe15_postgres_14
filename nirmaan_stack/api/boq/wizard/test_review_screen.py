@@ -4664,6 +4664,22 @@ class TestGetCommittedRows(FrappeTestCase):
                                 update_modified=False)
             frappe.db.commit()
 
+    def test_is_rate_only_committed_feed(self):
+        """BCS-6a K2e: the committed feed carries the parser's stored is_rate_only mark (read only): 1 on a
+        rate-only node, 0 on the others. A test-fixture flag flip via set_value (no doc_events on BOQ Nodes
+        bear on this read)."""
+        li_ro, li_plain = self.fixture["line_items"][0], self.fixture["line_items"][1]
+        frappe.db.set_value("BOQ Nodes", li_ro, "is_rate_only", 1, update_modified=False)
+        frappe.db.commit()
+        try:
+            by_name = {r["name"]: r for r in get_committed_rows(boq_name=self.boq_name, sheet_name=self.sheet_name)["rows"]}
+            self.assertEqual(by_name[li_ro]["is_rate_only"], 1, "a rate-only node carries the mark")
+            self.assertEqual(by_name[li_plain]["is_rate_only"], 0, "a node without the mark reads 0")
+            self.assertEqual(by_name[self.fixture["preamble"]]["is_rate_only"], 0)
+        finally:
+            frappe.db.set_value("BOQ Nodes", li_ro, "is_rate_only", 0, update_modified=False)
+            frappe.db.commit()
+
 
 # ===========================================================================
 # Group: DUAL-AI (ADR-0003) -- resolve_effective is UNCHANGED for ai_*-only rows

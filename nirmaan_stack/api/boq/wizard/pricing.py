@@ -2589,8 +2589,56 @@ def get_priced_rows(boq_name: str = None, sheet_name: str = None) -> dict:
     if not rows or commit_version is None:
         return base
 
+    _stamp_qty_cell_text(boq_name, sheet_name, commit_version, rows, column_descriptors)
     _merge_overlays(boq_name, sheet_name, commit_version, rows, column_descriptors)
     return base
+
+
+_QTY_VALUE_FIELDS = ("qty_total", "qty_by_area")
+
+
+def _qty_text(value):
+    """A quantity cell's TEXT, or None: a non-empty string that is not a number (commas allowed)."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    try:
+        float(text.replace(",", ""))
+        return None
+    except ValueError:
+        return text
+
+
+def _stamp_qty_cell_text(boq_name, sheet_name, committed_version, rows, column_descriptors) -> None:
+    """BCS-6a K2e (owner ANSWER 16 / 18, 2026-11-27): stamp row["qty_cell_text"] = the uploaded file's own TEXT in the
+    row's quantity column(s) (e.g. "RO", "Qro"), read from the committed faithful grid, so the pricing editor's note can
+    leave rate-only items out of "a rate but no quantity". None when the cell is a number, blank or absent. PURE READ:
+    ONE query for the sheet's grid rows (never per row); the committed tier is never mutated. sheet_name VERBATIM (#152)."""
+    qty_cols = [d.get("col") for d in column_descriptors if d.get("value_field") in _QTY_VALUE_FIELDS and d.get("col")]
+    for row in rows:
+        row["qty_cell_text"] = None
+    if not qty_cols:
+        return
+    grid_name = frappe.db.get_value(
+        _GRID,
+        {"boq": boq_name, "source_sheet_name": sheet_name, "commit_version": committed_version},
+        "name",
+    )
+    if not grid_name:
+        return
+    cells_by_row = {
+        g["row_number"]: _parse_json_field(g.get("cells"), {})
+        for g in frappe.get_all(
+            _GRID_ROW,
+            filters={"parent": grid_name, "parenttype": _GRID},
+            fields=["row_number", "cells"],
+        )
+    }
+    for row in rows:
+        cells = cells_by_row.get(row.get("source_row_number")) or {}
+        row["qty_cell_text"] = next((t for t in (_qty_text(cells.get(c)) for c in qty_cols) if t), None)
 
 
 def _merge_overlays(boq_name, sheet_name, committed_version, rows, column_descriptors) -> None:
