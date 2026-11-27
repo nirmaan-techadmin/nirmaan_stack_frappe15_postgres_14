@@ -24,6 +24,7 @@ import ELECTRICAL from "../../../../../nirmaan_stack/services/boq_rate_master/da
 import HVAC from "../../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v25.json";
 import { columnOrderForFile } from "./rateMasterSpec";
 import CAT_KINDS from "../../../../../scripts/_instruments/cat_kinds.json";
+import { fillAssetForTests } from "../../boq-wizard/rate-helper/catalogueFill.harness";   // CAT-1b PIN P-R2
 import {
   gridColumnKeys, gridColumnsSharedWithFile, attrColKey, rateColKey, fileColumnId, plainFileColumnLabel,
   COL_UNIT, COL_BRAND, COL_ACTIONS, COL_PI_NAME, COL_ITEM_UID, COL_DISCIPLINE, COL_CATEGORY, COL_SPEC,
@@ -290,7 +291,7 @@ describe("ADP-4b -- a spec-driven grid shows exactly the download's columns; 'Sh
   const DATA = join(__dirname, "../../../../../nirmaan_stack/services/boq_rate_master/data");
   const latest = readdirSync(DATA).filter((f) => /^rate_master_hvac_all_v\d+\.json$/.test(f))
     .sort((a, b) => Number(/v(\d+)/.exec(a)![1]) - Number(/v(\d+)/.exec(b)![1])).pop()!;
-  const hvac = JSON.parse(readFileSync(join(DATA, latest), "utf-8")) as Asset;
+  const hvac = fillAssetForTests(JSON.parse(readFileSync(join(DATA, latest), "utf-8")) as Asset);   // CAT-1b (PIN P-R2): filled as served. BEFORE: JSON.parse(...) as Asset
   const adp = hvac.category_configs.find((c) => c.attributes_from_spec === true)!;
   const adpItems = hvac.items.filter((i) => ((adp.item_kinds as string[] | undefined) ?? []).includes(String(i.kind)));
   const HVAC_FILE_COLUMNS = ["item_uid", "discipline", "category", "brand", "unit", "item_name", "item_detail",

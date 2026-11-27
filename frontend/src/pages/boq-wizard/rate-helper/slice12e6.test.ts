@@ -32,10 +32,11 @@ import {
   alternativeMaterials, cheaperAlternatives, claddingLabel, coatingOnlyRefusal, itemListPricingSpec, listSpecDefs, priceItemList,
   readNumber, sizeIsOutsideDiameter, withoutFixingWords, xlpeAliasRefusal, type NumberReader,
 } from "./itemListPricing";
+import { withNewestCodeTargets } from "./codeTargetsOverlay.harness";   // CAT-2 PIN P-COMPAT (QR-COMPAT (a)): the role blocks read from the newest asset
 
 type Asset = { discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] };
 const DATA = "../../../../../nirmaan_stack/services/boq_rate_master/data/";
-const V42 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v42.json`, import.meta.url));
+const V42 = withNewestCodeTargets(readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v42.json`, import.meta.url)));
 const ITEMS: RateMasterItem[] = V42.items.map((it) => ({ ...it, discipline: V42.discipline } as RateMasterItem));
 const CONFIGS = new Map<string, RateCategoryConfig>(V42.category_configs.map((c) => [c.category_id, c]));
 const INS = "hvac_insulation", PIP = "hvac_piping";

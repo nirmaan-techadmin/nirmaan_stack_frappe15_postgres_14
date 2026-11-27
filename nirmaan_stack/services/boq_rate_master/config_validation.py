@@ -204,6 +204,12 @@ _KNOWN_CONFIG_KEYS = {
     "impact_examples",
     # VAV-2c1 (R6 b, owner 2026-11-22 12:47 "a"): a Pricing Inputs category's page shows each value's plain reading, from the live value
     "live_reading",
+    # CAT-1 (CAT-D0 D3c; owner 2026-11-26 00:13 "ok for both"): the two DECLARATIONS the catalogue-list rebuild reads
+    # (`catalogue_lists.py`), each {question id: [values]}. `unstocked_answers` = a value OFFERED although no SKU stocks it, so the
+    # row refuses by name (Valve Package `operation` "On-Off", VP-1); `catalogue_excludes` = a SKU value NEVER offered (a SKU-side
+    # placeholder such as Electrical colour "NA"). Validated by `_validate_catalogue_declarations`; the reference gate checks each
+    # declaration against the catalogue (an unstocked answer a SKU does stock is refused).
+    "unstocked_answers", "catalogue_excludes",
     # BCS-2 (owner 2026-11-21 / 22): `bcs_default_margin` = {entries: [{components?, when?, ref, field}]} -- which Pricing Input
     # the category's supply margin is READ from (never a number); `summary_inputs` = [input id] -- inputs only the BoQ summary
     # reads (the Rs 42 per sq ft). Shape: `_validate_bcs_keys`; the inputs themselves: `bcs_problems`.
@@ -243,10 +249,14 @@ def _validate_list_spec(cfg):
         _vthrow("matching_mode 'item_list' needs a list_spec object.")
     # DU-1 Part B: `borrowers_ask_offered_only` -- a borrowed category (Misc) whose borrowers' sections ask the model only for the
     # families THAT section offers (build_items_spec); ABSENT => every borrower asks the category's whole family question, as before
+    # CAT-2 (owner 2026-11-26 00:10 / 01:16, R1; ANSWER to CAT2-4 QR-FORM): `code_targets` -- the catalogue values code rules pick as ONE
+    # target, by role (catalogue_gate.code_target_refs checks each against the catalogue at load). OPTIONAL; ABSENT => those rules do not fire
     unknown = set(spec.keys()) - {"attribute_definitions", "family_attribute_id", "qty_attribute_id", "second_opinion", "pricing",
-                                  SECTIONS_KEY, "borrowers_ask_offered_only"}
+                                  SECTIONS_KEY, "borrowers_ask_offered_only", "code_targets"}
     if unknown:
         _vthrow(f"list_spec: unknown key(s): {', '.join(sorted(unknown))}.")
+    if "code_targets" in spec:
+        _validate_code_targets(spec["code_targets"], spec)
     if "second_opinion" in spec and not isinstance(spec["second_opinion"], bool):
         _vthrow("list_spec.second_opinion must be true or false.")   # CHECK 2 switch (owner 2026-09-23)
     if "borrowers_ask_offered_only" in spec and spec["borrowers_ask_offered_only"] is not True:
@@ -542,10 +552,60 @@ def _active_section_items(discipline, kinds):
         return out
     for row in frappe.get_all("BoQ Rate Master Item",
                               filters={"discipline": discipline, "active": 1, "kind": ["in", sorted(kinds)]},
-                              fields=["kind", "unit", "attributes"]):
+                              fields=["kind", "unit", "attributes", "item_uid"]):
         attrs = frappe.parse_json(row.attributes) if isinstance(row.attributes, str) else row.attributes
-        out.append({"kind": row.kind, "unit": row.unit, "attributes": attrs or {}})
+        # CAT-1: item_uid carried, so a share part named by item_uid resolves against the standing catalogue too
+        out.append({"kind": row.kind, "unit": row.unit, "attributes": attrs or {}, "item_uid": row.item_uid})
     return out
+
+
+def validate_catalogue_references(configs, items, discipline, label="Rate master import refused",
+                                  retired_kinds=(), retired_category_ids=()):
+    """CAT-1 THE REFERENCE GATE (CAT-D0 D5 G1, CAT-D1 E6 G-REF; owner 2026-11-26 00:06 / 00:10: "a rate-file load is REFUSED if
+    any reference names a missing item, with the place named"). Called by both loader paths BEFORE the first write (every mint's
+    own load runs it), next to `validate_delegated_sections`.
+
+    Checks the catalogue AS IT WILL STAND: the payload's configs and items, plus every active config / item of the discipline
+    outside the payload's scope and not retired -- so a load that drops the last SKU another config points at is refused too.
+    The rules and the reference-key registry live in `catalogue_gate.reference_problems` / `REFERENCE_KEYS`. Raises
+    frappe.ValidationError listing EVERY refusal as `<config> > <key path> <what is missing>`; returns the INFO lines (a stocked
+    value a list does not name; a pinned golden / impact example naming an unstocked value - listed, never refused)."""
+    from nirmaan_stack.services.boq_rate_master import catalogue_gate
+
+    payload_items = []
+    for it in items or []:
+        if isinstance(it, dict):
+            payload_items.append({"kind": (it.get("kind") or "").strip(), "brand": it.get("brand"), "unit": it.get("unit"),
+                                  "item_uid": it.get("item_uid"), "attributes": it.get("attributes") or {}, "active": 1})
+    payload_kinds = {i["kind"] for i in payload_items} | set(retired_kinds or ())
+    payload_cats = {(c.get("category_id") or "").strip() for c in configs if isinstance(c, dict)} | set(retired_category_ids or ())
+    standing_items = payload_items + [
+        {"kind": r.kind, "brand": r.brand, "unit": r.unit, "item_uid": r.item_uid, "active": 1,
+         "attributes": (frappe.parse_json(r.attributes) if isinstance(r.attributes, str) else r.attributes) or {}}
+        for r in frappe.get_all("BoQ Rate Master Item", filters={"discipline": discipline, "active": 1},
+                                fields=["kind", "brand", "unit", "item_uid", "attributes"])
+        if (r.kind or "").strip() not in payload_kinds]
+    standing_configs = [c for c in configs if isinstance(c, dict)] + _active_section_configs(discipline, payload_cats)
+    problems = catalogue_gate.reference_problems(standing_configs, standing_items, discipline=discipline)
+    refusals = [catalogue_gate.format_problem(p) for p in problems if p["severity"] == catalogue_gate.REFUSE]
+    if refusals:
+        shown = refusals[:40]
+        more = f"\n... and {len(refusals) - len(shown)} more" if len(refusals) > len(shown) else ""
+        frappe.throw(f"{label}: {len(refusals)} catalogue reference(s) do not resolve:\n" + "\n".join(shown) + more,
+                     frappe.ValidationError, title="Catalogue reference refused")
+    infos = [catalogue_gate.format_problem(p) for p in problems if p["severity"] == catalogue_gate.INFO]
+    # G-PROSE at import: a NEW typed mention of a multi-word catalogue value in the payload's wording is LISTED (the suite fails it)
+    import json as _json
+    import os as _os
+    try:
+        with open(_os.path.join(_os.path.dirname(catalogue_gate.__file__), catalogue_gate.PROSE_ALLOWLIST), encoding="utf-8") as fh:
+            frozen = (_json.load(fh) or {}).get("paths") or {}
+    except (OSError, ValueError):
+        frozen = {}
+    found = catalogue_gate.prose_mentions([c for c in configs if isinstance(c, dict)], standing_items)
+    infos += [f"INFO: G-PROSE {line}" for line in catalogue_gate.prose_drift(found, {k: v for k, v in frozen.items() if k in found})
+              if "a new mention" in line]
+    return infos
 
 
 def validate_delegated_sections(configs, items=None, label="config"):
@@ -846,9 +906,11 @@ def _validate_stream_heading_default(rules, by_id, choice_attrs, fams, defaults)
         rloc = f"{loc}[{i}]"
         if not isinstance(r, dict):
             _vthrow(f"{rloc} must be an object.")
-        unk = set(r) - _PRICING_STREAM_HEADING_KEYS
+        unk = set(r) - _PRICING_STREAM_HEADING_KEYS - {"rules_page_line"}   # CAT-1: the optional ruled rules-page sentence
         if unk:
             _vthrow(f"{rloc}: unknown key(s): {', '.join(sorted(unk))}.")
+        if "rules_page_line" in r:
+            _sentence(r, "rules_page_line", rloc)
         if _PRICING_STREAM_HEADING_KEYS - set(r):
             _vthrow(f"{rloc} must carry {' / '.join(sorted(_PRICING_STREAM_HEADING_KEYS))}.")
         if r["attr"] not in choice_attrs:
@@ -1244,8 +1306,12 @@ def _validate_sheet_shares(ss, spec):
             for k in ("id", "label", "per_label", "per_input"):
                 if not _nonempty_str(pt[k]):
                     _vthrow(f"{pw}.{k} must be a non-empty string.")
-            if not isinstance(pt["sku"], dict) or set(pt["sku"]) != {"kind", "attr", "value"} or not all(_nonempty_str(v) for v in pt["sku"].values()):
-                _vthrow(f"{pw}.sku needs exactly kind, attr, value (non-empty strings).")
+            # CAT-1 (CAT-D1 E2 R-A; owner 2026-11-26 00:06 "share items by REFERENCE"): a part's SKU is named by its item_uid and
+            # the attribute its name is read from ({item_uid, attr}: the name is read LIVE, never copied); the typed form
+            # {kind, attr, value} stays valid for the older files. Either way the reference gate refuses one that resolves to nothing.
+            sku = pt["sku"]
+            if not isinstance(sku, dict) or set(sku) not in ({"kind", "attr", "value"}, {"item_uid", "attr"})                     or not all(_nonempty_str(v) for v in sku.values()):
+                _vthrow(f"{pw}.sku needs exactly item_uid, attr (or the typed kind, attr, value) - non-empty strings.")
             pids.append(pt["id"])
         if len(set(pids)) != len(pids):
             _vthrow(f"{w}.parts ids must be unique.")
@@ -1572,6 +1638,19 @@ def _validate_paint_row(pw, spec):
     _sentence(pw, "miss_line", loc, ("{why}",))
 
 
+def _validate_code_targets(ct, spec):
+    """CAT-2 -- `list_spec.code_targets`: {role: {"attr", "value" | "values"[, "section"]}}. The SHAPE only; each value against
+    the catalogue is the gate's (catalogue_gate.code_target_refs, run at every load)."""
+    from nirmaan_stack.services.boq_rate_master.catalogue_gate import code_target_refs
+    if not isinstance(ct, dict) or not ct or not all(isinstance(r, str) and re.fullmatch(r"[a-z][a-z0-9_]*", r) for r in ct):
+        _vthrow("list_spec.code_targets must map snake_case roles to targets.")
+    stubs = {s.get("category_id"): {"category_id": s.get("category_id")}
+             for s in (spec.get("sections") or []) if isinstance(s, dict) and s.get("category_id")}
+    for path, _a, _v, _s, prob in code_target_refs({"list_spec": {**spec, "pricing": {}, "code_targets": ct}}, stubs):
+        if prob:
+            _vthrow(f"{path}: {prob}.")
+
+
 def _validate_sheet_insulation_retired(si, spec):
     """The RETIRED DU-1 G-3 shape (HVAC v71-v74, kept loadable for a rollback; no check runs on it since DU-3): the DU-1 rules as
     they were -- four regular expressions, the mode, 0 < low < high <= 1, the per-sq.m units and the five lines."""
@@ -1630,9 +1709,11 @@ def _validate_companion_items(rules, by_id, fams, ucls, family_attr):
         rloc = f"{loc}[{i}]"
         if not isinstance(r, dict):
             _vthrow(f"{rloc} must be an object.")
-        unk = set(r) - _PRICING_COMPANION_KEYS
+        unk = set(r) - _PRICING_COMPANION_KEYS - {"rules_page_line"}   # CAT-1: the optional ruled rules-page sentence
         if unk:
             _vthrow(f"{rloc}: unknown key(s): {', '.join(sorted(unk))}.")
+        if "rules_page_line" in r:
+            _sentence(r, "rules_page_line", rloc)
         if _PRICING_COMPANION_KEYS - set(r):
             _vthrow(f"{rloc} must carry {' / '.join(sorted(_PRICING_COMPANION_KEYS))}.")
         if not isinstance(r["families"], list) or not r["families"] or not all(f in fams for f in r["families"]):
@@ -2101,6 +2182,8 @@ _DERIVATION_REASON_KEYS = {"rule", "title", "why"}
 _PRICING_NUMBER_KEYS = _PRICING_NUMBER_KEYS | {"typed_dn"}
 # DU-1 (Ducting DR2 / DR3 / DR4 / DR12): `gauge` -- a sheet-gauge axis (see `_validate_gauge`). ABSENT => the reader as before.
 _PRICING_NUMBER_KEYS = _PRICING_NUMBER_KEYS | {"gauge"}
+# CAT-1 (CAT-D0 D8; owner 2026-11-26 01:14 "2 ok"): a number reader's ruled rules-page sentence (ADP's square neck), shown as written
+_PRICING_NUMBER_KEYS = _PRICING_NUMBER_KEYS | {"rules_page_line"}
 _EXTRAS_OPTIONAL_KEYS = {"from_model"}
 _EXTRAS_OPTIONAL_LINES = {"boq_note"}
 _EXTRAS_FROM_MODEL_KEYS = {"includes", "yes", "copper_size", "insulation_thickness", "cable_spec", "comm_words", "length"}
@@ -2900,8 +2983,11 @@ def _validate_sheet_heading_notes(notes, loc):
         _vthrow(f"{loc} must be a non-empty list.")
     for i, n in enumerate(notes):
         w = f"{loc}[{i}]"
-        if not isinstance(n, dict) or not ({"pattern", "category", "with_rows", "none", "rule"} <= set(n) <= {"pattern", "category", "with_rows", "none", "cap", "rule"}):
-            _vthrow(f"{w} needs exactly pattern, category, with_rows, none and rule (and optionally cap).")
+        if not isinstance(n, dict) or not ({"pattern", "category", "with_rows", "none", "rule"} <= set(n)
+                                           <= {"pattern", "category", "with_rows", "none", "cap", "rule", "rules_page_line"}):
+            _vthrow(f"{w} needs exactly pattern, category, with_rows, none and rule (and optionally cap, rules_page_line).")
+        if "rules_page_line" in n:   # CAT-1: the ruled rules-page sentence, shown as written
+            _sentence(n, "rules_page_line", w)
         _pattern(n["pattern"], f"{w}.pattern")
         if not _nonempty_str(n["category"]):
             _vthrow(f"{w}.category must be a category id.")
@@ -3170,10 +3256,18 @@ def scope_problems(configs, items):
                 sku = pt.get("sku") if isinstance(pt, dict) else None
                 if not isinstance(sku, dict):
                     continue
-                n = sum(1 for it in items or [] if isinstance(it, dict) and it.get("kind") == sku.get("kind")
-                        and (it.get("attributes") or {}).get(sku.get("attr")) == sku.get("value"))
+                if sku.get("item_uid"):   # CAT-1: by item_uid (the name read live from `attr`)
+                    hits = [it for it in items or [] if isinstance(it, dict) and (it.get("item_uid") or "").strip() == sku["item_uid"]]
+                    n = len(hits)
+                    if n == 1 and (hits[0].get("attributes") or {}).get(sku.get("attr")) in (None, ""):
+                        out.append(f"'{c.get('category_id')}' sheet_shares: the SKU {sku['item_uid']} carries no '{sku.get('attr')}' name.")
+                    shown = sku["item_uid"]
+                else:
+                    n = sum(1 for it in items or [] if isinstance(it, dict) and it.get("kind") == sku.get("kind")
+                            and (it.get("attributes") or {}).get(sku.get("attr")) == sku.get("value"))
+                    shown = sku.get("value")
                 if n != 1:
-                    out.append(f"'{c.get('category_id')}' sheet_shares: the SKU '{sku.get('value')}' matches {n} items (one needed).")
+                    out.append(f"'{c.get('category_id')}' sheet_shares: the SKU '{shown}' matches {n} items (one needed).")
     return out
 
 
@@ -4140,6 +4234,8 @@ def _validate_list_pricing(spec, by_id, family_vals, cfg):
             _validate_number_units(nid, rd["units"], by_id)
         if unk:
             _vthrow(f"list_spec.pricing.numbers['{nid}']: unknown key(s): {', '.join(sorted(unk))}.")
+        if "rules_page_line" in rd:   # CAT-1: the ruled rules-page sentence, shown as written
+            _sentence(rd, "rules_page_line", f"list_spec.pricing.numbers['{nid}']")
         frm = rd.get("from")
         if "typed_only" in rd and rd["typed_only"] is not True:
             _vthrow(f"list_spec.pricing.numbers['{nid}'].typed_only must be exactly true, or be omitted.")
@@ -5384,6 +5480,27 @@ def _validate_params(params, where):
             _vthrow(f"{where}: parameter '{k}' must be a finite number.")
 
 
+def _validate_catalogue_declarations(cfg):
+    """CAT-1: `unstocked_answers` / `catalogue_excludes` = {question id: [non-empty strings]}, each question one the config
+    asks (a top-level or list_spec attribute definition)."""
+    ls = cfg.get("list_spec") if isinstance(cfg.get("list_spec"), dict) else {}
+    asked = {d.get("id") for d in (cfg.get("attribute_definitions") or []) + (ls.get("attribute_definitions") or [])
+             if isinstance(d, dict)}
+    for key in ("unstocked_answers", "catalogue_excludes"):
+        if key not in cfg:
+            continue
+        v = cfg[key]
+        if not isinstance(v, dict) or not v:
+            _vthrow(f"{key} must be a non-empty object {{question id: [values]}}.")
+        for q, vals in v.items():
+            if q not in asked:
+                _vthrow(f"{key}.{q}: the config asks no question '{q}'.")
+            if not isinstance(vals, list) or not vals or not all(isinstance(x, str) and x.strip() for x in vals):
+                _vthrow(f"{key}.{q} must be a non-empty list of non-empty strings.")
+            if len(set(vals)) != len(vals):
+                _vthrow(f"{key}.{q} names a value twice.")
+
+
 def _validate_config(cfg):
     """Full structural validation of a whole category config. Returns the map of attribute id ->
     referencing-locations (for the reference guard). Raises a named frappe.ValidationError on the first
@@ -5401,6 +5518,7 @@ def _validate_config(cfg):
     _validate_rate_composition(cfg)   # SLICE 12a: the cost-parts composition; a no-op without the key
     _validate_column_order(cfg)       # SLICE 12c FINISH: the presentation order; a no-op without the key
     _validate_impact_examples(cfg)    # ELR-3a: the impact panel's worked examples; a no-op without the key
+    _validate_catalogue_declarations(cfg)   # CAT-1: unstocked_answers / catalogue_excludes shape; a no-op without the keys
     _validate_bcs_keys(cfg)           # BCS-2: the cost-margin reference and the BoQ-summary inputs; a no-op without the keys
 
     # attribute_definitions ------------------------------------------------------------------

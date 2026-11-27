@@ -40,6 +40,7 @@
  * `.harness.ts` so `vitest.config.ts`'s `src/**\/*.test.{ts,tsx}` include never collects it.
  */
 import { readFileSync } from "node:fs";
+import { fillAssetForTests } from "@/pages/boq-wizard/rate-helper/catalogueFill.harness";
 import { RATE_MASTER_DISCIPLINES } from "./rate-master/rateMasterRegistry";
 import type { AttributeDefinition, RateCategoryConfig, RateMasterItem } from "./rate-master/rateMasterTypes";
 import { calculatorConfigMap, calculatorCtx } from "./PricingCalculator";
@@ -884,9 +885,12 @@ export function panelQuotesTextWithNoBox(r: HelperResult): boolean {
  * `import`ed (tsc would infer a structural type for the whole file), and the parse lives HERE so that a
  * test adds no inline parse of its own (ADR-0010 F2's ratchet counts every inline parse under pages/).
  * The caller passes the URL it resolved against its own `import.meta.url`.
+ * CAT-1b (owner 2026-11-26 01:47 QR-C-1 (a); PIN P-R1): a RATE ASSET (items + category_configs) comes back with its config wording
+ * filled exactly as the server serves it (`fillAssetForTests`, = the Python fill; a placeholder that does not resolve throws). Every
+ * other fixture, and every file without a placeholder (all files before HVAC v90), comes back exactly as parsed.
  */
 export function readJsonFixture<T>(url: URL): T {
-  return JSON.parse(readFileSync(url, "utf-8")) as T;
+  return fillAssetForTests(JSON.parse(readFileSync(url, "utf-8")) as T);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════

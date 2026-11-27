@@ -757,6 +757,132 @@ def raw_enqueues_unfrozen() -> list[str]:
     return raw_enqueue_drift(raw_enqueues_found(), read_frozen(RAW_ENQUEUE_SUPPRESSIONS))
 
 
+# --- Rule C1: a typed catalogue word outside the declared places (CAT-1) --------------------------------------------
+# Owner 2026-11-26 00:14, verbatim: "also we need to put guards that future builds cant bypass these again" / "and the build
+# follows this principle everytime". A catalogue item or value is named by reference (item_uid, a gate-checked value), by a label,
+# or by a placeholder in wording -- never TYPED into product code or a prompt. C1 counts, per file, the string literals (code) and
+# whole-word mentions (prompts) EQUAL to a catalogue value of the newest asset files, and holds each file to its frozen count in
+# CATALOGUE_ALLOWLIST ({file: {literal: {count, reason, ruling}}}), the J1 / Q1 shape: over fails (a new typed word), under fails
+# (lower the count -- it only goes down). Scope (owner 2026-11-26 01:47, QR-TEAM (a)): the BoQ / rate-master folders and the
+# rate-master prompt files only, so no other team's file is scanned. The same check runs in the Python suite
+# (services/boq_rate_master/test_catalogue_guards.py).
+CATALOGUE_ALLOWLIST = "scripts/catalogue_allowlist.json"
+CATALOGUE_DATA = "nirmaan_stack/services/boq_rate_master/data"
+CATALOGUE_CODE_DIRS = ("nirmaan_stack/api/boq", "nirmaan_stack/services/boq_rate_master", "nirmaan_stack/services/boq_rate_match",
+                       "frontend/src/pages/boq-wizard", "frontend/src/pages/pricing")
+CATALOGUE_PROMPTS = ("nirmaan_stack/services/boq_category/prompts/boq_rate_attr_extraction_prompt.md",
+                     "nirmaan_stack/services/boq_category/prompts/boq_rate_item_identity_prompt.md",
+                     "nirmaan_stack/services/boq_category/prompts/boq_rate_item_list_prompt.md",
+                     "nirmaan_stack/services/boq_category/prompts/boq_rate_item_list_review_prompt.md",
+                     "nirmaan_stack/services/boq_category/prompts/boq_composite_decomposition_prompt.md",
+                     "nirmaan_stack/services/boq_rate_match/card_prompt.txt",
+                     "nirmaan_stack/services/boq_rate_match/judge_prompt.txt")
+# words too generic to be a catalogue reference (CAT-D1 E9's list): a code literal equal to one is not counted
+CATALOGUE_GENERIC = frozenset({
+    "yes", "no", "none", "na", "n/a", "with", "without", "nos", "no.", "set", "lot", "each", "supply", "install", "installation",
+    "item", "other", "others", "standard", "type", "all", "any", "one", "two", "single", "double", "true", "false", "on", "off",
+    "per", "rmt", "sqm", "mtr", "kg", "cum", "count", "length", "area", "size", "family", "brand", "unit", "rate", "rates", "name",
+    "kind", "value", "values", "material", "colour", "color", "pole", "rating", "core", "runs", "item_name", "supply_rate",
+    "install_rate", "default", "label", "auto", "manual", "left", "right", "top", "side", "front", "back", "white", "black",
+    "grey", "red", "blue", "green"})
+_CATALOGUE_PROSE_ATTRS = {"name", "remarks", "shared_by", "used_by", "note", "notes"}
+_CATALOGUE_NUMERIC = re.compile(r"[\d\s.x×*/\-+()]+(mm|m|A|W|HP|TR|sqmm|kW)?")
+_CATALOGUE_LIT = re.compile(r'"((?:[^"\\\n]|\\.)*)"|\'((?:[^\'\\\n]|\\.)*)\'|`((?:[^`\\\n$]|\\.)*)`')
+_CATALOGUE_COMMENT = re.compile(r"^\s*(#|//|\*|/\*)")
+_CATALOGUE_SKIP = re.compile(r"(^|/)(test_[^/]*\.py|tests/|__tests__/|__fixtures__/|data/|__pycache__/)|\.test\.|\.harness\.|\.dom\.test")
+
+
+def catalogue_vocabulary(data_dir: Path | None = None) -> set[str]:
+    """Every catalogue value of the NEWEST asset file of each discipline (brands and string attribute values, Pricing Inputs and
+    prose attributes left out), minus generic words, one-letter and numeric-only values."""
+    d = data_dir or (REPO_ROOT / CATALOGUE_DATA)
+    newest: dict[str, tuple[int, Path]] = {}
+    for p in d.glob("rate_master_*_all_v*.json"):
+        m = re.fullmatch(r"rate_master_(\w+?)_all_v(\d+)\.json", p.name)
+        if m and int(m.group(2)) > newest.get(m.group(1), (-1, p))[0]:
+            newest[m.group(1)] = (int(m.group(2)), p)
+    vocab: set[str] = set()
+    for _v, p in newest.values():
+        for it in json.loads(read(p)).get("items", []):
+            if str(it.get("kind", "")).endswith("pricing_input"):
+                continue
+            vals = [it.get("brand")] + [v for k, v in (it.get("attributes") or {}).items() if k not in _CATALOGUE_PROSE_ATTRS]
+            vocab.update(v for v in vals if isinstance(v, str) and v.strip() and len(v) <= 80)
+    return {v for v in vocab if v.strip().lower() not in CATALOGUE_GENERIC and re.search(r"[A-Za-z]", v)
+            and len(v.strip()) >= 2 and not _CATALOGUE_NUMERIC.fullmatch(v.strip())}
+
+
+def catalogue_code_literals(src: str, vocab: set[str]) -> dict[str, int]:
+    """{literal: count} -- the string literals of a code file that EQUAL a catalogue value (comment lines skipped)."""
+    out: dict[str, int] = {}
+    for line in src.splitlines():
+        if _CATALOGUE_COMMENT.match(line):
+            continue
+        for m in _CATALOGUE_LIT.finditer(line):
+            s = next(g for g in m.groups() if g is not None)
+            if s in vocab:
+                out[s] = out.get(s, 0) + 1
+    return out
+
+
+def catalogue_prompt_words(src: str, vocab: set[str]) -> dict[str, int]:
+    """{word as written: count} -- whole-word mentions of a catalogue value (4+ characters) in a prompt; a longer value wins."""
+    out: dict[str, int] = {}
+    low = src.lower()
+    # longest first (a longer value wins its span); only the values the file contains at all are compiled
+    pats = [re.compile(r"(?<![A-Za-z0-9_])" + re.escape(v.strip()) + r"(?![A-Za-z0-9_])", re.I if " " in v.strip() else 0)
+            for v in sorted((x for x in vocab if len(x.strip()) >= 4), key=lambda x: (-len(x), x)) if v.strip().lower() in low]
+    for line in src.splitlines():
+        used: list[tuple[int, int]] = []
+        for rx in pats:
+            for m in rx.finditer(line):
+                if any(m.start() >= a and m.end() <= b for a, b in used):
+                    continue
+                used.append((m.start(), m.end()))
+                out[m.group(0)] = out.get(m.group(0), 0) + 1   # keyed as WRITTEN in the prompt (two spellings may match it)
+    return out
+
+
+def catalogue_words_found(extra: list[Path] | None = None, vocab: set[str] | None = None) -> dict[str, dict[str, int]]:
+    """{repo path: {literal: count}} over CATALOGUE_CODE_DIRS (tests, fixtures, harnesses and data left out) and the prompts."""
+    vocab = catalogue_vocabulary() if vocab is None else vocab
+    found: dict[str, dict[str, int]] = {}
+    files = [p for sub in CATALOGUE_CODE_DIRS for p in iter_files(sub, (".py", ".ts", ".tsx"))]
+    for p in files + list(extra or []):
+        rel = p.relative_to(REPO_ROOT).as_posix() if p.is_absolute() and REPO_ROOT in p.parents else p.as_posix()
+        if _CATALOGUE_SKIP.search(rel):
+            continue
+        hits = catalogue_code_literals(read(p), vocab)
+        if hits:
+            found[rel] = hits
+    for rel in CATALOGUE_PROMPTS:
+        p = REPO_ROOT / rel
+        if p.exists():
+            hits = catalogue_prompt_words(read(p), vocab)
+            if hits:
+                found[rel] = hits
+    return found
+
+
+def catalogue_word_drift(found: dict[str, dict[str, int]], frozen: dict[str, dict]) -> list[str]:
+    """C1's drift: each (file, literal) counted above / below its frozen count, and each frozen entry with no reason or ruling."""
+    counts = {path: {lit: {"count": n} for lit, n in lits.items()} for path, lits in found.items()}
+    over, under = frozen_drift(counts, frozen, lambda path, lit, now, was: f"{path}: '{lit}' typed {now} time(s), {was} frozen")
+    no_reason = [f"{path}: '{lit}' frozen with no reason or ruling" for path, lits in frozen.items() for lit, e in lits.items()
+                 if not str(e.get("reason", "")).strip() or not str(e.get("ruling", "")).strip()]
+    return sorted([f"{x} (a new typed catalogue word: name it by reference, a label or a placeholder; or declare it in "
+                   f"{CATALOGUE_ALLOWLIST} with its reason and ruling)" for x in over]
+                  + [f"{x} (fewer: lower its count in {CATALOGUE_ALLOWLIST}; remove it at 0)" for x in under] + no_reason)
+
+
+# IN `CHECKS` since CAT-1b (owner 2026-11-26 10:37, verbatim: "2 ok. allowed" -- the one baseline line c1_catalogue_words_unfrozen, count
+# 0, rule C1): the commit hook runs it, pass mark 0, over the scope above only (QR-TEAM (a)). The Python suite guard
+# (services/boq_rate_master/test_catalogue_guards.TestC1CommitGuard) runs the same functions.
+def catalogue_words_unfrozen() -> list[str]:
+    """C1 over its scope: the files whose typed catalogue words differ from CATALOGUE_ALLOWLIST."""
+    return catalogue_word_drift(catalogue_words_found(), read_frozen(CATALOGUE_ALLOWLIST))
+
+
 # --- check registry ----------------------------------------------------------
 
 @dataclass
@@ -971,6 +1097,24 @@ CHECKS: list[Check] = [
                    f"lower its count with python3 scripts/residence_check.py {PRUNE_FLAG}",
         measure=lambda: len(disable_comments_unfrozen()),
         locate=disable_comments_unfrozen,
+        pass_mark=0,
+    ),
+    # CAT-1 / CAT-1b (owner 2026-11-26 00:14 "guards that future builds cant bypass these again"; 01:47 QR-TEAM (a) the BoQ /
+    # rate-master folders and prompt files only; 10:37 "2 ok. allowed" the baseline line): a catalogue item or value is named by
+    # reference, a label or a placeholder -- never typed. Frozen per file in CATALOGUE_ALLOWLIST with a reason and ruling each;
+    # pass mark 0, as J1's.
+    Check(
+        id="c1_catalogue_words_unfrozen",
+        rule="C1",
+        description=f"BoQ / rate-master code files and rate-master prompts whose typed catalogue words (string literals or "
+                    f"prompt words equal to a value of the newest rate files) differ from their frozen count in "
+                    f"{CATALOGUE_ALLOWLIST}.",
+        route_hint="name the item or value by reference (item_uid, a gate-checked config value), a label, or a "
+                   "{{cat:<attr>=<value>}} / {{item:<item_uid>}} placeholder in config wording (boq-rate-master.md, the "
+                   f"catalogue link); a deliberate exception goes in {CATALOGUE_ALLOWLIST} with its reason and ruling. "
+                   "Fewer: lower that file's count (remove it at 0).",
+        measure=lambda: len(catalogue_words_unfrozen()),
+        locate=catalogue_words_unfrozen,
         pass_mark=0,
     ),
     # Not an ADR-0010 rule: a merged PR's walk must become rerunnable feature walks (pr-walk SKILL.md step 9). A

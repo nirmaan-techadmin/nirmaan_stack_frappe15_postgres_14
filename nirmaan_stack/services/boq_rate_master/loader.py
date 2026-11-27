@@ -30,7 +30,7 @@ import json
 
 import frappe
 
-from nirmaan_stack.services.boq_rate_master import config_validation, retirement
+from nirmaan_stack.services.boq_rate_master import catalogue_lists, config_validation, retirement
 
 ITEM_DOCTYPE = "BoQ Rate Master Item"
 CONFIG_DOCTYPE = "BoQ Rate Category Config"
@@ -335,6 +335,8 @@ def load_rate_master(payload=None, path=None, replace=False):
     # load path now runs it. (A config with no `list_spec.sections`, in a discipline where none declares one,
     # reads the discipline's active configs once and stops there.)
     config_validation.validate_delegated_sections([cfg], payload["items"], label="Rate master import refused")
+    # CAT-1: THE REFERENCE GATE -- every catalogue value / item the configs name resolves on the catalogue as it will stand
+    catalogue_info = config_validation.validate_catalogue_references([cfg], payload["items"], discipline)
 
     existing_active = _active_item_count(discipline)
     if existing_active and not replace:
@@ -402,6 +404,9 @@ def load_rate_master(payload=None, path=None, replace=False):
     # It also catches a missing base and a cycle, which is where acceptance item 8's "refused loudly
     # at mint" actually lands: the mint's own load is what runs this.
     _verify_derived_consistent(discipline)
+    # CAT-1 (owner 2026-11-24 19:18 "rebuilt whenever the catalogue changes by any route"): THE LOAD CHOKE POINT -- the
+    # catalogue lists rebuilt from what this load leaves standing, cached when this transaction commits.
+    catalogue_lists.rebuild_after_write(discipline)
 
     frappe.db.commit()
 
@@ -415,6 +420,7 @@ def load_rate_master(payload=None, path=None, replace=False):
         "config_loaded": 1,
         "items_deactivated": items_deactivated,
         "configs_deactivated": configs_deactivated,
+        "catalogue_info": catalogue_info,   # CAT-1: the gate's INFO lines (listed, never refused)
     }
 
 
@@ -459,6 +465,11 @@ def _load_multi(payload, replace):
     retirement_reasons = _validated_retirement_reasons(
         payload.get("retirement_reasons"), retired_kinds, retired_cat_ids
     )
+    # CAT-1: THE REFERENCE GATE -- every catalogue value / item the configs name resolves on the catalogue as it will stand
+    # (this payload + whatever stays active outside its scope, the retired scope excluded), BEFORE the first write.
+    catalogue_info = config_validation.validate_catalogue_references(
+        [_loaded_config(c, discipline, goldens_by_cat) for c in configs], payload.get("items"), discipline,
+        retired_kinds=retired_kinds, retired_category_ids=retired_cat_ids)
 
     items = payload["items"]
     payload_kinds = sorted({it["kind"].strip() for it in items})
@@ -561,6 +572,9 @@ def _load_multi(payload, replace):
     # It also catches a missing base and a cycle, which is where acceptance item 8's "refused loudly
     # at mint" actually lands: the mint's own load is what runs this.
     _verify_derived_consistent(discipline)
+    # CAT-1 (owner 2026-11-24 19:18 "rebuilt whenever the catalogue changes by any route"): THE LOAD CHOKE POINT -- the
+    # catalogue lists rebuilt from what this load leaves standing, cached when this transaction commits.
+    catalogue_lists.rebuild_after_write(discipline)
 
     frappe.db.commit()
 
@@ -583,6 +597,7 @@ def _load_multi(payload, replace):
         "retirements_without_reason": retirements_recorded.get("unreasoned", 0),
         "retired_items_deactivated": retired_items_deactivated,
         "retired_configs_deactivated": retired_configs_deactivated,
+        "catalogue_info": catalogue_info,   # CAT-1: the gate's INFO lines (listed, never refused)
     }
 
 
@@ -615,6 +630,10 @@ def recompute_derived_after_write(discipline, batch=None):
     leaving half a catalogue -- acceptance item 8. A declaration that cannot be computed is a defect,
     never a cell to skip.
     """
+    # CAT-1: THE OTHER CHOKE POINT -- every Rate Master write route (edit / add / deactivate) and the CSV upload call this after
+    # their write, so the catalogue lists are rebuilt here, BEFORE the early return below (an Electrical write declares no derived
+    # cell). The derived re-insert that follows writes the same content, so it cannot move the stamp.
+    catalogue_lists.rebuild_after_write(discipline)
     configs = [
         c["config"] if isinstance(c["config"], dict) else json.loads(c["config"] or "{}")
         for c in frappe.get_all(CONFIG_DOCTYPE,

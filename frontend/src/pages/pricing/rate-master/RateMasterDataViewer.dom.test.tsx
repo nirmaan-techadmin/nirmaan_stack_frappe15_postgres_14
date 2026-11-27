@@ -42,6 +42,7 @@ import {
   sourceOrder, splitSpecColumns,
 } from "./rateMasterSpec";
 import type { RateCategoryConfig, RateMasterItem } from "./rateMasterTypes";
+import { fillAssetForTests } from "../../boq-wizard/rate-helper/catalogueFill.harness";   // CAT-1b PIN P-R2
 
 // ─── jsdom's gaps ───────────────────────────────────────────────────────────────────────────
 //
@@ -91,7 +92,9 @@ interface Asset {
 }
 
 function readAsset(file: string): Asset {
-  return JSON.parse(fs.readFileSync(file, "utf-8")) as Asset;
+  // CAT-1b (PIN P-R2): the wording filled as the server serves it (HVAC v90 names catalogue values through placeholders).
+  // BEFORE: return JSON.parse(fs.readFileSync(file, "utf-8")) as Asset;
+  return fillAssetForTests(JSON.parse(fs.readFileSync(file, "utf-8")) as Asset);
 }
 
 /** The asset's items in the shape the endpoint hands the screen: `source` flattened. */

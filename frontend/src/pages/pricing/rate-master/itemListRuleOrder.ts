@@ -305,7 +305,7 @@ export const DERIVATION_RULINGS: Readonly<Record<string, Readonly<Record<string,
 import { plainSentence, pricingInputLabel } from "./plainEnglish";
 import { percentOf } from "@/pages/boq-wizard/rate-helper/helperWording";
 import { inputFactor } from "@/pages/boq-wizard/rate-helper/scopeRule";
-import { GI_FRAMEWORK_CLADDING, PIECE_LENGTH_MIN_MM, familyDisplayName, itemListPricingSpec, oneSizeMessage, plainBoxSurface, plainItemListWording, stockedUnitsWords, waysLabel,
+import { PIECE_LENGTH_MIN_MM, codeTarget, familyDisplayName, itemListPricingSpec, oneSizeMessage, plainBoxSurface, plainItemListWording, stockedUnitsWords, waysLabel,
          type AccessorySpec, type CapacityUnits, type CountedSpec, type DefaultSpec, type ItemListPricingSpec, type MaterialText } from "../../boq-wizard/rate-helper/itemListPricing";
 export { plainSentence };
 
@@ -508,7 +508,11 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
           `the names in the row's own text, read through the same map; ${plainSentence(String(ft.from_row.refuse).replace("{types}", "the names found"))}`);
       // SLICE 12e-6 (owner R2, amended 2026-10-16 14:22; U9): ADDED -- the line above keeps its words
       add(`One ${name(famAttrId)} written as two stocked kinds prices one of them`,
-          "CPVC named with PVC or uPVC prices as CPVC; any other two stocked kinds price the lower cost for the row's size -- with a line saying so; the pricer can change it");
+          // CAT-2 (R1): the two pipe types of the owner's CPVC rule are the config's `list_spec.code_targets.cpvc` / `.pvc`
+          (codeTarget(ls, "cpvc") && codeTarget(ls, "pvc")
+            ? `${codeTarget(ls, "cpvc")} named with ${codeTarget(ls, "pvc")} or uPVC prices as ${codeTarget(ls, "cpvc")}; any other two stocked kinds`
+            : "Any two stocked kinds")
+          + " price the lower cost for the row's size -- with a line saying so; the pricer can change it");
     }
     // SLICE 12e-4b (owner D-3; decisions 2 / 3 / 7): the family as the BoQ writes it, where the config names
     // the attribute that carries it
@@ -520,9 +524,10 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
            `an answered ${name(famAttrId)} always wins over it`,
            `shown read-only, and only where it differs from the kind priced`].join("; "));
       // SLICE 12e-6b (owner R1, 2026-10-16 23:43 IST; owner U9 precedent): ADDED -- the lines above keep their words
-      if (pr.families?.CPVC) {
-        add(`A drain pipe whose material the BoQ does not name prices as CPVC`,
-            "a pipe the row or a heading calls a drain (drain, drainage, condensate) with no type told and no pipe material named -- in amber: 'drain pipe, no material stated -> priced as CPVC'; a material the BoQ names keeps its rule; the pricer can change it");
+      const drainTo = codeTarget(ls, "cpvc");   // CAT-2 (R1): `list_spec.code_targets.cpvc`, never typed here
+      if (drainTo && pr.families?.[drainTo]) {
+        add(`A drain pipe whose material the BoQ does not name prices as ${drainTo}`,
+            `a pipe the row or a heading calls a drain (drain, drainage, condensate) with no type told and no pipe material named -- in amber: 'drain pipe, no material stated -> priced as ${drainTo}'; a material the BoQ names keeps its rule; the pricer can change it`);
       }
     }
   }
@@ -960,9 +965,10 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
         `'factory laminated fire resistant fibre cloth fabric', 'reinforced glass cloth' -> Glass Cloth with paint; with aluminium named too -> 24G / 26G Aluminium with Glass Cloth by its gauge (no gauge: 26G); with a line saying 'BoQ says <the words> -> priced as <the option>'; a ${name(String(c.attr))} the model answered stands`);
     // ADP-1 (owner F3, 2026-10-19; U6): ADDED, where the category's cladding offers the GI framework option
     const vals = ((ls?.attribute_definitions ?? []) as any[]).find((d) => d?.id === c.attr)?.values ?? [];
-    if (Array.isArray(vals) && vals.includes(GI_FRAMEWORK_CLADDING)) {
-      add(`A GI frame or framework with perforated aluminium sheet, with no ${name(String(c.attr))} answered, prices as ${GI_FRAMEWORK_CLADDING}`,
-          `in the ${name(String(c.from_attr ?? ""))}, else the row's own text or its headings: 'GI frame with perforated Al sheet', 'GI framework and perforated aluminium sheet' -- read before the fixing words are set aside; with a line saying 'BoQ says <the words> -> priced as ${GI_FRAMEWORK_CLADDING}'; a ${name(String(c.attr))} the model answered stands`);
+    const gi = codeTarget(ls, "gi_framework");   // CAT-2 (R1): `list_spec.code_targets.gi_framework`, never typed here
+    if (gi && Array.isArray(vals) && vals.includes(gi)) {
+      add(`A GI frame or framework with perforated aluminium sheet, with no ${name(String(c.attr))} answered, prices as ${gi}`,
+          `in the ${name(String(c.from_attr ?? ""))}, else the row's own text or its headings: 'GI frame with perforated Al sheet', 'GI framework and perforated aluminium sheet' -- read before the fixing words are set aside; with a line saying 'BoQ says <the words> -> priced as ${gi}'; a ${name(String(c.attr))} the model answered stands`);
     }
   }
   for (const r of (pr.read_notes ?? []) as any[]) {
@@ -1046,8 +1052,9 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
     }
     // DU-3 (Case 8, QR-1 Q5 (a)): a duct-painting row in the 00380 context is the painting of the ducts above it
     const pw = pr.paint_row as { words?: unknown; family?: unknown; tolerance?: unknown } | undefined;
-    if (pw && typeof pw === "object" && typeof pw.tolerance === "number") {
-      add(`A row whose own words name painting (paint finish, enamel paint) and state no gauge is priced as ${String(pw.family ?? "Paint")}`,
+    // CAT-2 (R1): the family is the config's `paint_row.family` (the load gate checks it); no typed fallback
+    if (pw && typeof pw === "object" && typeof pw.tolerance === "number" && typeof pw.family === "string") {
+      add(`A row whose own words name painting (paint finish, enamel paint) and state no gauge is priced as ${pw.family}`,
           `only when it sits right after its sheet's own duct rows (the unbroken run of duct rows directly above it) and its quantity is within ${String(Math.round(pw.tolerance * 100))}% `
           + `of theirs - the note names those rows; a row failing any test keeps its outcome with a note to price it by hand`, "paint_row");
     }
@@ -2017,6 +2024,21 @@ export function itemListRuleOrder(config: unknown, items: ReadonlyArray<RuleOrde
         `the item is priced in its own unit (${list(classes.map((c) => String(pr.unit_words?.[c] ?? c)))}) and its delegated sections in the same unit; the row shows the bar '${String(pr.blank_unit_bar.line)}'; with no quantity it carries a rate only`,
         "blank_unit_bar");
   }
+  // ── 13n. CAT-1 (CAT-D0 D8; owner 2026-11-26 01:14 "2 ok", bundled 2026-11-25 13:42): a rule source whose own words are a ruled
+  // sentence carries it as `rules_page_line`, shown AS WRITTEN (the owner approved each word for word) -- one line per entry, ADDED LAST
+  // so every earlier line keeps its number. Generic: any category, any of these four keys; a config without the field adds nothing.
+  const pageLine = (v: unknown): string | null => (v && typeof v === "object" && typeof (v as { rules_page_line?: unknown }).rules_page_line === "string"
+    && (v as { rules_page_line: string }).rules_page_line.trim() ? (v as { rules_page_line: string }).rules_page_line : null);
+  for (const [a, rd] of Object.entries((pr.numbers ?? {}) as Record<string, unknown>)) {
+    const t = pageLine(rd);
+    if (t) add(t, undefined, `numbers.${a}`);
+  }
+  for (const k of ["stream_heading_default", "companion_items", "sheet_heading_notes"] as const) {
+    for (const e of (Array.isArray(pr[k]) ? pr[k] : []) as unknown[]) {
+      const t = pageLine(e);
+      if (t) add(t, undefined, k);
+    }
+  }
   // ── 14. ADP-4a (owner A1 / D1): WHY -- each line's reason on the plain wording, at the end of its detail ──
   if (plain) {
     const rulings = DERIVATION_RULINGS[String(pr.kind ?? "")] ?? {};
@@ -2752,7 +2774,7 @@ const ELECTRICAL_TEXT: { [K in ElcKey]: (f: NonNullable<ElcFacts[K]>) => [string
 
 // ── VAV-2b1: the shared-item lines (R1 - R10) -- every count and rate read from the config and the catalogue, never written here ──
 
-type SsPart = { id?: unknown; label?: unknown; per_label?: unknown; per_input?: unknown; sku?: { kind?: unknown; attr?: unknown; value?: unknown } };
+type SsPart = { id?: unknown; label?: unknown; per_label?: unknown; per_input?: unknown; sku?: { kind?: unknown; attr?: unknown; value?: unknown; item_uid?: unknown } };
 type SsShare = { id?: unknown; label?: unknown; parts?: SsPart[]; bcs_of?: unknown; replaces?: unknown };
 
 /** VAV-2b1 (R12). PURE. The band above the band of `cfm` ("3200" -> the band after the one 3200 falls in, by the edge rule). */
@@ -2861,8 +2883,13 @@ function sheetSharesLines(pr: Record<string, unknown>, items: ReadonlyArray<Rule
     const v = Number((it?.rates as { factor?: unknown } | undefined)?.factor);
     return `the Pricing Input '${pricingInputLabel(String(id ?? ""), items)}'${Number.isFinite(v) ? ` (${String(v)} today)` : ""}`;
   };
-  const sku = (p: SsPart) => items.find((x) => String(x.kind ?? "") === String(p.sku?.kind ?? "")
-    && (x.attributes as Record<string, unknown> | undefined)?.[String(p.sku?.attr ?? "")] === p.sku?.value);
+  // CAT-1 (owner 2026-11-26 00:06): a share part names its SKU by item_uid and the name is read LIVE from `attr`; the typed form stays
+  const sku = (p: SsPart) => (p.sku?.item_uid ? items.find((x) => (x as { item_uid?: unknown }).item_uid === p.sku?.item_uid)
+    : items.find((x) => String(x.kind ?? "") === String(p.sku?.kind ?? "")
+      && (x.attributes as Record<string, unknown> | undefined)?.[String(p.sku?.attr ?? "")] === p.sku?.value));
+  const skuName = (p: SsPart | undefined) => (p?.sku?.item_uid
+    ? String((sku(p)?.attributes as Record<string, unknown> | undefined)?.[String(p.sku.attr ?? "")] ?? p.sku.item_uid)
+    : String(p?.sku?.value ?? ""));
   const rates = (p: SsPart) => {
     const r = (sku(p)?.rates ?? {}) as Record<string, unknown>;
     const n = (k: string) => Number(r[k]);
@@ -2885,11 +2912,11 @@ function sheetSharesLines(pr: Record<string, unknown>, items: ReadonlyArray<Rule
       if (typeof sh.bcs_of === "string") {
         const own = parts.find((p) => p.id === sh.bcs_of);
         const o = own ? rates(own) : null;
-        sum = `BCS supply = ${parts.map((p) => `${String(p.label ?? "").toLowerCase()} x ${String(rates(p).bcsS)} (the ${String(p.sku?.value ?? "")} SKU's supply)`).join(" + ")}, x ${o ? String(1 + o.ms) : "-"}; BCS installation = ${String(own?.label ?? "").toLowerCase()} x ${o ? String(o.bcsI) : "-"}, x ${o ? String(1 + o.mi) : "-"} (the ${String(own?.sku?.value ?? "")} SKU's markups); each rounded up to the rupee`;
+        sum = `BCS supply = ${parts.map((p) => `${String(p.label ?? "").toLowerCase()} x ${String(rates(p).bcsS)} (the ${skuName(p)} SKU's supply)`).join(" + ")}, x ${o ? String(1 + o.ms) : "-"}; BCS installation = ${String(own?.label ?? "").toLowerCase()} x ${o ? String(o.bcsI) : "-"}, x ${o ? String(1 + o.mi) : "-"} (the ${skuName(own)} SKU's markups); each rounded up to the rupee`;
       } else {
         const p = parts[0];
         const r = p ? rates(p) : null;
-        sum = `total = ${String(p?.label ?? "").toLowerCase()} x the ${String(p?.sku?.value ?? "")} SKU (${r ? `${String(r.qs)} + ${String(r.qi)} quoted` : "-"}), supply and installation`;
+        sum = `total = ${String(p?.label ?? "").toLowerCase()} x the ${skuName(p)} SKU (${r ? `${String(r.qs)} + ${String(r.qi)} quoted` : "-"}), supply and installation`;
       }
       const repl = Array.isArray(sh.replaces) ? (sh.replaces as unknown[]).map((id) => String(ss.shares!.find((x) => x.id === id)?.label ?? id)) : [];
       out.push({ key: "sheet_shares", title: `The ${label} spreads the ${named} over every VAV box of the sheet`, detail: [counts, sum,

@@ -71,6 +71,9 @@ import { addedParts, computeBcsSide, supplyOutputOf, type PriceBlock } from "./b
 import {
   delegatedSections,
   familyAttr,
+  codeTarget,
+  codeTargetRef,
+  codeTargetValues,
   familyChoices,
   familyDisplayName,
   plainItemListWording,
@@ -4573,7 +4576,7 @@ function computeItemListOwn(
     unit, unitClass, unitPickable, unitChoices, rowPriced, ...((unshowableReason ?? rowReason) ? { reason: unshowableReason ?? rowReason } : {}),
     ...(priced.unitNote && !blankUnitBarShown ? { unitNote: priced.unitNote } : {}),
     ...(priced.rateUnit ? { rateUnit: priced.rateUnit } : {}),
-    items: blocks, families: offeredFamilies(spec), editState: edits, modelCount: modelItems.length,
+    items: blocks, families: offeredFamilies(spec, items), editState: edits, modelCount: modelItems.length,
     // the ROW's own totals -- the same figures the headline shows, so "Row total" can never disagree
     // with it (see the warning on `rowTotals`)
     ...(rowPriced ? { totals: { ...values } as Partial<Record<RateKind, number>> } : {}),
@@ -5588,7 +5591,6 @@ export function scopeSpecOf(spec: ItemListPricingSpec): ScopeSpec | undefined {
 export const VRF10_SCOPE = {
   supply_words: "^\\s*supply(?:ing)?\\b(?![^.;|\\n]*?\\b(?:install\\w*|SITC|erect\\w*|fix(?:ing|ed)?|commission\\w*))",
   plain_supply: "\\bsupply\\s+only\\b|\\bonly\\s+supply\\b|\\bexclud\\w*\\s+(?:of\\s+)?install\\w*|\\bwithout\\s+install\\w*|\\binstall\\w*[^.;|\\n]{0,40}?\\bby\\s+(?:others|the\\s+(?:client|owner)|client|owner)\\b|\\binstall\\w*[^.;|\\n]{0,20}?\\bnot\\s+(?:included|in\\s+(?:the\\s+)?scope)\\b",
-  frame_families: ["MS frame / stand for ODU", "MS Angle Base Frame Structure"],
   frame_note: "BoQ: an MS frame / stand row is always supply + installation unless the BoQ quotes its supply and its installation on separate rows (the row read \"{said}\") - priced as supply + installation",
   frame_kept_note: "This sheet quotes the MS frame's supply and its installation on separate rows ({rows}) - kept as \"{said}\".",
   f2_note: "BoQ: \"{supply}\" ({supply_where}) reads as supply, but \"{said}\" ({where}) says installation - priced as supply + installation",
@@ -5602,10 +5604,10 @@ export const VRF10_SCOPE = {
   f6_sheet_note: "This sheet quotes installation on its own rows ({rows}) - supply only.",
 } as const;
 
-/** VRF-10 (F5a). The controller family whose "ON / OFF controller" note is kept only for a single-function controller, and the
- *  OTHER functions that make a multi-function one (a touch manager: mode, temperature, fan speed, schedule, monitoring ...). */
+/** VRF-10 (F5a). The OTHER functions that make a multi-function controller (a touch manager: mode, temperature, fan speed, schedule,
+ *  monitoring ...). CAT-2 (R1): the controller family whose "ON / OFF controller" note is kept only for a single-function one is the
+ *  VRF config's `list_spec.code_targets.onoff_controller`. */
 export const VRF10_ONOFF = {
-  family: "Touch Screen Central Controller",
   other_functions: "\\bmode\\b|\\btemp(?:erature)?\\b|\\bfan\\s*speed\\b|\\bschedul\\w*|\\btimer\\b|\\bmonitor\\w*|\\bset\\s*point\\b|\\berror\\b|\\bfault\\b|\\bweekly\\b|\\bgroup\\s+control\\b|\\binterlock\\w*",
 } as const;
 
@@ -5736,6 +5738,8 @@ function withScopeCore(spec: ItemListPricingSpec, items: RateMasterItem[], ctx: 
   let keepScope = false;
   let frameKeptNote: string | undefined;
   const VS = VRF10_SCOPE;
+  // CAT-2 (R1): the MS frame / stand families are the VRF config's `list_spec.code_targets.frame_families` (the load gate checks each)
+  const frames = codeTargetValues(spec, "frame_families");
   if (forced === undefined && !calculator && !keepScope && sc.conflict && value === sc.supply_only) {
     const text = [...(ctx.headings ?? []), ...(ctx.headingNotes ?? []), ...(ctx.ownNotes ?? [])].join(" | ");
     let said: string | null = null;
@@ -5766,10 +5770,10 @@ function withScopeCore(spec: ItemListPricingSpec, items: RateMasterItem[], ctx: 
   }
   // VRF-10 (F3): after Q5 / S4 -- a frame row they settle keeps their note (QR-1 Q3 (a)'s principle); else F3 decides
   if (forced === undefined && !calculator && v10 && notBoth && extraNote === undefined
-    && (view.items.some((b) => !!b.family && (VS.frame_families as readonly string[]).includes(b.family)) || rawFams.some((f) => (VS.frame_families as readonly string[]).includes(f)))) {
+    && (view.items.some((b) => !!b.family && frames.includes(b.family)) || rawFams.some((f) => frames.includes(f)))) {
     const wantOther = (s: string) => (value === sc.supply_only ? s === sc.install_only || s === sc.install_only_normal : s === sc.supply_only);
     const other = (ctx.sheetLines ?? []).filter((l) => l.row !== ctx.excelRow && l.sheet === undefined && !!l.family1
-      && (VS.frame_families as readonly string[]).includes(l.family1) && typeof l.scope1 === "string" && wantOther(l.scope1)).map((l) => l.row).sort((a, b) => a - b);
+      && frames.includes(l.family1) && typeof l.scope1 === "string" && wantOther(l.scope1)).map((l) => l.row).sort((a, b) => a - b);
     if (!other.length) return { ...res, itemList: { ...view, scope: { value: sc.options[0], note: VS.frame_note.replace("{said}", value) } } };
     keepScope = true;
     frameKeptNote = VS.frame_kept_note.replace("{rows}", rowsWord(other)).replace("{said}", value);
@@ -6170,7 +6174,7 @@ function prepareModelItems(spec: ItemListPricingSpec, ctx: RowContextWithUnit, e
         // VRF-10 (F5a, owner 08:41; 00380 2F r246): the "ON / OFF controller" note only where ON / OFF is the controller's ONLY
         // function -- a touch manager listing ON / OFF among mode, temperature, fan speed ... is no ON / OFF controller (the family
         // is set as before; only the note goes)
-        if (vrf10On(spec) && fw.family === VRF10_ONOFF.family && onOffAmongOthers(fw.words, textOf(fw.in))) continue;
+        if (vrf10On(spec) && fw.family === codeTarget(spec, "onoff_controller") && onOffAmongOthers(fw.words, textOf(fw.in))) continue;
         notes.push(fw.line.replace("{said}", said).replace("{family}", fw.family));
       }
     }
@@ -6740,26 +6744,20 @@ export const VALVE_NETS_KIND = "hvac_valve_item";
  * tag is dropped at render (plainEnglish). The patterns are the BoQ wordings the rulings quote.
  */
 export const VALVE_NETS = {
-  pibcv: "PIBCV",
   /** D1: a PIBCV's own parts the model listed as a second item */
   accessory: /\b(?:thermostats?|controllers?|actuators?|actuator\s+panels?)\b/i,
   d1_line: "BoQ names {said} with the PIBCV: thermostat / actuator included in the PIBCV item (owner D1)",
   /** D2 */
   dual_plate: /dual[\s-]*plate/i,
-  nrv: "NRV / Check Valve",
   d2_line: "BoQ says \"{said}\" -> priced as the Dual Plate NRV (a stated type wins over the flanged rule) (owner D2)",
   /** D3 */
   supply_only_words: /\bportable\b|\bhanded\s+over\b/gi,
   d3_line: "BoQ says {said} -> supply only, installation 0 (owner D3)",
   /** D4: a ball / gate valve the row ties to the gauge */
-  gauge: "Pressure Gauge",
-  gauge_valve_families: ["Ball Valve", "Sluice / Gate Valve"],
   gauge_valve_words: /\b(?:ball|gate|needle|sluice)\b/i,
   gauge_tie: /\bfor\s+(?:the\s+)?isolat\w*|\bisolat\w*\s+valve|\bof\s+suitable\s+size|\bsuitable\s+size|\bcost\b[^.;|]{0,60}?\b(?:included|considered|include)\b|\binclude\w*\s+the\s+cost\b|\bprice\s+should\s+include\b|\bs[iy]phon\w*/i,
   d4_line: "BoQ's \"{valve}\" goes with the pressure gauge (\"{tie}\"): part of the gauge, not priced separately (owner D4)",
   /** D5 */
-  air_vent: "Automatic Air Vent",
-  ball: "Ball Valve",
   d5_line: "The row's one size ({size}) belongs to the ball valve; the air vent has one price for any size (owner D5)",
   stray_inch: /(\d+(?:\.\d+)?)\s*mm\s*(?:"|''|”|″)/i,
   d5_inch_line: "BoQ says {said} -> read as {mm} mm (a stray inch mark after \"mm\") (owner D5)",
@@ -6768,7 +6766,6 @@ export const VALVE_NETS = {
   bv_at_most: 40,
   d7b_line: "BoQ says \"{said}\" at {size} mm -> read as a Ball Valve (an abbreviated BV / Bal valve at 40 mm and below) - change the item if the BoQ means another valve (owner D7b)",
   /** D7c */
-  strainer: "Strainer",
   with_strainer: /\bwith\s+(?:an?\s+)?(?:(?:integral|built[\s-]*in|inbuilt)\s+)?(?:y[\s-]*(?:type\s*)?)?strainers?\b/i,
   integral_strainer: /\b(?:integral|built[\s-]*in|inbuilt)\s+(?:y[\s-]*(?:type\s*)?)?strainers?\b|\bstrainers?\s+(?:built[\s-]*in|integral|inbuilt)\b/i,
   without_strainer: /\bwith\s*out\s+(?:an?\s+)?strainers?\b/i,
@@ -6787,19 +6784,14 @@ export const VALVE_NETS = {
   r1_line: "BoQ's \"{valve}\" is the strainer's drain (\"{tie}\"): drain ball valve included in the strainer item (owner R1)",
   /** R2: balancing + modulating actuation in ONE valve ("2 way modulating balancing valve") */
   balancing_modulating: /\bbalanc\w*[^|.;,]{0,30}?\bmodulat\w*|\bmodulat\w*[^|.;,]{0,30}?\bbalanc\w*/i,
-  two_way: "2-Way Valve",
-  balancing: "Balancing Valve",
   r2_line: "BoQ says \"{said}\" -> a balancing valve with modulating actuation is the PIBCV (owner R2)",
   r2_clear: ["actuation", "operation"],
   /** R3: "provision ... to connect (digital) thermometer in future" = the Misc test plug */
   provision_thermo: /\bprovision\b[^.;|]{0,80}?\b(?:thermometers?|thermowells?)\b/i,
-  test_plug: "Test Plug / Thermowell",
   misc_section: "misc",
   r3_line: "BoQ asks for \"{said}\" -> priced as a test plug / thermowell provision (owner R3)",
   /** R4: a high rangeability control valve = a 2-way modulating valve (the ladder refuses above the sheet's largest) */
   rangeability: /\bhigh\s+rangeability\b[^|.;]{0,40}?\bcontrol\s+valves?\b|\bhigh\s+rangeability\b/i,
-  operation_attr: "operation",
-  modulating: "Modulating",
   r4_line: "BoQ says \"{said}\" -> read as a 2-way modulating valve (owner R4)",
   /** W1: a count written in the row for a listed item ("two", "2 nos", "pair of") -- never "two way" / "2-way" */
   count_lead: /^\s*(?:(two|three|four|five|six)|([2-6])\s*(?:nos?\.?|numbers?)?|(pair)\s+of)\s+(?![-\s]*way\b)(?=\S)/i,
@@ -6818,7 +6810,6 @@ export const VALVE_NETS = {
   e3_line: "BoQ asks for a differential pressure gauge (owner E3)",
   /** E4: a thermometer "with (necessary) isolation valves" -> one thermometer; the valves are part of it */
   thermo_isolation: /\bthermometers?\b[^|.;]{0,60}?\bisolation\s+valves?\b/i,
-  thermometer: "Temperature Gauge / Thermometer",
   e4_line: "BoQ's \"{said}\": the isolation valves are part of the thermometer (owner E4)",
   /** E6: a pressure gauge PROVISION (sockets / valves to fix a gauge later) -> the Misc test plug; the gauge is not included */
   gauge_provision: /\b(?:pressure\s+)?(?:gauge|guage)s?\s+provision\b|\bprovision\b[^|.;]{0,80}?\b(?:gauge|guage)s?\b/i,
@@ -6844,6 +6835,27 @@ export const VALVE_NETS = {
   without_valve: /\bwith\s*out\s+valves?\b/i,
   e10_line: "BoQ says \"{said}\" - this may be installation only; check before quoting (owner E10)",
 } as const;
+/** CAT-2 (R1, owner 2026-11-26 00:10 / 01:16): the roles `valveReviewNets` reads from the Valve Package config's
+ *  `list_spec.code_targets` -- each a catalogue value the load gate checks (the misc ones a SKU of the `misc` section's category).
+ *  Role ids are code names, never catalogue words. */
+export const VALVE_TARGET_ROLES = ["pibcv", "nrv", "gauge", "air_vent", "ball", "strainer", "two_way", "balancing", "test_plug", "thermometer"] as const;
+type ValveRole = (typeof VALVE_TARGET_ROLES)[number];
+type ValveTargets = Record<ValveRole, string> & {
+  gauge_valve_families: readonly string[]; modulating: { attr: string; value: string }; dual_plate: { attr: string; value: string };
+};
+/** CAT-2 (R1). PURE. The Valve Package rules' targets off the config, or null when any role is missing (the rules then do not fire). */
+export function valveTargets(spec: ItemListPricingSpec): ValveTargets | null {
+  const one: Partial<Record<ValveRole, string>> = {};
+  for (const r of VALVE_TARGET_ROLES) {
+    const v = codeTarget(spec, r);
+    if (v === undefined) return null;
+    one[r] = v;
+  }
+  const gvf = codeTargetValues(spec, "gauge_valve_families");
+  const modulating = codeTargetRef(spec, "modulating"), dual_plate = codeTargetRef(spec, "dual_plate");
+  if (!gvf.length || !modulating || !dual_plate) return null;
+  return { ...(one as Record<ValveRole, string>), gauge_valve_families: gvf, modulating, dual_plate };
+}
 /** VP-4 (W1): the count words the rule reads, by their written form */
 const COUNT_WORDS: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6, pair: 2 };
 
@@ -6883,6 +6895,10 @@ export function nominalBoreOf(entered: string, requestedMm: number): number | nu
  */
 export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUnit, ext: ExtractionRowWithItems, configOf: ConfigOf): ExtractionRowWithItems {
   const N = VALVE_NETS;
+  // CAT-2 (R1): every catalogue value these rules pick is the config's `list_spec.code_targets.<role>` (the load gate checks each);
+  // a config without them (no rate file since v91) leaves the rows' items as the model read them
+  const T = valveTargets(spec);
+  if (!T) return ext;
   const fa = familyAttr(spec);
   const asw = spec.no_sku_named_by ?? "valve_type_as_written";
   const noSku = new Set(spec.no_sku_families ?? []);
@@ -6925,7 +6941,7 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
     if (ownSize !== null) {
       const appSize = sizeOf(parts.slice(1).join(" | "));
       items = items.map((it) => {
-        if (isSec(it) || famOf(it) === N.air_vent) return it;
+        if (isSec(it) || famOf(it) === T.air_vent) return it;
         const cur = sizeOf(val(it, "size_mm"));
         if (cur === ownSize || (cur !== null && cur !== appSize)) return it;
         const other = appSize !== null ? `${fmtNum(appSize)} mm` : "no size";
@@ -6937,14 +6953,14 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   // VP-4 R2: "balancing" + "modulating" in ONE valve's words -> the PIBCV. The row's nearest text counts only for an item the model
   // already read as a 2-way / balancing valve; an item with no family (a "none of these" thermostat beside a PIBCV) only on its own
   // words; and never a second PIBCV on a row that already has one (D1's accessory fold reads that row)
-  const hasPibcv = items.some((it) => !isSec(it) && famOf(it) === N.pibcv);
+  const hasPibcv = items.some((it) => !isSec(it) && famOf(it) === T.pibcv);
   items = items.map((it) => {
     if (isSec(it) || hasPibcv) return it;
     const f = famOf(it);
-    if (f !== N.two_way && f !== N.balancing && !blankFam(f)) return it;
+    if (f !== T.two_way && f !== T.balancing && !blankFam(f)) return it;
     const m = asOf(it).match(N.balancing_modulating) ?? (blankFam(f) ? null : near.match(N.balancing_modulating));
     if (!m) return it;
-    let out = setVal(it, fa, N.pibcv);
+    let out = setVal(it, fa, T.pibcv);
     for (const a of N.r2_clear) if (val(out, a) !== "") out = setVal(out, a, null);
     return addLine(out, N.r2_line.replace("{said}", (asOf(it) || m[0]).trim()));
   });
@@ -6953,12 +6969,12 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   items = items.map((it) => {
     if (isSec(it)) return it;
     const f = famOf(it);
-    if (f !== N.two_way && !blankFam(f)) return it;
+    if (f !== T.two_way && !blankFam(f)) return it;
     // the row's nearest text counts for a 2-way valve, or for a "none of these" with no words of its own; a named unstocked item keeps
     // its own words (a thermostat beside the valve stays a thermostat)
-    const m = asOf(it).match(N.rangeability) ?? (f === N.two_way || asOf(it) === "" ? near.match(N.rangeability) : null);
+    const m = asOf(it).match(N.rangeability) ?? (f === T.two_way || asOf(it) === "" ? near.match(N.rangeability) : null);
     if (!m) return it;
-    return addLine(setVal(setVal(it, fa, N.two_way), N.operation_attr, N.modulating), N.r4_line.replace("{said}", (asOf(it) || m[0]).trim()));
+    return addLine(setVal(setVal(it, fa, T.two_way), T.modulating.attr, T.modulating.value), N.r4_line.replace("{said}", (asOf(it) || m[0]).trim()));
   });
 
   // VP-4 R3: a "provision ... (digital) thermometer (in future)" is the Misc test plug -- whichever section the model put it in
@@ -6967,25 +6983,25 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
     items = items.map((it) => {
       const w = asOf(it);
       const m = w.match(N.provision_thermo) ?? (items.length === 1 ? own.match(N.provision_thermo) : null);
-      if (!m || famOf(it) === N.test_plug) return it;
+      if (!m || famOf(it) === T.test_plug) return it;
       const plug: ExtractedListItem = { section: N.misc_section, attributes: {
-        [ms.fa]: { value: N.test_plug, confidence: 1 }, [ms.asw]: { value: w || m[0].trim(), confidence: 1 } } };
+        [ms.fa]: { value: T.test_plug, confidence: 1 }, [ms.asw]: { value: w || m[0].trim(), confidence: 1 } } };
       return addLine(plug, N.r3_line.replace("{said}", (w || m[0]).trim()));
     });
   }
 
   // D1: a PIBCV's thermostat / controller / actuator (panel) is part of the PIBCV
-  const pib = items.findIndex((it) => !isSec(it) && famOf(it) === N.pibcv);
+  const pib = items.findIndex((it) => !isSec(it) && famOf(it) === T.pibcv);
   if (pib !== -1) {
     const folded: string[] = [];
     const kept = items.filter((it, i) => {
-      if (i === pib || famOf(it) === N.pibcv || !blankFam(famOf(it))) return true;
+      if (i === pib || famOf(it) === T.pibcv || !blankFam(famOf(it))) return true;
       const w = asOf(it);
       if (!w || !N.accessory.test(w) || /valve/i.test(w.replace(/valve\s+body/gi, ""))) return true;
       folded.push(w); return false;
     });
     if (folded.length) {
-      const at = kept.findIndex((it) => !isSec(it) && famOf(it) === N.pibcv);
+      const at = kept.findIndex((it) => !isSec(it) && famOf(it) === T.pibcv);
       kept[at] = addLine(kept[at], N.d1_line.replace("{said}", folded.map((w) => `"${w}"`).join(", ")));
       items = kept;
     }
@@ -6993,15 +7009,15 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
 
   // D2: "dual plate" stated -> Dual Plate NRV
   items = items.map((it) => {
-    if (isSec(it) || famOf(it) !== N.nrv) return it;
+    if (isSec(it) || famOf(it) !== T.nrv) return it;
     const w = asOf(it);
     const m = `${w} | ${near}`.match(N.dual_plate);
-    if (!m || val(it, "nrv_type") === "Dual Plate" || /\bball\b/i.test(w)) return it;
-    return addLine(setVal(it, "nrv_type", "Dual Plate"), N.d2_line.replace("{said}", m[0]));
+    if (!m || val(it, T.dual_plate.attr) === T.dual_plate.value || /\bball\b/i.test(w)) return it;
+    return addLine(setVal(it, T.dual_plate.attr, T.dual_plate.value), N.d2_line.replace("{said}", m[0]));
   });
 
   // D4: the gauge's own isolating valve
-  const gauge = items.findIndex((it) => isSec(it) && famOf(it) === N.gauge);
+  const gauge = items.findIndex((it) => isSec(it) && famOf(it) === T.gauge);
   if (gauge !== -1) {
     const tie = near.match(N.gauge_tie);
     if (tie) {
@@ -7009,12 +7025,12 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
       const kept = items.filter((it) => {
         if (isSec(it)) return true;
         const f = famOf(it); const w = asOf(it);
-        const valveLike = (N.gauge_valve_families as readonly string[]).includes(f) || (blankFam(f) && N.gauge_valve_words.test(w));
+        const valveLike = (T.gauge_valve_families as readonly string[]).includes(f) || (blankFam(f) && N.gauge_valve_words.test(w));
         if (!valveLike || sizeOf(val(it, "size_mm")) !== null) return true;
         folded.push(w || f); return false;
       });
       if (folded.length) {
-        const at = kept.findIndex((it) => isSec(it) && famOf(it) === N.gauge);
+        const at = kept.findIndex((it) => isSec(it) && famOf(it) === T.gauge);
         kept[at] = addLine(kept[at], N.d4_line.replace("{valve}", folded.join(", ")).replace("{tie}", tie[0].trim()));
         items = kept;
       }
@@ -7024,20 +7040,20 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   // VP-4 R1: a ball valve with no size of its own that the BoQ ties to the strainer's drain is part of the strainer (D4's shape):
   // one item + line on the strainer. A valve with its own size stays its own item.
   {
-    const st = items.findIndex((it) => !isSec(it) && famOf(it) === N.strainer);
+    const st = items.findIndex((it) => !isSec(it) && famOf(it) === T.strainer);
     if (st !== -1) {
       const folded: string[] = []; let tie = "";
       const kept = items.filter((it, i) => {
         if (i === st || isSec(it)) return true;
         const f = famOf(it); const w = asOf(it);
-        const valveLike = f === N.ball || (blankFam(f) && /\b(?:ball|drain)\b/i.test(w));
+        const valveLike = f === T.ball || (blankFam(f) && /\b(?:ball|drain)\b/i.test(w));
         if (!valveLike || sizeOf(val(it, "size_mm")) !== null) return true;
         const m = w.match(N.strainer_drain) ?? near.match(N.strainer_drain);
         if (!m) return true;
         folded.push(w || f); tie = m[0].trim(); return false;
       });
       if (folded.length) {
-        const at = kept.findIndex((it) => !isSec(it) && famOf(it) === N.strainer);
+        const at = kept.findIndex((it) => !isSec(it) && famOf(it) === T.strainer);
         kept[at] = addLine(kept[at], N.r1_line.replace("{valve}", folded.join(", ")).replace("{tie}", tie));
         items = kept;
       }
@@ -7045,10 +7061,10 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   }
 
   // D5: air vent + ball valve -- the one size belongs to the ball valve
-  const vent = items.find((it) => !isSec(it) && famOf(it) === N.air_vent && sizeOf(val(it, "size_mm")) !== null);
+  const vent = items.find((it) => !isSec(it) && famOf(it) === T.air_vent && sizeOf(val(it, "size_mm")) !== null);
   if (vent) {
     const sz = val(vent, "size_mm");
-    items = items.map((it) => (isSec(it) || famOf(it) !== N.ball || sizeOf(val(it, "size_mm")) !== null) ? it
+    items = items.map((it) => (isSec(it) || famOf(it) !== T.ball || sizeOf(val(it, "size_mm")) !== null) ? it
       : addLine(setVal(it, "size_mm", sz), N.d5_line.replace("{size}", sz)));
   }
 
@@ -7061,18 +7077,18 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
     const size = sizeOf(val(it, "size_mm"));
     if (size === null || size > N.bv_at_most) return it;
     const line = N.d7b_line.replace("{said}", m[0].trim()).replace("{size}", String(size));
-    return setVal(setVal(it, fa, N.ball), NET_FAMILY_LINE_ATTR, line);
+    return setVal(setVal(it, fa, T.ball), NET_FAMILY_LINE_ATTR, line);
   });
 
   // D7c: strainers and Sets
-  const valveIdx = items.findIndex((it) => !isSec(it) && !blankFam(famOf(it)) && ![N.strainer, N.air_vent].includes(famOf(it) as never));
-  const hasStrainer = items.some((it) => !isSec(it) && famOf(it) === N.strainer);
+  const valveIdx = items.findIndex((it) => !isSec(it) && !blankFam(famOf(it)) && ![T.strainer, T.air_vent].includes(famOf(it) as never));
+  const hasStrainer = items.some((it) => !isSec(it) && famOf(it) === T.strainer);
   const withS = near.match(N.with_strainer); const integral = near.match(N.integral_strainer); const without = near.match(N.without_strainer);
-  const valvesN = items.filter((it) => !isSec(it) && !blankFam(famOf(it)) && ![N.strainer, N.air_vent].includes(famOf(it) as never)).length;
+  const valvesN = items.filter((it) => !isSec(it) && !blankFam(famOf(it)) && ![T.strainer, T.air_vent].includes(famOf(it) as never)).length;
   if (valveIdx !== -1 && !hasStrainer && (withS || integral)) {
     const v = items[valveIdx]; const vf = famOf(v);
     const strainer: ExtractedListItem = { attributes: {
-      [fa]: { value: N.strainer, confidence: 1 }, [asw]: { value: (withS ?? integral)![0].trim(), confidence: 1 },
+      [fa]: { value: T.strainer, confidence: 1 }, [asw]: { value: (withS ?? integral)![0].trim(), confidence: 1 },
       size_mm: { value: val(v, "size_mm") || null, confidence: 1 }, strainer_type: { value: "None", confidence: 1 },
       ...(val(v, "scope") ? { scope: { value: val(v, "scope"), confidence: 1 } } : {}) } };
     if (without && isPerSetUnit(spec, ctx.unit) && valvesN === 1) {
@@ -7094,22 +7110,22 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   // was already right -- never twice
   const hasLine = (it: ExtractedListItem, ruling: string) => netLinesOf(it).some((l) => l.includes(`(owner ${ruling})`));
   {
-    const at = items.findIndex((it) => !isSec(it) && famOf(it) === N.pibcv);
+    const at = items.findIndex((it) => !isSec(it) && famOf(it) === T.pibcv);
     const said = near.match(N.accessory);
     if (at !== -1 && said && !hasLine(items[at], "D1")) items[at] = addLine(items[at], N.d1_line.replace("{said}", `"${said[0].trim()}"`));
   }
   {
-    const at = items.findIndex((it) => isSec(it) && famOf(it) === N.gauge);
+    const at = items.findIndex((it) => isSec(it) && famOf(it) === T.gauge);
     // a needle valve / cock / syphon already has the QR-1 Q3 fittings line (Misc `text_notes`): only the ball / gate valve the ruling names
     const tie = near.match(N.gauge_tie); const valveWords = near.match(/\b(?:ball|gate|sluice)\b/i);
-    const ownValve = items.some((it) => !isSec(it) && ((N.gauge_valve_families as readonly string[]).includes(famOf(it)) || N.gauge_valve_words.test(asOf(it))));
+    const ownValve = items.some((it) => !isSec(it) && ((T.gauge_valve_families as readonly string[]).includes(famOf(it)) || N.gauge_valve_words.test(asOf(it))));
     if (at !== -1 && tie && valveWords && !ownValve && !hasLine(items[at], "D4")) {
       items[at] = addLine(items[at], N.d4_line.replace("{valve}", `${valveWords[0].trim()} valve`).replace("{tie}", tie[0].trim()));
     }
   }
   {
-    const st = items.findIndex((it) => !isSec(it) && famOf(it) === N.strainer);
-    const vIdx = items.map((it, i) => (!isSec(it) && !blankFam(famOf(it)) && ![N.strainer, N.air_vent].includes(famOf(it) as never) ? i : -1)).filter((i) => i !== -1);
+    const st = items.findIndex((it) => !isSec(it) && famOf(it) === T.strainer);
+    const vIdx = items.map((it, i) => (!isSec(it) && !blankFam(famOf(it)) && ![T.strainer, T.air_vent].includes(famOf(it) as never) ? i : -1)).filter((i) => i !== -1);
     const withS2 = near.match(N.with_strainer); const integral2 = near.match(N.integral_strainer); const without2 = near.match(N.without_strainer);
     if (st !== -1 && vIdx.length && (withS2 || integral2) && !hasLine(items[st], "D7c")) {
       const said = (withS2 ?? integral2)![0].trim();
@@ -7148,9 +7164,9 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   // same line on the same item, whatever made the reading -- never twice; each one reads only that ruling's own words.
   {
     // R1: the strainer alone, the BoQ tying a (ball / drain) valve to the strainer's drain, and no ball valve item of its own
-    const st = items.findIndex((it) => !isSec(it) && famOf(it) === N.strainer);
+    const st = items.findIndex((it) => !isSec(it) && famOf(it) === T.strainer);
     const tie = near.match(N.strainer_drain);
-    const ballItem = items.some((it) => !isSec(it) && (famOf(it) === N.ball || (blankFam(famOf(it)) && /\b(?:ball|drain)\b/i.test(asOf(it)))));
+    const ballItem = items.some((it) => !isSec(it) && (famOf(it) === T.ball || (blankFam(famOf(it)) && /\b(?:ball|drain)\b/i.test(asOf(it)))));
     if (st !== -1 && tie && !ballItem && !hasLine(items[st], "R1")) {
       const valve = (near.match(/\bball\s+valves?\b|\bdrain\s+valves?\b/i)?.[0] ?? "drain valve").trim();
       items[st] = addLine(items[st], N.r1_line.replace("{valve}", valve).replace("{tie}", tie[0].trim()));
@@ -7159,14 +7175,14 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   items = items.map((it) => {
     // R2: a PIBCV whose OWN words are a balancing valve with modulating actuation (never a valve that already calls itself a PIBCV /
     // pressure independent / dynamic balancing valve)
-    if (isSec(it) || famOf(it) !== N.pibcv || hasLine(it, "R2")) return it;
+    if (isSec(it) || famOf(it) !== T.pibcv || hasLine(it, "R2")) return it;
     const w = asOf(it); const m = w.match(N.balancing_modulating);
     if (!m || /\bpibcv\b|pressure\s+independent|\bdynamic\b/i.test(w)) return it;
     return addLine(it, N.r2_line.replace("{said}", w.trim()));
   });
   items = items.map((it) => {
     // R3: the Misc test plug whose own words are a thermometer / thermowell provision
-    if (famOf(it) !== N.test_plug || hasLine(it, "R3")) return it;
+    if (famOf(it) !== T.test_plug || hasLine(it, "R3")) return it;
     const m = asOf(it).match(N.provision_thermo);
     return m ? addLine(it, N.r3_line.replace("{said}", asOf(it).trim())) : it;
   });
@@ -7187,7 +7203,7 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
     const appWritten = ownSize !== null ? parts.slice(1).join(" | ").match(/\b(\d+(?:\.\d+)?)\s*(?:mm|nb)\b/i) : null;
     const appSize = appWritten ? Number(appWritten[1]) : null;
     if (ownSize !== null && appSize !== null && appSize !== ownSize) {
-      items = items.map((it) => (isSec(it) || famOf(it) === N.air_vent || hasLine(it, "W2") || sizeOf(val(it, "size_mm")) !== ownSize) ? it
+      items = items.map((it) => (isSec(it) || famOf(it) === T.air_vent || hasLine(it, "W2") || sizeOf(val(it, "size_mm")) !== ownSize) ? it
         : addLine(it, N.w2_line.replace(/\{own\}/g, `${fmtNum(ownSize)} mm`).replace("{other}", `${fmtNum(appSize)} mm`)));
     }
   }
@@ -7200,15 +7216,15 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   {
     // E9: an air vent the row's own words do not name (only the heading does), on a row that describes a ball valve -> the ball valve
     // alone at the row's size; no note (E9 adds no line to the screen)
-    const ballAt = items.findIndex((it) => !isSec(it) && famOf(it) === N.ball);
+    const ballAt = items.findIndex((it) => !isSec(it) && famOf(it) === T.ball);
     if (ballAt !== -1 && N.ball_words.test(own) && !N.air_vent_words.test(own) && !N.ball_as_accessory.test(own)) {
-      const kept = items.filter((it) => isSec(it) || famOf(it) !== N.air_vent || N.air_vent_words.test(own));
+      const kept = items.filter((it) => isSec(it) || famOf(it) !== T.air_vent || N.air_vent_words.test(own));
       if (kept.length !== items.length) items = kept;
     }
   }
   items = items.map((it) => {
     // E2: an NRV the row or its heading calls swing check -> refused by name (never priced as Flanged / Dual Plate)
-    if (isSec(it) || famOf(it) !== N.nrv || !(N.swing_check.test(asOf(it)) || N.swing_check.test(near))) return it;
+    if (isSec(it) || famOf(it) !== T.nrv || !(N.swing_check.test(asOf(it)) || N.swing_check.test(near))) return it;
     const none = [...noSku][0] ?? "none of these";
     let out = setVal(setVal(it, fa, none), asw, N.e2_named);
     for (const a of ["nrv_type", "flanged"]) if (val(out, a) !== "") out = setVal(out, a, null);
@@ -7217,12 +7233,12 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   {
     // E4: a thermometer row whose words list isolation valves -> one thermometer; a sizeless valve the model listed folds into it
     const m = own.match(N.thermo_isolation);
-    const at = items.findIndex((it) => famOf(it) === N.thermometer);
+    const at = items.findIndex((it) => famOf(it) === T.thermometer);
     if (m && at !== -1) {
       const valveish = (it: ExtractedListItem) => !isSec(it) && sizeOf(val(it, "size_mm")) === null
-        && (famOf(it) === N.ball || blankFam(famOf(it)) || /\b(?:isolation|ball|gate)\b/i.test(asOf(it)));
+        && (famOf(it) === T.ball || blankFam(famOf(it)) || /\b(?:isolation|ball|gate)\b/i.test(asOf(it)));
       const kept = items.filter((it) => !valveish(it));
-      const at2 = kept.findIndex((it) => famOf(it) === N.thermometer);
+      const at2 = kept.findIndex((it) => famOf(it) === T.thermometer);
       if (at2 !== -1 && !ownTag(kept[at2], "E4")) kept[at2] = addLine(kept[at2], N.e4_line.replace("{said}", m[0].trim()));
       items = kept;
     }
@@ -7232,14 +7248,14 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
     const ms = secOf.get(N.misc_section)!;
     const m = own.match(N.gauge_provision);
     if (m && items.length >= 1) {
-      const target = items.findIndex((it) => N.gauge_provision.test(asOf(it)) || famOf(it) === N.gauge || famOf(it) === N.test_plug || (isSec(it) && blankFam(famOf(it))));
+      const target = items.findIndex((it) => N.gauge_provision.test(asOf(it)) || famOf(it) === T.gauge || famOf(it) === T.test_plug || (isSec(it) && blankFam(famOf(it))));
       if (target !== -1) {
         const prev = items[target];
-        const plug: ExtractedListItem = famOf(prev) === N.test_plug && isSec(prev) ? prev : { section: N.misc_section, attributes: {
-          [ms.fa]: { value: N.test_plug, confidence: 1 }, [ms.asw]: { value: asOf(prev) || m[0].trim(), confidence: 1 } } };
+        const plug: ExtractedListItem = famOf(prev) === T.test_plug && isSec(prev) ? prev : { section: N.misc_section, attributes: {
+          [ms.fa]: { value: T.test_plug, confidence: 1 }, [ms.asw]: { value: asOf(prev) || m[0].trim(), confidence: 1 } } };
         const lined = ownTag(plug, "E6") ? plug : addLine(plug, N.e6_line.replace("{said}", (asOf(prev) || m[0]).trim()));
         // the provision's own valves / siphon are part of it: a sizeless valve the model listed beside it folds in
-        items = items.flatMap((it, i) => (i === target ? [lined] : (!isSec(it) && sizeOf(val(it, "size_mm")) === null && (famOf(it) === N.ball || blankFam(famOf(it)))) ? [] : [it]));
+        items = items.flatMap((it, i) => (i === target ? [lined] : (!isSec(it) && sizeOf(val(it, "size_mm")) === null && (famOf(it) === T.ball || blankFam(famOf(it)))) ? [] : [it]));
       }
     }
   }
@@ -7250,14 +7266,14 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
     const ms = secOf.get(N.misc_section)!;
     const m = own.match(N.thermowell_valve);
     if (m && items.length >= 1) {
-      const sizeless = (it: ExtractedListItem) => !isSec(it) && sizeOf(val(it, "size_mm")) === null && (famOf(it) === N.ball || blankFam(famOf(it)));
+      const sizeless = (it: ExtractedListItem) => !isSec(it) && sizeOf(val(it, "size_mm")) === null && (famOf(it) === T.ball || blankFam(famOf(it)));
       // the thermowell the model already read (Misc's Test Plug / Thermowell) is kept; else the sizeless valve becomes it
-      const plugAt = items.findIndex((it) => famOf(it) === N.test_plug);
+      const plugAt = items.findIndex((it) => famOf(it) === T.test_plug);
       const target = plugAt !== -1 ? plugAt : items.findIndex(sizeless);
       if (target !== -1) {
         const prev = items[target];
-        const plug: ExtractedListItem = famOf(prev) === N.test_plug && isSec(prev) ? prev : { section: N.misc_section, attributes: {
-          [ms.fa]: { value: N.test_plug, confidence: 1 }, [ms.asw]: { value: m[0].trim(), confidence: 1 } } };
+        const plug: ExtractedListItem = famOf(prev) === T.test_plug && isSec(prev) ? prev : { section: N.misc_section, attributes: {
+          [ms.fa]: { value: T.test_plug, confidence: 1 }, [ms.asw]: { value: m[0].trim(), confidence: 1 } } };
         const line13 = N.e13_line.replace("{said}", m[0].trim());
         const lined = netLinesOf(plug).includes(line13) ? plug : addLine(plug, line13);
         items = items.flatMap((it, i) => (i === target ? [lined] : sizeless(it) ? [] : [it]));
@@ -7267,10 +7283,10 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   {
     // E7: a balancing valve whose heading / words say INTEGRATED P/T test points -> no extra test plug (unless the BoQ counts them)
     const m = near.match(N.integrated_pt);
-    const at = items.findIndex((it) => !isSec(it) && famOf(it) === N.balancing);
+    const at = items.findIndex((it) => !isSec(it) && famOf(it) === T.balancing);
     if (m && at !== -1) {
-      const kept = items.filter((it) => famOf(it) !== N.test_plug || N.count_lead.test(asOf(it)));
-      const at2 = kept.findIndex((it) => !isSec(it) && famOf(it) === N.balancing);
+      const kept = items.filter((it) => famOf(it) !== T.test_plug || N.count_lead.test(asOf(it)));
+      const at2 = kept.findIndex((it) => !isSec(it) && famOf(it) === T.balancing);
       if (!ownTag(kept[at2], "E7")) kept[at2] = addLine(kept[at2], N.e7_line.replace("{said}", m[0].trim()));
       items = kept;
     }
@@ -7278,12 +7294,12 @@ export function valveReviewNets(spec: ItemListPricingSpec, ctx: RowContextWithUn
   items = items.map((it) => {
     // E1 (a valve under "with and without strainer" over a size-only row, no strainer listed), E3 (a differential pressure gauge),
     // E8 (an on-off pressure independent valve priced as the PIBCV), E10 ("with out valve"): the price stands; the note warns
-    if (!isSec(it) && famOf(it) !== "" && !blankFam(famOf(it)) && famOf(it) !== N.strainer && !ownTag(it, "E1")) {
+    if (!isSec(it) && famOf(it) !== "" && !blankFam(famOf(it)) && famOf(it) !== T.strainer && !ownTag(it, "E1")) {
       const m = near.match(N.with_without_strainer);
-      if (m && !N.with_without_strainer.test(own) && !items.some((x) => famOf(x) === N.strainer)) it = warnLine(it, N.e1_line.replace("{said}", m[0].trim()));
+      if (m && !N.with_without_strainer.test(own) && !items.some((x) => famOf(x) === T.strainer)) it = warnLine(it, N.e1_line.replace("{said}", m[0].trim()));
     }
-    if (famOf(it) === N.gauge && !ownTag(it, "E3") && (N.differential.test(asOf(it)) || N.differential.test(own))) it = warnLine(it, N.e3_line);
-    if (!isSec(it) && famOf(it) === N.pibcv && !ownTag(it, "E8") && (N.onoff_pi.test(asOf(it)) || N.onoff_pi.test(near))) it = warnLine(it, N.e8_line);
+    if (famOf(it) === T.gauge && !ownTag(it, "E3") && (N.differential.test(asOf(it)) || N.differential.test(own))) it = warnLine(it, N.e3_line);
+    if (!isSec(it) && famOf(it) === T.pibcv && !ownTag(it, "E8") && (N.onoff_pi.test(asOf(it)) || N.onoff_pi.test(near))) it = warnLine(it, N.e8_line);
     if (!isSec(it) && famOf(it) !== "" && !blankFam(famOf(it)) && !ownTag(it, "E10")) {
       const m = own.match(N.without_valve);
       if (m) it = warnLine(it, N.e10_line.replace("{said}", m[0].trim()));
@@ -8415,10 +8431,11 @@ export function hiddenFamilies(spec: ItemListPricingSpec): string[] {
   return (spec.withdrawn_families ?? []).filter((f) => !ua.has(f));
 }
 
-/** VAV-2b1 (R2 / R8). PURE. The families no list offers per box any more (`hiddenFamilies`), out of the own family list. */
-export function offeredFamilies(spec: ItemListPricingSpec): ReturnType<typeof familyChoices> {
+/** VAV-2b1 (R2 / R8). PURE. The families no list offers per box any more (`hiddenFamilies`), out of the own family list.
+ *  CAT-2 (P1): with the served `items`, only the families an SKU of the block's kinds carries (`familyChoices`). */
+export function offeredFamilies(spec: ItemListPricingSpec, items?: readonly RateMasterItem[]): ReturnType<typeof familyChoices> {
   const w = hiddenFamilies(spec);
-  return w.length ? familyChoices(spec).filter((f) => !w.includes(f.family)) : familyChoices(spec);
+  return w.length ? familyChoices(spec, items).filter((f) => !w.includes(f.family)) : familyChoices(spec, items);
 }
 
 /** VAV-2b1 (R2 / R8). PURE. The model's items without any item of a withdrawn family (own or borrowed), with one line naming each;

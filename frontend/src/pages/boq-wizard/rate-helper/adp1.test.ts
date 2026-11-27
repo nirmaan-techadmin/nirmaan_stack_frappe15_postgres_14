@@ -15,12 +15,13 @@ import type { ExtractionRow } from "./rateHelperTypes";
 import { ITEM_LIST_OVERRIDE_KEY, ROW_UNIT_OVERRIDE_KEY, makePricingSheetHelper, type ItemListSuggestion } from "./pricingSheetHelper";
 import { PIECE_LENGTH_MIN_MM, itemFieldDefs, itemListPricingSpec, listSpecDefs, numbersLine, readNumber, readPieceLength } from "./itemListPricing";
 import { ADP1_ALL, ADP1_INPUTS, ADP1_RETIRED_UIDS, applyAdp1, type AssetLike } from "./adp1.harness";
+import { withNewestCodeTargets } from "./codeTargetsOverlay.harness";   // CAT-2 PIN P-COMPAT (QR-COMPAT (a)): the role blocks read from the newest asset
 
 // ADP-3a (owner U5 / B6 / H2): the Derivation lines ADP-3a adds -- set aside where a pin counts or lists an earlier tab
 const ADP3A_LINE = /^(A kind not stocked in the row's unit refuses|An unstocked combination names only|A per-.+ needs .+; with neither stated it refuses, naming both$)/;
 const withoutAdp3aLines = <T extends { title: string } | string>(ls: T[]): T[] => ls.filter((l) => !ADP3A_LINE.test(typeof l === "string" ? l : l.title));
 
-const V46 = readJsonFixture<AssetLike>(new URL("../../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v46.json", import.meta.url));
+const V46 = withNewestCodeTargets(readJsonFixture<AssetLike>(new URL("../../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v46.json", import.meta.url)));
 const NEW = applyAdp1(V46);
 const ADP = "hvac_adp", INS = "hvac_insulation", PIP = "hvac_piping";
 const world = (a: AssetLike) => ({
@@ -411,7 +412,7 @@ describe("ADP-1 U6 -- the Derivation tab: lines ADDED, every earlier line kept",
 
 // =====================================================================================================================
 describe("ADP-1 AC10 -- the minted HVAC v47 IS v46 + applyAdp1 (the harness every test above runs on cannot drift from the asset)", () => {
-  const V47 = readJsonFixture<AssetLike>(new URL("../../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v47.json", import.meta.url));
+  const V47 = withNewestCodeTargets(readJsonFixture<AssetLike>(new URL("../../../../../nirmaan_stack/services/boq_rate_master/data/rate_master_hvac_all_v47.json", import.meta.url)));
   it("every config is deep-equal, in the same order", () => {
     expect(V47.category_configs.map((c) => c.category_id)).toEqual(NEW.category_configs.map((c) => c.category_id));
     for (const c of V47.category_configs) expect({ id: c.category_id, cfg: c }).toEqual({ id: c.category_id, cfg: NEW.category_configs.find((x) => x.category_id === c.category_id) });

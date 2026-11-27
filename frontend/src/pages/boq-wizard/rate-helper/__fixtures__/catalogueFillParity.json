@@ -1,0 +1,1390 @@
+{
+ "about": "CAT-1b B1 (owner 2026-11-26 01:47 QR-C-1 (a)): the fill PARITY fixture. Written by the PYTHON fill (catalogue_lists.build / fill_text); test_catalogue_fill_parity re-derives every entry from Python and must equal it, and catalogueFill.parity.test.ts derives every entry from the TypeScript fill and must equal it -- so TS fill == Python fill, byte for byte. 'forms': a made-up catalogue and every placeholder form with its output and problems. 'asset': every placeholder text of the named rate file, as the sha256 of its filled text.",
+ "forms": {
+  "items": [
+   {
+    "item_uid": "rmi-made-up-0001",
+    "kind": "made_up_valve",
+    "brand": " Brandex ",
+    "attributes": {
+     "item_name": "Ball Valve",
+     "valve_type": "Ball",
+     "size_mm": 25,
+     "item": "BV-25"
+    }
+   },
+   {
+    "item_uid": "rmi-made-up-0002",
+    "kind": "made_up_valve",
+    "brand": null,
+    "attributes": {
+     "item_name": "Dual Plate Check Valve",
+     "nrv_type": "Dual Plate",
+     "eq": "a=b"
+    }
+   },
+   {
+    "item_uid": "rmi-made-up-0003",
+    "kind": "made_up_insulation",
+    "attributes": {
+     "type": " Fiberglass Rigid Board",
+     "description": "Board, 48 Kg/m3",
+     "item": ""
+    }
+   },
+   {
+    "item_uid": " rmi-made-up-0004 ",
+    "kind": "made_up_misc",
+    "attributes": {
+     "description": "Übergangsstück ",
+     "cladding": "26G ALUMINIUM",
+     "rate_note": 2.5
+    }
+   },
+   {
+    "item_uid": "rmi-made-up-0005",
+    "kind": "made_up_misc",
+    "active": 0,
+    "attributes": {
+     "item_name": "Retired Item",
+     "cladding": "Retired Cladding"
+    }
+   }
+  ],
+  "cases": [
+   {
+    "s": "a {{cat:valve_type=Ball}} valve",
+    "out": "a Ball valve",
+    "problems": []
+   },
+   {
+    "s": "the {{cat:item_name=Ball Valve|lower}} line",
+    "out": "the ball valve line",
+    "problems": []
+   },
+   {
+    "s": "{{cat:type= Fiberglass Rigid Board|trim}} kept",
+    "out": "Fiberglass Rigid Board kept",
+    "problems": []
+   },
+   {
+    "s": "{{cat:type= Fiberglass Rigid Board}} kept with its space",
+    "out": " Fiberglass Rigid Board kept with its space",
+    "problems": []
+   },
+   {
+    "s": "{{cat:type= Fiberglass Rigid Board|trim|lower}} both mods",
+    "out": "fiberglass rigid board both mods",
+    "problems": []
+   },
+   {
+    "s": "{{cat:type= Fiberglass Rigid Board|lower|trim}} both mods reversed",
+    "out": "fiberglass rigid board both mods reversed",
+    "problems": []
+   },
+   {
+    "s": "{{cat:eq=a=b}} an equals sign in the value",
+    "out": "a=b an equals sign in the value",
+    "problems": []
+   },
+   {
+    "s": "{{cat: nrv_type =Dual Plate}} spaces round the attr",
+    "out": "Dual Plate spaces round the attr",
+    "problems": []
+   },
+   {
+    "s": "brand {{cat:brand=Brandex}} from the brand column",
+    "out": "brand Brandex from the brand column",
+    "problems": []
+   },
+   {
+    "s": "number {{cat:size_mm=25}} is never carried as text",
+    "out": "number 25 is never carried as text",
+    "problems": [
+     "names size_mm = '25' - no active SKU carries it"
+    ]
+   },
+   {
+    "s": "retired {{cat:cladding=Retired Cladding}} (inactive SKU)",
+    "out": "retired Retired Cladding (inactive SKU)",
+    "problems": [
+     "names cladding = 'Retired Cladding' - no active SKU carries it"
+    ]
+   },
+   {
+    "s": "missing {{cat:valve_type=Gate}} value",
+    "out": "missing Gate value",
+    "problems": [
+     "names valve_type = 'Gate' - no active SKU carries it"
+    ]
+   },
+   {
+    "s": "malformed {{cat:valve_type}} no equals",
+    "out": "malformed valve_type no equals",
+    "problems": [
+     "malformed placeholder '{{cat:valve_type}}'"
+    ]
+   },
+   {
+    "s": "malformed {{cat:=Ball}} empty attr",
+    "out": "malformed =Ball empty attr",
+    "problems": [
+     "malformed placeholder '{{cat:=Ball}}'"
+    ]
+   },
+   {
+    "s": "malformed {{cat:valve_type=Ball|upper}} unknown modifier",
+    "out": "malformed valve_type=Ball|upper unknown modifier",
+    "problems": [
+     "malformed placeholder '{{cat:valve_type=Ball|upper}}'"
+    ]
+   },
+   {
+    "s": "malformed {{item:a:b:c}} three bits",
+    "out": "malformed a:b:c three bits",
+    "problems": [
+     "malformed placeholder '{{item:a:b:c}}'"
+    ]
+   },
+   {
+    "s": "malformed {{item:}} empty uid",
+    "out": "malformed  empty uid",
+    "problems": [
+     "malformed placeholder '{{item:}}'"
+    ]
+   },
+   {
+    "s": "item {{item:rmi-made-up-0001}} name first of item / item_name / description",
+    "out": "item BV-25 name first of item / item_name / description",
+    "problems": []
+   },
+   {
+    "s": "item {{item:rmi-made-up-0002}} item_name",
+    "out": "item Dual Plate Check Valve item_name",
+    "problems": []
+   },
+   {
+    "s": "item {{item:rmi-made-up-0003}} description when item is empty",
+    "out": "item Board, 48 Kg/m3 description when item is empty",
+    "problems": []
+   },
+   {
+    "s": "item {{item:rmi-made-up-0004}} uid stripped",
+    "out": "item Übergangsstück  uid stripped",
+    "problems": []
+   },
+   {
+    "s": "item {{item: rmi-made-up-0002 : nrv_type }} attr",
+    "out": "item Dual Plate attr",
+    "problems": []
+   },
+   {
+    "s": "item {{item:rmi-made-up-0002:size_mm}} attr missing",
+    "out": "item an item no longer in the catalogue attr missing",
+    "problems": [
+     "points at item rmi-made-up-0002 (size_mm) - no active SKU has that id"
+    ]
+   },
+   {
+    "s": "item {{item:rmi-made-up-0004:rate_note}} a number attr",
+    "out": "item 2.5 a number attr",
+    "problems": []
+   },
+   {
+    "s": "item {{item:rmi-made-up-0005}} inactive",
+    "out": "item an item no longer in the catalogue inactive",
+    "problems": [
+     "points at item rmi-made-up-0005 - no active SKU has that id"
+    ]
+   },
+   {
+    "s": "item {{item:rmi-made-up-9999}} missing",
+    "out": "item an item no longer in the catalogue missing",
+    "problems": [
+     "points at item rmi-made-up-9999 - no active SKU has that id"
+    ]
+   },
+   {
+    "s": "unicode {{item:rmi-made-up-0004|lower|trim}} lower then strip",
+    "out": "unicode übergangsstück lower then strip",
+    "problems": []
+   },
+   {
+    "s": "{{cat:cladding=26G ALUMINIUM|lower}} cladding",
+    "out": "26g aluminium cladding",
+    "problems": []
+   },
+   {
+    "s": "{n} {{cat:valve_type=Ball}} rows with a template brace {qty}",
+    "out": "{n} Ball rows with a template brace {qty}",
+    "problems": []
+   },
+   {
+    "s": "no placeholder {{ here }} or {{cat broken",
+    "out": "no placeholder {{ here }} or {{cat broken",
+    "problems": []
+   },
+   {
+    "s": "two: {{cat:valve_type=Ball}} and {{item:rmi-made-up-0002}}",
+    "out": "two: Ball and Dual Plate Check Valve",
+    "problems": []
+   },
+   {
+    "s": "",
+    "out": "",
+    "problems": []
+   },
+   {
+    "s": "plain text",
+    "out": "plain text",
+    "problems": []
+   }
+  ]
+ },
+ "asset": {
+  "file": "rate_master_hvac_all_v90.json",
+  "count": 228,
+  "texts": [
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.attribute_definitions[0].note",
+    "sha256": "12785a7a0f47988dc92f27d072d1f5b3771730f5749d0bf9c07396485ed853cd"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.attribute_definitions[1].note",
+    "sha256": "c7b9be472894acf22907d5f4e179ff0095cbca08124a2c7cb6226066bdcbf285"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.attribute_definitions[2].note",
+    "sha256": "7abaf7aa2d7dd4cfa115f0802648bdb71c14e8d4a67ff53ba9a27e1006771104"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.attribute_definitions[14].note",
+    "sha256": "5b968e156f323495d50fd3b420d561a7bed39bcf7c4bd3e1a2965abd921905d3"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.defaults.damper.rule_by_family.curved grille",
+    "sha256": "274021d49c0759dc829baeac0ec8547849b77e54700aa7322a341c7a7b6450de"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.defaults.variant.rule",
+    "sha256": "9a7923c846416112277f70618b40b2de316879ef03a8449d7b7f7f0057d1209d"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.family_merge[0].line",
+    "sha256": "15cbbf02bd971361c22c498d43c119b60cd47d0e5971cd805343b1ca2bc42d9a"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.family_merge[0].rule",
+    "sha256": "f3adddf98fb53400764b6297a960f50676dff0b48bd6f047830c3c42a4c69bcd"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.numbers.slot_count.not_stocked",
+    "sha256": "6fff7ac57f62f546ed576d98696c68cf2939bcb798e2e071b87dc71708c91cb6"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.families.slot diffuser.convert.count[0].rule",
+    "sha256": "abe83f08fed42c9e73766d2fa95095f0478feed06aea326c3ea495676a5ccb0d"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.families.flexible duct.convert.count[0].rule",
+    "sha256": "6ea04cb60e75e84c9cbf4836e6d0fd03d8ed049757c64a4e2e2e1a95fb6b18c9"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.families.flexible duct.convert.count[0].pipelines.item_supply.steps[2].explain",
+    "sha256": "0c7421f6f9407b3e0b2df4818e0e350b48fb8a1c6b1a1a13ef87b134c21117e1"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.families.flexible duct.convert.count[0].pipelines.item_supply.note",
+    "sha256": "62eccf7cc7ff43aa4917abcf707b0c18a7c18f338e4d277c2cbce79c2ecf3d68"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.families.flexible duct.convert.count[0].pipelines.item_install.steps[2].explain",
+    "sha256": "325687eef5366710f97cd10a62c8f6a3b641c13e3fa859afaf59d1fec8c8dd9d"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.families.flexible duct.convert.count[0].pipelines.item_install.note",
+    "sha256": "62eccf7cc7ff43aa4917abcf707b0c18a7c18f338e4d277c2cbce79c2ecf3d68"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.families.cross-talk.units.count.pipelines.supply.steps[4].explain",
+    "sha256": "6fad37d6d2c591c0987c2ed65bcd93d56b01b22ec04e9b6f8390d0ccbdbd05f8"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.families.cross-talk.units.count.pipelines.install.steps[4].explain",
+    "sha256": "ab86804f36ec0c6ddbf547578a867ee3d7c744914db694fb8f9d743acb4f1bc4"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.families.mixing box / LP plenum.convert.count[0].rule",
+    "sha256": "208888abe6d6f17b9c841316ef5c1dd25c02a3d8db02ce454fe3627b3d332897"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.families.mixing box / LP plenum.convert.count[1].rule",
+    "sha256": "818ca9e8981267a904e313151529616c43847515f14edd0828fff74e33313323"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.number_defaults.face_w_mm.rule",
+    "sha256": "27ca314cfc27f35bf566ea171430362f341c0c19b63f665e9fb794fd3a911e29"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.number_defaults.face_h_mm.rule",
+    "sha256": "27ca314cfc27f35bf566ea171430362f341c0c19b63f665e9fb794fd3a911e29"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.refuse_on_unit_class[0].refuse",
+    "sha256": "bf784ef3d9d71ce29d9455d837c7f1c516683a2d54d2464fe3d5b80c5081ca63"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.text_notes[0].line",
+    "sha256": "35057cbcb99adadc276aa67c7327e4779a2825953cefbff285a00c810205cddb"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.text_notes[0].rule",
+    "sha256": "636f0a1316466b7febba376fae0269ad5c6e6eeae31e20f16b1f60bca52ee219"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.text_notes[1].line",
+    "sha256": "7d72bc2c1b6343e0f64d80fb234f8124dd7e809e8c63e9ee4faab9f4391a0213"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.text_notes[1].rule",
+    "sha256": "9251bfda1d88b0201e9dda3004b7e657001ddfa9aa292ff4c269ef80cfa95b05"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.companion_items[0].line",
+    "sha256": "aaa2d0394519b461d72b53c4a8f5606c941009692ae37423fc2a622a826cb03b"
+   },
+   {
+    "c": "hvac_adp",
+    "where": "list_spec.pricing.companion_items[0].rules_page_line",
+    "sha256": "3d2666c92eb3e52ebfb4404169e1730d0d255677faa81afafdc64710f92bdcfb"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "notes",
+    "sha256": "033e47de86360edb160fcd2be7ae18d54b4d11d0c7e00b9476aee8729b0d829a"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "list_spec.attribute_definitions[0].note",
+    "sha256": "61df0145f12c64e4588f19d95718b68dc2700fd93c41bbacd4a4da7c9e9822ff"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "list_spec.attribute_definitions[1].note",
+    "sha256": "99c643c68d7e27fc8b750a7bf8d4c474b4ef2d9e57ff7694f28fada9c8e5435b"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "list_spec.attribute_definitions[2].note",
+    "sha256": "6cce66bafb270a588d9274bcc2f1f19f23a3283afbce308dbf724649517cc012"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "list_spec.attribute_definitions[7].note",
+    "sha256": "bb33b2e0e6ce1171125f8eef2b1eca477f56af2dac12dcc9cce201f2b8eb2115"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "list_spec.pricing.families.Nitrile Rubber Insulation.units.length.pipelines.supply.steps[8].explain",
+    "sha256": "85c3f78afb7215c806dc88a0f331ed21417dab12cae5e0046003fb49db7b67f8"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "list_spec.pricing.families.Tubular Puf Insulation.units.length.pipelines.supply.steps[8].explain",
+    "sha256": "85c3f78afb7215c806dc88a0f331ed21417dab12cae5e0046003fb49db7b67f8"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "list_spec.pricing.families.Cladding Only.units.length.pipelines.supply.steps[6].explain",
+    "sha256": "ca712624c11c65ddfddc841231c0762f71a71914d032389498466977bf1c5b7e"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "list_spec.pricing.refuse_on_unit_class[0].refuse",
+    "sha256": "7e58cb1254e5c5d1792397adbba7efb3dd5621c2de390fbae17816b13c0cd84b"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "list_spec.pricing.refuse_on_unit_class[0].rule",
+    "sha256": "42a37ff4f1fd105330916c7011da4aa11df9d0fb1e6d50b87d684c301842426b"
+   },
+   {
+    "c": "hvac_insulation",
+    "where": "list_spec.pricing.choice_text[0].rule",
+    "sha256": "20c3dee471508cfc703872233fc022b8ebe078d573e452e42dcd9ea283ad82a3"
+   },
+   {
+    "c": "hvac_piping",
+    "where": "list_spec.attribute_definitions[0].note",
+    "sha256": "ff07a1eb1de5f9777ee014bd520d2b65c4cf911e43f490a67edc369db40db175"
+   },
+   {
+    "c": "hvac_piping",
+    "where": "list_spec.attribute_definitions[2].note",
+    "sha256": "05544ebdc27c6b10769b20311141356203e087e0d9dd86875dcf21109ec42aa1"
+   },
+   {
+    "c": "hvac_piping",
+    "where": "list_spec.pricing.families.Copper.units.length.pipelines.supply.steps[2].explain",
+    "sha256": "e2d817c978d44dbb77087ac85149a3da9f93820255861e1f493683b109d3f735"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "attribute_definitions[1].note",
+    "sha256": "a23c9d24ecbd0e2e396909acab5d40469f95388d1352267207d48ba469573f53"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "attribute_definitions[2].note",
+    "sha256": "6384012d196944f28f473104fa4cbc322c22d5c824303e512c6ca863750cfbfb"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "attribute_definitions[4].note",
+    "sha256": "d0e23d58e0a6390403e680255f6352a886f75379a973022d4005b9a77dca3c27"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "attribute_definitions[5].note",
+    "sha256": "e309c4dff88595b87e69ee0591e80e6856451d122daf3464815ee00ab43c44a1"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "attribute_definitions[6].note",
+    "sha256": "13cd484da645f4784421c74baa8622538832b5dfa3b7c1a64cd5724567327ae3"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "attribute_definitions[7].label",
+    "sha256": "921e6819251025efb37f6acd5ad1b2b287b15bce63daf1d70298cd714ac646c9"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "attribute_definitions[8].note",
+    "sha256": "888bc65dfa157eaa5c413d6eacc10f55d27861abf1ee88438c636c417da62966"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "attribute_definitions[9].note",
+    "sha256": "3a0e8f26932bee613dcfa59007db76747210ca3104e2cbbd4712549991e58ca0"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "notes",
+    "sha256": "507055885a3da6c69ba8157a4c2065a7b83cd1edebe930c08275abb124fab918"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[0].note",
+    "sha256": "0acd79b4e53d5fc8ae437ca47cfdf3faeec30cc272a570e38160e34adb027c54"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[3].note",
+    "sha256": "70290ae18b6bca00466e19782b811ff0e5182eade91483c655712edba33cc55b"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[4].note",
+    "sha256": "09df4b387719b7f220782dfdc439b8d7368c2110fe7cf528aef5eaad322458bd"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[5].note",
+    "sha256": "13cd484da645f4784421c74baa8622538832b5dfa3b7c1a64cd5724567327ae3"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[6].label",
+    "sha256": "921e6819251025efb37f6acd5ad1b2b287b15bce63daf1d70298cd714ac646c9"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[6].note",
+    "sha256": "688f590a638d113017e9977b96922e11622c1003b4316443ac224fe088d67eb7"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[7].note",
+    "sha256": "2dd57feaba9806afdf148ab6072ebae7105db169796382b653a3055375298bce"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[8].note",
+    "sha256": "a3f057b4d29d32c417f91dcf53580ae11fac17b7b6bb5f64035100ead4488336"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[11].note",
+    "sha256": "f412ae202585f633c6eaa0d31c4a15f2a99c7394b6181278e41fee403d39fe2b"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[13].label",
+    "sha256": "0a42b8165133c1bf12c2dc8d9468f75e6d26d9309e2a7653226bf53bc5a958f0"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[35].label",
+    "sha256": "80c8eead0d4011b18b00ebb16d02fdf13e146a6bbaf9bc97ecc43bd14ece9ee6"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[35].note",
+    "sha256": "0013664269f03917c4b56cef66f933600d08f0a720e694ecd4f7192c8200329a"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[36].label",
+    "sha256": "4ec3162f0c8d896673fb11a79f66d0878101ed21107b3039e8fdcd2a34f2a198"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[36].note",
+    "sha256": "73a5b9ac58d7ea78d81a5d78a4491bea819e36285980796d5a1d3662805006d2"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[37].label",
+    "sha256": "93a9b96567adc9a80272242a9643b32a8be4f878eedc5038dbab9e53c9dbe478"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[38].label",
+    "sha256": "3df94bb744ede9a5ad88e69e96aeca65573a60eed5eb13d38f7e1384c2572747"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[38].note",
+    "sha256": "bce32917fa3cc56476d6a4bac6749ebeb30082515418f6c17d5898971247ee89"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[39].label",
+    "sha256": "d2d65cc5b4ba5b6e69ad24d8404f7a40bb525d4d0a097d24fee5b4f2e809c1ee"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[39].note",
+    "sha256": "6b7a82f193062c9d3866f5c4119215167af79ce58dd72ef40e9bf0bfd45e6636"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[40].label",
+    "sha256": "7ffe2ef157b0f35cc8e2705dfac8e95cebb9641a697ebdc49d9cc6a3e4453a53"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[40].note",
+    "sha256": "bc562178aa0e54fd39b47d9483bea414f75214291fcdcdb427000b7200d77587"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[41].label",
+    "sha256": "2fb2854670209a3b8dbe81406a1ad7addd329f61b6c14423f14bacb153e64532"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[42].label",
+    "sha256": "afb62b7978f7c92f626e2a968403f0f323be831c86842d1becb2a26441f576df"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[42].note",
+    "sha256": "4bda2e8ed9095015c39ec8ea4bf9bed26c9a44525e7bf0e5b6067fd951afa8b1"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[47].note",
+    "sha256": "c1a8a672dc13a159b735536cd48212dbf8880efff4b69c559b7e84ffab20a27b"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[54].note",
+    "sha256": "65f7f97cbafa914d1061d6cf7477312c700e3bd1058f499def0119ee72158480"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[56].label",
+    "sha256": "30350fa0161af6907444982f5fdd8c336fb30588e28045d59e815d2e2efb4ffa"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[57].label",
+    "sha256": "d31ad40e8b82c6b217dfb930fae5b6e46e9183617c50a2666e1dbba7274a89b7"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[65].label",
+    "sha256": "23e3280e4eb5b837d13863ef218a2ba9e376fdabd8e21e884c704e901038c203"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.attribute_definitions[67].note",
+    "sha256": "a171c03787649fcab052a867089a368af27eeed950e9166e99d10c6675dd169f"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.defaults.cooling.rule",
+    "sha256": "940a40eef4ac95d8ab868fbe47d9d8665c1044d3343de05cacf54a9d8c82625e"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.per_set.counted.counts[0].label",
+    "sha256": "0b241de234f20b25cfc8aa055bd66bbfbfcab6d16851b6e04b5d3f84547b854a"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.per_set.counted.counts[0].note",
+    "sha256": "f9a24cd035ef0ce0644459a7f68d25f9049d4b48c2c0d290eb9b1610d924167d"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.per_set.counted.counts[1].label",
+    "sha256": "8cacb5b5d33f145736db970fe160e6dd940272ebfd52516df7d5fb0de1ac2ab3"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.per_set.counted.counts[1].note",
+    "sha256": "12cb9311ed73c34cf0178eb7d9c0da24f9261340ad406f2503f19daba8bfecd1"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.extras.includes[0].label",
+    "sha256": "31d04cc02c3c4a458756a25811673f72d4a1d3555f8161f47a1974ba8f8c66ac"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.extras.lines.drain_cable_line",
+    "sha256": "59df855ccfff5f29d4f25b6c5efe1544eafc8d4b661aa0a15e9cf5a317296b48"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.extras.lines.drain_cable_line_silent",
+    "sha256": "208e1ee5b95c64781d86cbff2987e87c74bb894b90b4cd67aa46708cfca547d6"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.extras.lines.drain_cable_row_line",
+    "sha256": "5fa46d6a427b1d7c86d0818839052a19bd24f9163f0eaa43d2f86e89acffed6e"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.extras.accessories[1].qty_per_size.line",
+    "sha256": "0ee8b156e867a7de9182b74d488e6227fa80ebe87e0aa2834e8781fa336cdb00"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.extras.accessories[4].builtin.line",
+    "sha256": "a33401ae65f825d3d5a0770c8f18c19240e4cf0d47e70871b7a08b0971bd2bb0"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.extras.accessories[6].title",
+    "sha256": "d8f4174ffe90a86cfef49ed94585ca9fa2b7a198717e0bea0fa5ea8fd3345d7b"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.extras.safeguard.lines.copper_usual",
+    "sha256": "73ac5a9722ff9e7fd21d1e5540fbb935bcc7fb007a0eb72a76c3b2e47ace52c7"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.extras.prepare.implied_includes[3].line",
+    "sha256": "bad9307955526915fbc02383cb837cc1ad1898b17c41d137e21c6be491edccfd"
+   },
+   {
+    "c": "hvac_vrf",
+    "where": "list_spec.pricing.extras.prepare.tfa_outdoor.line",
+    "sha256": "5e20ac429b7f5a9482a249e7a6dc73ecd3262488d7ced55681d9001fbec708d5"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "attribute_definitions[7].label",
+    "sha256": "849defbfa25f0ec7ef5a3f60426077a7bd351ef859edfd019a9f6e3f22f73907"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "notes",
+    "sha256": "db23f925f69324d0bbf24e6594c505d0c79caedd94a6abfd350b2b8c7df92e88"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.attribute_definitions[0].note",
+    "sha256": "e595ef12a418cdaf74a9aa73c3f11f3f1579c92cc302f368735fc3122dde25b0"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.attribute_definitions[3].note",
+    "sha256": "c070e3da832a632af2e638ade187e4cb6a3752123c2f4f7c09a90eeceff02c29"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.attribute_definitions[4].note",
+    "sha256": "2ce3dcd43e944d6024e2a03b80bb5a4a07624dd44aa241d74d3b5abdfff53216"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.attribute_definitions[5].note",
+    "sha256": "f3619ec98c7696d67907773e56fe2322c489f2cf0880277df524bbaa8efc6b55"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.attribute_definitions[6].note",
+    "sha256": "8cf98ba5b98f4148b274e4f36eae9d89e9da4b253acb8481258f0f0e7f9fd02b"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.attribute_definitions[7].label",
+    "sha256": "849defbfa25f0ec7ef5a3f60426077a7bd351ef859edfd019a9f6e3f22f73907"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.attribute_definitions[7].note",
+    "sha256": "1eed5b0b87536c9b9b9269002635ae2712f146a455dd83e519941d18d37444b9"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.defaults.actuation.rule",
+    "sha256": "6dd997355ccf8710f6892457a5e88dba2406520e9c80fe24103d538fb874e0f3"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.defaults.operation.rule",
+    "sha256": "ed58d7343944d75d08ca4d7ef64f8f83c630695fe817ac7634c0b831a97eee8a"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.defaults.nrv_type.rule",
+    "sha256": "a30fdf66366d661336e7f463345f496a2408e6d6fd16ed1e94114f20b61bf1de"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.defaults.spindle.rule",
+    "sha256": "7c1e0b69674a75628c7d938f84e45cc5a58566a278841bb5d3d73ddb2afc5457"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.defaults.strainer_type.rule",
+    "sha256": "04ce7a31b68a8854b9c4ba51e01267db42600417ca334841f68b157dce540fa5"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.derive_when_none[0].rule",
+    "sha256": "d53c833ea62aa6b1acc56832ac7828bd04ea4c6955d4494a2994747ee47f8f4a"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.read_notes[0].line",
+    "sha256": "99265e2d7beb5f8f55ebd5b46250fc149fa11fe87c9bcb24aeea88bf79042c09"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.read_notes[0].rule_line",
+    "sha256": "f2bada723442bbd04daf75b4ba3a2453dd1db632390f5fb51f82d8508a78cd5f"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.read_notes[1].line",
+    "sha256": "42d6b9673a188713f8850d8cac931b2c189eb1f0ea8bce08d3921539df1c55a9"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.text_notes[1].line",
+    "sha256": "8e8cebca0c66129b4c43846fe6a372f41b0c327105f7e68f120826ae79e49b62"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.text_notes[1].rule_line",
+    "sha256": "0fff08adc24305c513443c6aec1b3689772223f9ca0e8bfcf42e5873a262dcdc"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.text_notes[3].line",
+    "sha256": "d91e4fe68c94280188867aa018c848d18b00377268b885f5c32bbc2c59ca478f"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.text_notes[3].rule_line",
+    "sha256": "53512888056107145e3dba45fdb8e076817fa60f00406f06b06eda00fec685be"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.material_text.map[0].rule",
+    "sha256": "6fe5e789107569a683ecd520c9ac2f2387a94c23ff7fbf24fb73f40e12cdabfc"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[0].title",
+    "sha256": "8dca34c336b093fa530a94aaa94de5a315f52d8b0b5f1f059f63a3838cf01ac6"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[0].detail",
+    "sha256": "e43be74eaed5f341a06ba625f801e2c3061d14567a4d17d408f31482111157ef"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[1].title",
+    "sha256": "1c0e45c82679332ed585056153823015f5f6e8b79b4d9aa2ff564c96348cf241"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[1].detail",
+    "sha256": "c134b8a37c93bf2d3a24fae67f8ba8f6bacc540ff0143afd4686c62ab5921daf"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[3].title",
+    "sha256": "1000103e30cbd5fa8f4d3ac49a391ce2b142fda57e10c250a2b4bd57ae00bd1b"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[4].title",
+    "sha256": "006e20831fc1ba5676a4cfaa61af0d361c0eea691641685f2699b507089d0197"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[4].detail",
+    "sha256": "0069a21ea86e31b69fd6c7a375ddf0056c273c89db906f47b8091d1b7b709f78"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[5].title",
+    "sha256": "8b7914267b19381ccd7b31e5ac83c895273e4eba3942b74ef631dbd03778e719"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[5].detail",
+    "sha256": "9f2c8733943ed9e68bf7da2fcb91bbc7e898cee0def36f83d2f60f130c8d0548"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[7].title",
+    "sha256": "67042371dacd759e9520eef6e96d9d3c590723cea47392cc3f4673ee86f96b77"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[7].detail",
+    "sha256": "e0873e026f7967bcdc20e031fc78112a6764742c44d3b92406d6a91863f4e015"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[8].detail",
+    "sha256": "46d14c17482e5d90727aeaff06f3192bc1d85bb9ea141f4d9166de54efee1519"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[9].title",
+    "sha256": "6dbf722bc8717e272bb2ace555032bff6db0765538dd8052e6232a3f5a84208e"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[10].title",
+    "sha256": "7b3d4f95d426a90b952a30bcd1d30888b5c383e02bb9751f7428892f6dce4d9b"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[14].detail",
+    "sha256": "4dee423ee3c86d95086fa0ca4b26f90154cd0e5332139d8d9dbe9b2e33570ac4"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[15].title",
+    "sha256": "b131c462d47f0429257881127c1940a68e58e648afe9bac1e07fd8f2d5a0bf64"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[17].title",
+    "sha256": "2d6f65a48d9d33b59646819df008b61ca8494ee32b62c31b6eeb24436cb66b51"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[18].title",
+    "sha256": "004b3fb522b7115b7a525cc885ef8e2a3e02ff200271d306b43028bd3bc92376"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[20].title",
+    "sha256": "d57502ad060576845a5da407b1189ea4513ee15d98e52e5cd9f70e72ef9188b7"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[20].detail",
+    "sha256": "c1ac21f3aa5b1fbe015fc033a3e0bbee384e9d54ca3bb13ad2adb65105d290e1"
+   },
+   {
+    "c": "hvac_valve_package",
+    "where": "list_spec.pricing.rule_lines[23].detail",
+    "sha256": "0117d42b2c6be395491c5f39047bf31818dcde5a3c77b2943ff9b8928cf16848"
+   },
+   {
+    "c": "hvac_misc",
+    "where": "notes",
+    "sha256": "1485a4e025ab20ee4e183c6dad4bada4c2d7f67b45955e6b7d415e8cbc87360a"
+   },
+   {
+    "c": "hvac_misc",
+    "where": "list_spec.attribute_definitions[0].note",
+    "sha256": "2c79e6073dbea66ecc8d3d6e82aac3c9c22ed1a494a149a35f160213e434b60e"
+   },
+   {
+    "c": "hvac_misc",
+    "where": "list_spec.pricing.text_notes[1].rule_line",
+    "sha256": "9ea40c177c05e3357ee1f7f4fd4d1ca95631b46f2e203f5bb81111a7f71191a0"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.attribute_definitions[0].note",
+    "sha256": "1db849e86cc3ce81fa1590945c8941139dc7cc4383c264e493042f18c0904266"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.attribute_definitions[1].note",
+    "sha256": "731237145836b78c2d6c31e073cd36645ca4a5c21272a546cf380a11e8a0ca25"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.attribute_definitions[3].note",
+    "sha256": "22db05354425fe993b47e73f42e5855c6950ecd9bf9419f5e3ef720c23aed0a2"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.sections[2].family_note",
+    "sha256": "b138d781ca661e5c66423567001c170d67bd2e8706144525a55d3c693ae7f026"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.family_text.refuse[0].refuse",
+    "sha256": "c5e64bbb479d0806e49aceec07efc31ed09777b7d9f7fee69c5626a4771e9171"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.family_text.refuse[0].rule",
+    "sha256": "74f0b2c5e721eb390cae318a401215ac635f22e29f9d483aac987a2e57b1d84e"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.family_text.refuse[1].refuse",
+    "sha256": "c5e64bbb479d0806e49aceec07efc31ed09777b7d9f7fee69c5626a4771e9171"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.family_text.refuse[1].rule",
+    "sha256": "74f0b2c5e721eb390cae318a401215ac635f22e29f9d483aac987a2e57b1d84e"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.no_sku_refusals[0].refuse",
+    "sha256": "8f7fc3d4a976b3770568c3c8297bf25347a5add5935394eefb60c8f08f93380e"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.no_sku_refusals[6].refuse",
+    "sha256": "d992a9c13ba17fb281ab26fe0abe83d360c17ee24b650a49af2d4bba2e19e531"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.no_sku_refusals[7].refuse",
+    "sha256": "ca87edf3340cc601a218dd30c5c3ad61657f2921ea0766d629e6c55c27e67323"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.no_sku_refusals[8].refuse",
+    "sha256": "eb6d2fa74e65384d4c38cecb9f93239c992d267d9bb96430fb1bd10e5b5bf134"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.text_notes[2].line",
+    "sha256": "cc1dc5bff54ee7b7722b64c6d3496ac31fba75cf21ee47294278be61264948b1"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.text_notes[2].rule_line",
+    "sha256": "3c2e16be70f78648a642168dfc904c6cb241f6a4046a3d666e9ae70983a3b058"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.text_notes[4].line",
+    "sha256": "b006cacfdf6024cab23c233a51356ed9e2c1fb3f6a2d10fb16683be48d95c26a"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.text_notes[4].rule_line",
+    "sha256": "de3533c679127736a0fb0dbeda373b3be7e77592834b25eae2f673aa535e2205"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.derivation_reasons[0].why",
+    "sha256": "40e1967a187e59b6bc29d3a4d799d7a8c465b03e0812fc2d7d50448641e922a6"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.derivation_reasons[4].title",
+    "sha256": "2afa37243983ea845661a812df07e1996e857b38db02ea456ea31d4663e425f6"
+   },
+   {
+    "c": "hvac_ducting",
+    "where": "list_spec.pricing.derivation_reasons[35].why",
+    "sha256": "36a5fba877c8df56dd771ff370d97b5f2a7c38b7f9875b95ce3cec3cb293fa43"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "attribute_definitions[1].note",
+    "sha256": "d70c909b61fa5b2c4f0e6a2d18e81d21e57598e24bae9d706d577a65e1edf280"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "notes",
+    "sha256": "d0bc71982401e744dd075f950a2943a9a2902f328ee197e0594f9cb652166a88"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.attribute_definitions[0].note",
+    "sha256": "bee008bbdf6fdb47b689c35a2432b17e1ad587980181e1f4a9aa1769703c4665"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.attribute_definitions[2].note",
+    "sha256": "624cac4c0ac6f2420ffecc581535ba36f72d69ca261fe90ab87e466c704e3a54"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.attribute_definitions[3].note",
+    "sha256": "bdddb1bfee3d12c4b65923bf9ca4b487c130fa25a6c0736a61433936808d1ae8"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.attribute_definitions[6].note",
+    "sha256": "45fc4d0fea9fbeaadba18300b99d9348274ee141177680badd840f6157bf35e4"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.attribute_definitions[7].note",
+    "sha256": "6a19777aaabfb6b3197ce2ed70d3ea0e2792103e31154f1a3a2d799721433f53"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.attribute_definitions[8].note",
+    "sha256": "8fe63e1c2e56d418935085de7d9f288414f935049c1d8bcbbcaf1fac55dd612e"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.attribute_definitions[12].note",
+    "sha256": "cc7df9f171895ced15a237f9045ae39e0087334018065f626fb2965c5aefe3bc"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.sections[1].family_note",
+    "sha256": "d8e48378e0472a626c10d9a6337b75faf11702866a1bf30c9beaa94212a7d635"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.sections[2].family_note",
+    "sha256": "8e48f8e17f2d83313de15cc955fff0d5400bb34d8535f21a5380e9e423b05e27"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.VAV box.units.count.pipelines.supply.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.VAV box.units.count.pipelines.install.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.VAV Integrator.units.count.pipelines.supply.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.VAV Integrator.units.count.pipelines.install.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.BACnet over IP controller.units.count.pipelines.supply.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.BACnet over IP controller.units.count.pipelines.install.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.Duct connection.units.count.pipelines.supply.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.Duct connection.units.count.pipelines.install.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.Conical piece.units.count.pipelines.supply.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.Conical piece.units.count.pipelines.install.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.Integrator cabling.units.count.pipelines.supply.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.Integrator cabling.units.count.pipelines.install.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.VAV installation - any size.units.count.pipelines.supply.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.families.VAV installation - any size.units.count.pipelines.install.steps[0].explain",
+    "sha256": "2df1f96c3d487a7814919a4ee09576dadf11dace22111d8febd5bfee095005a0"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[0].why",
+    "sha256": "e47b9a94f7a2be4a06b95c714d514e04cb0d9ec0c3b6f9d1ed5b97f8b23e4bdb"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[1].why",
+    "sha256": "8f0ea3486e933608f2fd878c56da9288d46d463bbf1a16c8361c9b8190a56c7a"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[3].why",
+    "sha256": "5bcb6e74a9186bc3f3b829b203e0351a6d7e6f1c1227678715c9a1928aae0668"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[4].why",
+    "sha256": "477f82330e58608756e1964e8e4da08856f407453b20fd71192004f5c267be30"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[5].why",
+    "sha256": "f2ceb422b23e843441a4371c5a1af80babcc1455d718e7b577ee7f0710bbf93f"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[8].why",
+    "sha256": "e8ffc7056bdf16b75076ac0e606428c7ee892c2bd0891b32519edfdbddbc3e3f"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[9].why",
+    "sha256": "7a1e8a55ea630ebeac80397935f4ef969ca9fff04925c20bb9a448a5304c395d"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[12].why",
+    "sha256": "9c6f37c4c0a1b66de0c8f01f301fe91dcd5edcb50e19bf068e0ca0a4c7e43582"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[19].why",
+    "sha256": "9d06392bb85ed2955d409252595bd57c7d18329b24e7f93ade3836794fcce254"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[22].why",
+    "sha256": "c9efc252564f60866f7d4502ad4277386df3632c706240894e0f828225d5df0d"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[30].why",
+    "sha256": "d5fa38c156a5bd0bb92bff4a2a76db346583cd664452884f85d8270eb79ea671"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[34].why",
+    "sha256": "c3b13726738067f3cf59bd088f3ecbd0b19b87533061c3cdf2a3d785a02c58da"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[38].why",
+    "sha256": "ce072da2c6c7b50511247c85351a3d223f9fc192a00d0bb2654693dcd0e2861e"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[39].why",
+    "sha256": "9cac8b5439e0a5ea75dcb0c52966fb7d19ee8eb345d0068ea2f7970a72f211c2"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[43].why",
+    "sha256": "f4941eea038e26d015cd0484b16e197d040417cb50fbcf065cdb753555dc75d3"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[45].why",
+    "sha256": "edc5aff1666d54efdf0b4e4b44394fb3795f7251b14204e52c8ecaa160e23d30"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.derivation_reasons[51].why",
+    "sha256": "943ec11a5801df2c7e61ec944f8c388e533eb2011f7d1f3fecb9c1abfea52a30"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.scope.rule.install_row_texts.integrator_cabling.lines.priced_separately",
+    "sha256": "f3cd9523eac65f4ba86a394f3355eb5770cd95d4ec798f49ea33cf1beb976527"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.integrator_cabling.lines.added",
+    "sha256": "fbd3f84e45b45128689718df8dc9da79ddd0bd0b89f112bc97db622c725af65f"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.integrator_cabling.lines.priced_separately",
+    "sha256": "d958f6e3d9d523d2d2ea4876132e23a89cdf1b867d4e2a5d079c45316180416b"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.integrator_cabling.lines.low_length",
+    "sha256": "4bcf83aca2d7753b864eb33282e3d86b39729c8271e91755ffa4f9b312840948"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.integrator_cabling.lines.input_missing",
+    "sha256": "c34a3a53536e368923c912d2f48efa9f3b2c41e3e324640f44aabaa763ae88f4"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.defaults.shape.rule",
+    "sha256": "efcfb82653ed96722939cc4ca3c54e9d46ebbf5b93755c635d8fd30e9b26dd77"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.defaults.shape.note",
+    "sha256": "c5461535bf831215b3cc3fc8955a83ac004d5d4c6cd2904e1ceeccedaf94c4be"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.defaults.vav_type.rule",
+    "sha256": "bcd23324d9d18da6193776806f367687d660b35990cb0256de2803aa75b73f9c"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.defaults.vav_type.note",
+    "sha256": "e750fa9a6bc39706e43f987d1768a308b6a562f722cfb545506713fd2f3a4577"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.sheet_shares.whole[0].label",
+    "sha256": "bf87cd93c43ad4f11e4eb00e1613c47474dde05c4c594b68f11522b795dd3890"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.sheet_shares.whole[0].heading",
+    "sha256": "85bbca05cdb90baa30b977d5a59247998c983c70f5a33e404764fe400988a3ee"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.sheet_shares.whole[1].label",
+    "sha256": "8f3025fb9833ab6459807e1c68c761f1bcb765703f663b38bbd1477109367822"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.sheet_shares.double_count.with[4].line",
+    "sha256": "a3cd8c16fd3f647093f7ce1707675edb84960ed8dffba0ec69c5d6ab19606f66"
+   },
+   {
+    "c": "hvac_vav_box",
+    "where": "list_spec.pricing.chain_values[2].line",
+    "sha256": "736fa9fad0fec704a44f14938fa371ca647153f5c8257d2d523e0fdba4f6740e"
+   },
+   {
+    "c": "hvac_sensors",
+    "where": "category_display",
+    "sha256": "a182b23209b11be838b5f86ab24bc4d5166b5b8c94500357d2aa8c7f332cd2a2"
+   },
+   {
+    "c": "hvac_sensors",
+    "where": "notes",
+    "sha256": "1c614368e01ecc60edd1497b71cc9091460fde307c7af6d357879a66cd7199ff"
+   },
+   {
+    "c": "hvac_sensors",
+    "where": "list_spec.attribute_definitions[0].note",
+    "sha256": "5c77622471cdfe7a112dc4e6ade4422eb47a380c0e236e51b51d13f2dffeb435"
+   },
+   {
+    "c": "hvac_sensors",
+    "where": "list_spec.pricing.unit_refusal",
+    "sha256": "5d18c1ebf77ddf777397c1e572cc264026a60e443549f70f0eaab9aa80ea13a5"
+   },
+   {
+    "c": "hvac_sensors",
+    "where": "list_spec.pricing.families.CO2 Sensor.units.count.pipelines.supply.steps[0].explain",
+    "sha256": "b09971acde7bfcb78433dc5b53c77ec8a66100c544382e6dd1966ea4d3439ad8"
+   },
+   {
+    "c": "hvac_sensors",
+    "where": "list_spec.pricing.families.CO2 Sensor.units.count.pipelines.install.steps[0].explain",
+    "sha256": "b09971acde7bfcb78433dc5b53c77ec8a66100c544382e6dd1966ea4d3439ad8"
+   },
+   {
+    "c": "hvac_sensors",
+    "where": "list_spec.pricing.families.Differential Pressure Switch.units.count.pipelines.supply.steps[0].explain",
+    "sha256": "b09971acde7bfcb78433dc5b53c77ec8a66100c544382e6dd1966ea4d3439ad8"
+   },
+   {
+    "c": "hvac_sensors",
+    "where": "list_spec.pricing.families.Differential Pressure Switch.units.count.pipelines.install.steps[0].explain",
+    "sha256": "b09971acde7bfcb78433dc5b53c77ec8a66100c544382e6dd1966ea4d3439ad8"
+   },
+   {
+    "c": "hvac_sensors",
+    "where": "list_spec.pricing.families.Duct Static Pressure Sensor.units.count.pipelines.supply.steps[0].explain",
+    "sha256": "b09971acde7bfcb78433dc5b53c77ec8a66100c544382e6dd1966ea4d3439ad8"
+   },
+   {
+    "c": "hvac_sensors",
+    "where": "list_spec.pricing.families.Duct Static Pressure Sensor.units.count.pipelines.install.steps[0].explain",
+    "sha256": "b09971acde7bfcb78433dc5b53c77ec8a66100c544382e6dd1966ea4d3439ad8"
+   }
+  ]
+ }
+}

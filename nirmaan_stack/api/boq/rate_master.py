@@ -264,6 +264,17 @@ def get_rate_category_config(discipline=None, category_id=None):
     row["config"] = _parse_json(row.get("config"), None)
     if _withhold_cost("get_rate_category_config"):
         row["config"] = _config_without_cost(row["config"])   # BCS-3: no cost pipeline, no cost key, outside Admin + Estimates
+    return _serve_category_config(row)
+
+
+def _serve_category_config(row):
+    """CAT-1 (owner 2026-11-24 19:35 / 2026-11-26 00:06): THE SERVED READ POINT -- the catalogue lists rebuilt from the live
+    catalogue and the wording placeholders filled, through the ONE merge (`catalogue_lists.serve_config`; stamp checked at most
+    once a minute per worker). It is the LAST step on the served object: a role-based filter (the BCS lane's cost withholding)
+    runs BEFORE this call. The panel, the Calculator, Rate Master, the rules page and the server pricing step all read here."""
+    from nirmaan_stack.services.boq_rate_master import catalogue_lists
+
+    row["config"] = catalogue_lists.serve_config(row.get("discipline"), row.get("config"), fresh=False)
     return row
 
 

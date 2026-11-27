@@ -52,6 +52,7 @@ import {
   BARE_NUMBER_RE, TYPED_THICKNESS_MESSAGE, familyAttr, isOneSizeEntry, itemListPricingSpec, listSpecDefs, noUnitMessage, priceItemList,
   readFamilyWord, readNumber, severalSizesPick, typedFamilyLine, withoutTrailingPunctuation,
 } from "./itemListPricing";
+import { withNewestCodeTargets } from "./codeTargetsOverlay.harness";   // CAT-2 PIN P-COMPAT (QR-COMPAT (a)): the role blocks read from the newest asset
 
 // ADP-3a (owner U5 / B6 / H2): the Derivation lines ADP-3a adds -- set aside where a pin counts or positions an earlier tab
 const ADP3A_LINE = /^(A kind not stocked in the row's unit refuses|An unstocked combination names only|A per-.+ needs .+; with neither stated it refuses, naming both$)/;
@@ -59,7 +60,7 @@ const withoutAdp3aLines = <T extends { title: string } | string>(ls: T[]): T[] =
 
 type Asset = { discipline: string; items: Array<Omit<RateMasterItem, "discipline">>; category_configs: RateCategoryConfig[] };
 const DATA = "../../../../../nirmaan_stack/services/boq_rate_master/data/";
-const V37 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v37.json`, import.meta.url));
+const V37 = withNewestCodeTargets(readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v37.json`, import.meta.url)));
 const CFG37: Record<string, RateCategoryConfig> = Object.fromEntries(V37.category_configs.map((c) => [c.category_id, c]));
 const ADP = "hvac_adp", INS = "hvac_insulation", PIP = "hvac_piping";
 const AS_WRITTEN = "pipe_type_as_written";
@@ -85,7 +86,7 @@ function withSliceKeys(base: Record<string, RateCategoryConfig>): Record<string,
   return out as Record<string, RateCategoryConfig>;
 }
 // BEFORE the v38 mint this file ran on `withSliceKeys(CFG37)`; it now reads the committed asset
-const V38 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v38.json`, import.meta.url));
+const V38 = withNewestCodeTargets(readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v38.json`, import.meta.url)));
 const CFG: Record<string, RateCategoryConfig> = Object.fromEntries(V38.category_configs.map((c) => [c.category_id, c]));
 const CONFIGS = new Map<string, RateCategoryConfig>(Object.entries(CFG));
 const CONFIGS37 = new Map<string, RateCategoryConfig>(Object.entries(CFG37));

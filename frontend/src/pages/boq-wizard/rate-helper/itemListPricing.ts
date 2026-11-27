@@ -659,6 +659,13 @@ export interface CompanionItem {
 export interface ItemListPricingSpec {
   kind: string;
   /**
+   * CAT-2 (owner 2026-11-26 00:10 / 01:16, R1): `list_spec.code_targets`, carried in by `itemListPricingSpec` -- the catalogue
+   * values a code rule picks as ONE target, by role -- read with
+   * `codeTarget` / `codeTargetRef` / `codeTargetValues`, never typed in code. The load gate (catalogue_gate.code_target_refs) refuses
+   * a role whose value no active SKU carries, naming the place. ABSENT role => that rule does not fire.
+   */
+  code_targets?: Record<string, CodeTarget>;
+  /**
    * VRF-2b (owner RECON 14:40, Q2 "Misc via extra_kinds"): FURTHER item kinds this block prices -- each family's SKUs are
    * of ONE kind (VRF's units `hvac_vrf_item`, its four Misc items the shared `hvac_misc_item`). Every site that filtered
    * on `kind` reads the set (`specKinds`); the ladder takes the family's own kind. ABSENT => `kind` alone, byte-identical.
@@ -2179,6 +2186,8 @@ export function itemListPricingSpec(config: RateCategoryConfig | null | undefine
   const famDef = Array.isArray(defs) ? defs.find((d) => d && d.id === (typeof famAttr === "string" && famAttr ? famAttr : "family")) : undefined;
   const famLabel = typeof famDef?.label === "string" && famDef.label.trim() ? famDef.label.trim() : undefined;
   const sections = (config as { list_spec?: { sections?: unknown } } | null | undefined)?.list_spec?.sections;
+  // CAT-2 (R1; ANSWER to CAT2-4 QR-FORM): the code targets ride in from `list_spec` the same way
+  const codeTargets = (config as { list_spec?: { code_targets?: unknown } } | null | undefined)?.list_spec?.code_targets;
   // SLICE 12e-2b (owner D1 (a) / D3): the choice definitions' labels and lists ride in the same way
   const choiceDefs: NonNullable<ItemListPricingSpec["choice_defs"]> = {};
   // ADP-3a (U2 / U3): every definition's label, so a refusal can name the box
@@ -2204,6 +2213,7 @@ export function itemListPricingSpec(config: RateCategoryConfig | null | undefine
     ...(Object.keys(fieldLabels).length ? { field_labels: fieldLabels } : {}),
     // SLICE 12e-3a (owner D1): the declared sections ride in from `list_spec` the same way
     ...(Array.isArray(sections) && sections.length ? { sections: sections as ListSection[] } : {}),
+    ...(codeTargets && typeof codeTargets === "object" && !Array.isArray(codeTargets) ? { code_targets: codeTargets as Record<string, CodeTarget> } : {}),
   };
 }
 
@@ -4089,6 +4099,30 @@ export function familyAttr(spec: ItemListPricingSpec): string {
   return spec.family_attribute_id ?? "family";
 }
 
+/** CAT-2: one code target as the config names it -- the attribute, the value (or `values`: a short named list) and, for a SKU of a
+ *  delegated section's category, the section id. */
+export interface CodeTarget { attr: string; value?: string; values?: string[]; section?: string }
+
+/** CAT-2 (R1). PURE. The role's target as the config names it, or null when the config has no usable `code_targets.<role>`. */
+export function codeTargetRef(spec: Pick<ItemListPricingSpec, "code_targets"> | null | undefined, role: string): { attr: string; value: string } | null {
+  const t = spec?.code_targets?.[role];
+  return t && typeof t.attr === "string" && t.attr !== "" && typeof t.value === "string" && t.value !== "" ? { attr: t.attr, value: t.value } : null;
+}
+
+/** CAT-2 (R1). PURE. The catalogue value a code rule picks as ONE target (`code_targets.<role>.value`), or undefined -- the rule then
+ *  does not fire. Never a typed fallback. */
+export function codeTarget(spec: Pick<ItemListPricingSpec, "code_targets"> | null | undefined, role: string): string | undefined {
+  return codeTargetRef(spec, role)?.value;
+}
+
+/** CAT-2 (R1). PURE. A role's short named list (`code_targets.<role>.values`), else its one value, else []. */
+export function codeTargetValues(spec: Pick<ItemListPricingSpec, "code_targets"> | null | undefined, role: string): string[] {
+  const t = spec?.code_targets?.[role];
+  if (t && Array.isArray(t.values)) return t.values.filter((v): v is string => typeof v === "string" && v !== "");
+  const one = codeTarget(spec, role);
+  return one === undefined ? [] : [one];
+}
+
 function reasonName(spec: ItemListPricingSpec, attr: string): string {
   return spec.reason_names?.[attr] ?? spec.numbers[attr]?.name ?? attr;
 }
@@ -4731,9 +4765,8 @@ export function clothFacingCladding(
  * ADP-1 (owner F3, 2026-10-19: "GI frame / framework" + "perforated Al sheet", cladding unanswered -> the stocked "GI
  * Framework with perforated Al sheet"). The 12e-6c fixing mask (O3) reads "GI frame" as a FIXING, which is right for a
  * frame alone and wrong for this cladding, so the cladding is told FIRST, on the raw words: a GI word, a frame word,
- * "perforated" and an aluminium word, all present.
+ * "perforated" and an aluminium word, all present. CAT-2: the cladding itself is the config's `code_targets.gi_framework`.
  */
-export const GI_FRAMEWORK_CLADDING = "GI Framework with perforated Al sheet";
 const GI_WORD_RE = /(^|[^a-z0-9])(?:gi|g\.i\.?|galvani[sz]ed)(?![a-z0-9])/i;
 const FRAME_WORD_RE = /(^|[^a-z0-9])frame(?:s|work|works)?(?![a-z0-9])/i;
 const PERFORATED_RE = /(^|[^a-z0-9])perforated(?![a-z0-9])/i;
@@ -4761,14 +4794,16 @@ export function giFrameworkCladding(
   spec: ItemListPricingSpec, attr: string, item: ExtractedListItem, rowText: string,
 ): { to: string; line: string } | null {
   const values = spec.choice_defs?.[attr]?.values ?? [];
-  if (!values.includes(GI_FRAMEWORK_CLADDING)) return null;
+  // CAT-2 (R1): the GI framework cladding is the config's `code_targets.gi_framework` (the load gate checks it), never typed here
+  const gi = codeTarget(spec, "gi_framework");
+  if (gi === undefined || !values.includes(gi)) return null;
   for (const e of spec.choice_text ?? []) {
     if (e.attr !== attr) continue;
     const raw = rawValue(item, e.from_attr);
     const said = raw !== null && raw !== "None" ? String(raw).trim() : "";
     const words = (said !== "" ? namesGiFramework(said) : null) ?? namesGiFramework(rowText);
     if (words === null) continue;
-    return { to: GI_FRAMEWORK_CLADDING, line: e.line.replace("{from}", words).replace("{to}", GI_FRAMEWORK_CLADDING) };
+    return { to: gi, line: e.line.replace("{from}", words).replace("{to}", gi) };
   }
   return null;
 }
@@ -4904,7 +4939,9 @@ export function drainPipeDefault(
   rowText: string,
   ownText: string,
 ): { family: string; line: string } | null {
-  if (!spec.family_text?.from_attr || !spec.families[CPVC]) return null;
+  // CAT-2 (R1): the drain pipe's material is the config's `code_targets.cpvc` (the load gate checks it), never typed here
+  const cpvc = codeTarget(spec, "cpvc");
+  if (!spec.family_text?.from_attr || cpvc === undefined || !spec.families[cpvc]) return null;
   const text = [rowText, ownText].join(" | ");
   if (!DRAIN_RE.test(text)) return null;
   const t = text.toLowerCase();
@@ -4914,7 +4951,7 @@ export function drainPipeDefault(
     const w = word.toLowerCase().trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     if (w && new RegExp(`(^|[^a-z0-9])${w}(?![a-z0-9])`).test(t)) return null;
   }
-  return { family: CPVC, line: `drain pipe, no material stated -> priced as ${CPVC}` };
+  return { family: cpvc, line: `drain pipe, no material stated -> priced as ${cpvc}` };
 }
 
 function priceOneItem(
@@ -6780,9 +6817,8 @@ export function cheaperAlternatives(
  * the CHEAPER for this row's size and thickness (supply + install, a composition's layers summed), with the amber line
  * "BoQ allows CPVC or uPVC -> priced as PVC, the lower cost". The person switches it with the family control (a pick
  * is the pricer's and is never second-guessed). None of them prices -> the item as it was (its own refusal stands).
+ * CAT-2 (R1): the two pipe types of the owner's CPVC rule are the config's `code_targets.cpvc` / `.pvc`, never typed here.
  */
-const CPVC = "CPVC";
-const PVC = "PVC";
 function priceOneItemOrCheaper(
   spec: ItemListPricingSpec, projected: RateMasterItem[], rowUnitClass: string, item: ExtractedListItem, index: number,
   unitFactor: UnitFactor | null, rowText: string, ownText: string, odHint: boolean | undefined, headingNoteText = "",
@@ -6817,10 +6853,11 @@ function priceOneItemOrCheaper(
    * should quote for CPVC. this overrides my earlier rule for lesser price item selection." CPVC named with PVC / uPVC
    * -> CPVC, whatever it costs; every other pair of stocked pipe types keeps the cheaper.
    */
-  if (alts.pipes && alts.families.includes(CPVC) && alts.families.includes(PVC)) {
-    const r = priceOneItem(spec, projected, rowUnitClass, as(CPVC), index, unitFactor, rowText, ownText, undefined, odHint, headingNoteText, headings);
-    const line = said(`BoQ allows ${alts.said} -> priced as ${CPVC}`);
-    return { ...r, familyRaw: rawValue(item, fa) === null ? null : String(rawValue(item, fa)), familyLine: line, working: r.composeInto ? r.working : [line, ...r.working], alternativeChosen: CPVC };
+  const cpvc = codeTarget(spec, "cpvc"), pvc = codeTarget(spec, "pvc");
+  if (alts.pipes && cpvc !== undefined && pvc !== undefined && alts.families.includes(cpvc) && alts.families.includes(pvc)) {
+    const r = priceOneItem(spec, projected, rowUnitClass, as(cpvc), index, unitFactor, rowText, ownText, undefined, odHint, headingNoteText, headings);
+    const line = said(`BoQ allows ${alts.said} -> priced as ${cpvc}`);
+    return { ...r, familyRaw: rawValue(item, fa) === null ? null : String(rawValue(item, fa)), familyLine: line, working: r.composeInto ? r.working : [line, ...r.working], alternativeChosen: cpvc };
   }
   let best: { f: string; r: ItemPriceResult; cost: number } | null = null;
   for (const f of alts.families) {
@@ -7100,8 +7137,11 @@ export function listSpecDefs(config: RateCategoryConfig | null | undefined): Lis
 
 /** The families a pricer may pick for an item -- every priceable family the block declares, in the block's
  * own order, with the unit(s) its SKUs are sold per ("per sq.m"). Aliases and no-SKU families are NOT
- * offered: they exist for the model's answer, not for a pick. PURE. */
-export function familyChoices(spec: ItemListPricingSpec): Array<{ family: string; units: string }> {
+ * offered: they exist for the model's answer, not for a pick. PURE.
+ * CAT-2 (P1, owner 2026-11-26 00:06 "2 lets still fix it"): given the served catalogue `items`, a family is kept only when at
+ * least one SKU of the block's kinds carries it (an offered alias follows its target), so the picker follows the catalogue; with
+ * no `items`, every declared family as before. */
+export function familyChoices(spec: ItemListPricingSpec, items?: readonly RateMasterItem[]): Array<{ family: string; units: string }> {
   const unitsOf = (f: { units: Record<string, unknown>; convert?: Record<string, unknown> }) =>
     [...new Set([...Object.keys(f.units), ...Object.keys(f.convert ?? {})])].map((cls) => `per ${unitWord(spec, cls)}`).join(" / ");
   const own = Object.entries(spec.families).map(([family, f]) => ({
@@ -7111,7 +7151,12 @@ export function familyChoices(spec: ItemListPricingSpec): Array<{ family: string
   // DU-1: an offered alias is listed with its target's units (its conversions included -- "Round (GI) - per metre" is per metre)
   const offered = (spec.family_alias_offered ?? []).filter((a) => spec.family_alias?.[a] && spec.families[spec.family_alias[a]])
     .map((a) => ({ family: a, units: unitsOf(spec.families[spec.family_alias![a]]) }));
-  return [...own, ...offered];
+  const all = [...own, ...offered];
+  if (!items) return all;
+  const fa = familyAttr(spec);
+  const carried = new Set(items.filter((it) => kindIn(spec, it.kind)).map((it) => String(it.attributes?.[fa] ?? "")));
+  const isAlias = new Set(offered.map((o) => o.family));
+  return all.filter((c) => carried.has(isAlias.has(c.family) ? spec.family_alias![c.family] : c.family));
 }
 
 /**

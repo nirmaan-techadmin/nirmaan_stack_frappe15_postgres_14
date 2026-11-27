@@ -27,10 +27,15 @@ def heading_notes(ancestors):
     return list((block.get('appended') or {}).values()) + list(block.get('own') or []) + list(block.get('attached') or [])
 
 
-configs = {}
+# CAT-1b (ANSWER 3, QR-REPLAY (a); PIN P-REPLAY): each config as the panel reads it -- through the ONE served merge
+# (catalogue_lists.serve_configs: rebuilt lists + the wording fill), not the raw row. On HVAC v89 served = stored; from v90 the stored
+# wording carries {{cat:...}} placeholders and the served text is v89's. BEFORE: configs[c['category_id']] = the raw parsed row.
+from nirmaan_stack.services.boq_rate_master import catalogue_lists
+raw_configs = {}
 for c in frappe.db.sql('select discipline, category_id, config from "tabBoQ Rate Category Config" where active=1', as_dict=True):
     cfg = json.loads(c['config']) if isinstance(c['config'], str) else c['config']
-    configs[c['category_id']] = cfg
+    raw_configs[(c['discipline'], c['category_id'])] = cfg
+configs = {cid: cfg for (_d, cid), cfg in catalogue_lists.serve_configs(raw_configs, fresh=True).items()}
 items = []
 for it in frappe.db.sql('select name, discipline, kind, brand, unit, attributes, rates, item_uid from "tabBoQ Rate Master Item" where active=1 order by name', as_dict=True):
     for k in ('attributes', 'rates'):

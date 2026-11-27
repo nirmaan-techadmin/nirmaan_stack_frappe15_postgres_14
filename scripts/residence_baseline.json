@@ -9,6 +9,11 @@
     "description": "Lines that assign workflow_state in api/ + integrations/ (state should be derived, not written ad-hoc).",
     "rule": "B3"
   },
+  "c1_catalogue_words_unfrozen": {
+    "count": 0,
+    "description": "BoQ / rate-master code files and rate-master prompts whose typed catalogue words (string literals or prompt words equal to a value of the newest rate files) differ from their frozen count in scripts/catalogue_allowlist.json.",
+    "rule": "C1"
+  },
   "d1_disable_comments_unfrozen": {
     "count": 0,
     "description": "Frontend files and rules with more lint disable comments for an ADR-0049 rule (or naming no rule) than frozen in frontend/disable-comment-suppressions.json.",

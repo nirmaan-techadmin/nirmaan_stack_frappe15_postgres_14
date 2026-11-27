@@ -1,0 +1,3188 @@
+{
+ "about": "CAT-1b -- HVAC v90 = v89 + ONLY these edits (scripts/_instruments/mint_hvac_v90_cat1b.py). Every edit converts one config WORDING text: each catalogue value it names (CAT-D1's converter, re-run on v89) becomes a {{cat:<attr>=<value>}} placeholder (|lower / |trim where the wording wrote it so); mixed-case mentions stay words (QR-MIXED). The 15 texts that ARE a catalogue value (family lists, labels, category_display) stay typed: they are references the gate checks (owner 2026-11-26 11:15, QR-C-2 (a)). No item changes. The undo links (cat1b_undo_support.py, cat1bEdits.harness.ts) read this file alone.",
+ "why": "R1 (owner 2026-11-26 01:47 'a a a ok', QR-C-1 (a); 11:15 'a', QR-C-2 (a)): the catalogue values this wording names become {{cat:<attr>=<value>}} placeholders, filled at both read points; the fill gives v89's text back byte for byte",
+ "counts": {
+  "texts": 228,
+  "placeholders": 494,
+  "kept_whole_value": [
+   "hvac_ducting.list_spec.sections[1].families[2]",
+   "hvac_insulation.list_spec.pricing.read_notes[0].families[0]",
+   "hvac_insulation.list_spec.pricing.read_notes[1].families[0]",
+   "hvac_insulation.list_spec.pricing.refuse_on_unit_class[0].families[2]",
+   "hvac_insulation.list_spec.pricing.value_map[0].display",
+   "hvac_valve_package.category_display",
+   "hvac_valve_package.list_spec.attribute_definitions[8].label",
+   "hvac_vav_box.category_display",
+   "hvac_vav_box.list_spec.pricing.own_row_check.extras[2].label",
+   "hvac_vav_box.list_spec.pricing.own_row_check.extras[5].label",
+   "hvac_vav_box.list_spec.pricing.own_row_check.extras[7].label",
+   "hvac_vav_box.list_spec.pricing.sheet_shares.shares[0].parts[2].label",
+   "hvac_vav_box.list_spec.pricing.sheet_shares.shares[2].parts[0].label",
+   "hvac_vrf.list_spec.pricing.extras.accessories[0].title",
+   "hvac_vrf.list_spec.pricing.extras.accessories[6].label"
+  ],
+  "mixed_case_guard": [
+   {
+    "where": "hvac_adp.list_spec.attribute_definitions[0].note",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_adp.list_spec.attribute_definitions[14].note",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_adp.list_spec.pricing.defaults.variant.rule",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_adp.list_spec.pricing.family_merge[0].line",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_adp.list_spec.pricing.family_merge[0].rule",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_insulation.list_spec.attribute_definitions[1].note",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.attribute_definitions[0].note",
+    "left_as_words": 2
+   },
+   {
+    "where": "hvac_vav_box.list_spec.attribute_definitions[10].note",
+    "left_as_words": 3
+   },
+   {
+    "where": "hvac_vav_box.list_spec.attribute_definitions[3].note",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.pricing.derivation_reasons[19].why",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.pricing.derivation_reasons[23].title",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.pricing.derivation_reasons[28].title",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.pricing.derivation_reasons[41].title",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.pricing.existing_boxes.kinds[0].label",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.pricing.existing_boxes.kinds[1].label",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.pricing.existing_boxes.kinds[2].label",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.pricing.scope.rule.install_row_texts.sheet_shares.lines.blank_rows",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.pricing.scope.rule.notes.C_qty",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.pricing.sheet_shares.lines.not_box_row",
+    "left_as_words": 2
+   },
+   {
+    "where": "hvac_vav_box.list_spec.sections[1].family_note",
+    "left_as_words": 1
+   },
+   {
+    "where": "hvac_vav_box.list_spec.sections[2].family_note",
+    "left_as_words": 2
+   }
+  ]
+ },
+ "configs": [
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    0,
+    "note"
+   ],
+   "from": "What the item IS. 'grille, type not stated' when the text gives a grille but not its type; 'none of these' for a priceable thing outside the sheet's families (owner ruling 6b: no SKU in the catalogue means the row is left blank for the user to decide). A discrete grille is 'grille, type not stated'. A row that gives only a size, or a size and a place ('600x600 for hub room'), buys the item its heading or that heading's note describes: answer that family, never 'none of these' with the size as its name. A row that buys something returns at least one item: an item outside the list is 'none of these' with 'Item as written' -- never an empty list. ALTERNATIVE NAMES (owner ruling 3a, 2026-09-23): a single skin plenum, a spill air box / spill air plenum, a plenum box, a diffuser box or a mixing chamber is 'mixing box / LP plenum'; 'double-skin plenum' ONLY when the text says double skin / double-skinned. Every louvre (intake, exhaust, discharge, fresh air, non-vision) is 'intake louvre'; a non-vision door louver is 'door grille'; a tegular or plaque diffuser is 'square diffuser'; on a row priced per sq.m, a diffuser whose shape the row and its headings do not settle -- no shape named, or round and square both offered ('round/square') -- is 'square diffuser' (owner 2026-10-23); a spigot damper is 'spigot' (code prices it as the Butterfly Damper With Spigot); a multi-blade louver damper is 'VCD'; a double deflection grille is 'linear grille' (a curved grille stays 'curved grille'); a grille damper is 'collar damper'; a floor tile grille, a rigid floor grille or a rigid tile grille is 'floor grille'. A Z-piece, a Z type baffle, a Z baffle or a cross talk silencer is 'cross-talk' (owner 2026-10-23), also under a heading that names another family (a Z type baffle under an ACTUATORS heading is 'cross-talk'). A return air baffle is 'cross-talk' (owner 2026-10-23); return it alone -- code adds its return air grille. A SECOND ITEM NEEDS WORDS: where nothing in the row or its own ancestors mentions a plenum box, a spill air box or a mixing chamber, a diffuser row pays for the diffuser alone -- do not add a box because diffusers often have one. Where an ancestor does describe the row's item as including one, both items are returned. A PLENUM'S ACCESSORIES ARE PART OF IT (owner 2026-10-23): where the row's item is a 'double-skin plenum' or a 'mixing box / LP plenum' itself, an access door or any other accessory the row names with it (hangers, cut-outs, openings) is not a second item -- return the plenum alone; its rate includes them. A canvas connection is NOT an accessory: where the row says its price includes canvas connections, return 'canvas connection' as a second item beside the plenum (owner 2026-10-23). A DAMPER NAMED AS PART OF A GRILLE OR DIFFUSER IS NOT A SECOND ITEM: a row buying a grille or a diffuser that the text says comes with a collar, volume-control or hit-and-miss damper pays for ONE item -- the grille or diffuser, with its damper attribute set. A damper is its own item only where the row buys the damper itself and names no host. A MOTORISED VCD'S CONTROL PANEL, ACTUATOR AND CABLING named in its heading are not separate items (owner 2026-10-23): return the VCD alone; code says on the panel that they are not included.",
+   "to": "What the item IS. 'grille, type not stated' when the text gives a grille but not its type; 'none of these' for a priceable thing outside the sheet's families (owner ruling 6b: no SKU in the catalogue means the row is left blank for the user to decide). A discrete grille is 'grille, type not stated'. A row that gives only a size, or a size and a place ('600x600 for hub room'), buys the item its heading or that heading's note describes: answer that family, never 'none of these' with the size as its name. A row that buys something returns at least one item: an item outside the list is 'none of these' with 'Item as written' -- never an empty list. ALTERNATIVE NAMES (owner ruling 3a, 2026-09-23): a single skin plenum, a spill air box / spill air plenum, a plenum box, a diffuser box or a mixing chamber is '{{cat:family=mixing box / LP plenum}}'; '{{cat:family=double-skin plenum}}' ONLY when the text says double skin / double-skinned. Every louvre (intake, exhaust, discharge, fresh air, non-vision) is '{{cat:family=intake louvre}}'; a non-vision door louver is '{{cat:family=door grille}}'; a tegular or plaque diffuser is '{{cat:family=square diffuser}}'; on a row priced per sq.m, a diffuser whose shape the row and its headings do not settle -- no shape named, or round and square both offered ('round/square') -- is '{{cat:family=square diffuser}}' (owner 2026-10-23); a {{cat:family=spigot}} damper is '{{cat:family=spigot}}' (code prices it as the Butterfly Damper With Spigot); a multi-blade louver damper is 'VCD'; a double deflection grille is '{{cat:family=linear grille}}' (a {{cat:family=curved grille}} stays '{{cat:family=curved grille}}'); a grille damper is '{{cat:item_name=COLLAR DAMPER|lower}}'; a floor tile grille, a rigid {{cat:family=floor grille}} or a rigid tile grille is '{{cat:family=floor grille}}'. A Z-piece, a Z type baffle, a Z baffle or a cross talk silencer is '{{cat:family=cross-talk}}' (owner 2026-10-23), also under a heading that names another family (a Z type baffle under an ACTUATORS heading is '{{cat:family=cross-talk}}'). A return air baffle is '{{cat:family=cross-talk}}' (owner 2026-10-23); return it alone -- code adds its return air grille. A SECOND ITEM NEEDS WORDS: where nothing in the row or its own ancestors mentions a plenum box, a spill air box or a mixing chamber, a diffuser row pays for the diffuser alone -- do not add a box because diffusers often have one. Where an ancestor does describe the row's item as including one, both items are returned. A PLENUM'S ACCESSORIES ARE PART OF IT (owner 2026-10-23): where the row's item is a '{{cat:family=double-skin plenum}}' or a '{{cat:family=mixing box / LP plenum}}' itself, an {{cat:family=access door}} or any other accessory the row names with it (hangers, cut-outs, openings) is not a second item -- return the plenum alone; its rate includes them. A {{cat:family=canvas connection}} is NOT an accessory: where the row says its price includes canvas connections, return '{{cat:family=canvas connection}}' as a second item beside the plenum (owner 2026-10-23). A DAMPER NAMED AS PART OF A GRILLE OR DIFFUSER IS NOT A SECOND ITEM: a row buying a grille or a diffuser that the text says comes with a collar, volume-control or hit-and-miss damper pays for ONE item -- the grille or diffuser, with its damper attribute set. A damper is its own item only where the row buys the damper itself and names no host. A MOTORISED VCD'S CONTROL PANEL, ACTUATOR AND CABLING named in its heading are not separate items (owner 2026-10-23): return the VCD alone; code says on the panel that they are not included.",
+   "n": 22
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    14,
+    "note"
+   ],
+   "from": "A CLOSED per-family pick (owner design fix, 2026-09-23) so the sheet's ladder survives. Owner defaults (R14) when 'None': VCD GI rectangular, fire damper without sleeve. A VCD is 'aluminium' ONLY where the row or its headings say the damper is aluminium (aluminium, aluminum, Al.) (owner 2026-10-23); a VCD that does not say aluminium is answered as before and takes the default. A motorised aluminium VCD is 'motorised'.",
+   "to": "A CLOSED per-family pick (owner design fix, 2026-09-23) so the sheet's ladder survives. Owner defaults (R14) when 'None': VCD GI rectangular, {{cat:item_name=FIRE DAMPER|lower}} {{cat:variant=without sleeve}}. A VCD is '{{cat:variant=aluminium}}' ONLY where the row or its headings say the damper is {{cat:variant=aluminium}} ({{cat:variant=aluminium}}, aluminum, Al.) (owner 2026-10-23); a VCD that does not say {{cat:variant=aluminium}} is answered as before and takes the default. A {{cat:variant=motorised}} {{cat:variant=aluminium}} VCD is '{{cat:variant=motorised}}'.",
+   "n": 9
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    1,
+    "note"
+   ],
+   "from": "Owner default (R1) when 'None': without (curved grille: with). 'None' = the text says nothing about a damper. The ROW WINS over a heading: a row saying it is without a volume control damper is 'without', even where a neighbouring section heading names a damper product. WHERE THE ROW NAMES A DAMPER AS PART OF A GRILLE OR DIFFUSER, that is this item's damper: answer 'with' here and return no separate damper item. Three shapes this covers: a grille described with a collar damper; a curved or linear grille with its damper in the same sentence; a diffuser whose stated size is followed by a damper. Where the row buys dampers alone, the damper IS the item and this attribute describes nothing else.",
+   "to": "Owner default (R1) when 'None': without ({{cat:family=curved grille}}: with). 'None' = the text says nothing about a damper. The ROW WINS over a heading: a row saying it is without a volume control damper is 'without', even where a neighbouring section heading names a damper product. WHERE THE ROW NAMES A DAMPER AS PART OF A GRILLE OR DIFFUSER, that is this item's damper: answer 'with' here and return no separate damper item. Three shapes this covers: a grille described with a {{cat:item_name=COLLAR DAMPER|lower}}; a curved or {{cat:family=linear grille}} with its damper in the same sentence; a diffuser whose stated size is followed by a damper. Where the row buys dampers alone, the damper IS the item and this attribute describes nothing else.",
+   "n": 3
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    2,
+    "note"
+   ],
+   "from": "Owner default (R5, flexible duct) when 'None': insulated.",
+   "to": "Owner default (R5, {{cat:family=flexible duct}}) when 'None': insulated.",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "companion_items",
+    0,
+    "line"
+   ],
+   "from": "return air baffle -> one return air grille added (linear grille, without damper, 300 x 300: no grille size stated)",
+   "to": "return air baffle -> one return air grille added ({{cat:family=linear grille}}, without damper, 300 x 300: no grille size stated)",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "damper",
+    "rule_by_family",
+    "curved grille"
+   ],
+   "from": "damper not mentioned (or not answered) on a curved grille = with (owner 2026-10-20)",
+   "to": "damper not mentioned (or not answered) on a {{cat:family=curved grille}} = with (owner 2026-10-20)",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "variant",
+    "rule"
+   ],
+   "from": "VCD = GI rectangular; fire damper = without sleeve",
+   "to": "VCD = GI rectangular; {{cat:item_name=FIRE DAMPER|lower}} = {{cat:variant=without sleeve}}",
+   "n": 2
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "cross-talk",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    4,
+    "explain"
+   ],
+   "from": "sheet formula: 2 x (W + H) x the cross-talk assumed depth / 10^6 sq.m x the base per-sq.m install cost",
+   "to": "sheet formula: 2 x (W + H) x the {{cat:family=cross-talk}} assumed depth / 10^6 sq.m x the base per-sq.m install cost",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "cross-talk",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    4,
+    "explain"
+   ],
+   "from": "sheet formula: 2 x (W + H) x the cross-talk assumed depth / 10^6 sq.m x the base per-sq.m supply cost",
+   "to": "sheet formula: 2 x (W + H) x the {{cat:family=cross-talk}} assumed depth / 10^6 sq.m x the base per-sq.m supply cost",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "flexible duct",
+    "convert",
+    "count",
+    0,
+    "pipelines",
+    "item_install",
+    "note"
+   ],
+   "from": "SLICE 8 (owner M-c): a flexible duct is sold PER PIECE of a standard length, so a per-number row prices from the per-metre SKU at that length. The length is a Pricing Input (ADP-1, owner A4), and the rounding stays last.",
+   "to": "SLICE 8 (owner M-c): a {{cat:family=flexible duct}} is sold PER PIECE of a standard length, so a per-number row prices from the per-metre SKU at that length. The length is a Pricing Input (ADP-1, owner A4), and the rounding stays last.",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "flexible duct",
+    "convert",
+    "count",
+    0,
+    "pipelines",
+    "item_install",
+    "steps",
+    2,
+    "explain"
+   ],
+   "from": "per piece: per-metre install cost x the flexible duct length per piece",
+   "to": "per piece: per-metre install cost x the {{cat:family=flexible duct}} length per piece",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "flexible duct",
+    "convert",
+    "count",
+    0,
+    "pipelines",
+    "item_supply",
+    "note"
+   ],
+   "from": "SLICE 8 (owner M-c): a flexible duct is sold PER PIECE of a standard length, so a per-number row prices from the per-metre SKU at that length. The length is a Pricing Input (ADP-1, owner A4), and the rounding stays last.",
+   "to": "SLICE 8 (owner M-c): a {{cat:family=flexible duct}} is sold PER PIECE of a standard length, so a per-number row prices from the per-metre SKU at that length. The length is a Pricing Input (ADP-1, owner A4), and the rounding stays last.",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "flexible duct",
+    "convert",
+    "count",
+    0,
+    "pipelines",
+    "item_supply",
+    "steps",
+    2,
+    "explain"
+   ],
+   "from": "per piece: per-metre supply cost x the flexible duct length per piece",
+   "to": "per piece: per-metre supply cost x the {{cat:family=flexible duct}} length per piece",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "flexible duct",
+    "convert",
+    "count",
+    0,
+    "rule"
+   ],
+   "from": "per piece: per-metre rate x the flexible duct length per piece",
+   "to": "per piece: per-metre rate x the {{cat:family=flexible duct}} length per piece",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "mixing box / LP plenum",
+    "convert",
+    "count",
+    0,
+    "rule"
+   ],
+   "from": "per-number mixing box / LP plenum with an area: the area x the per-sq.m rate, supply and install (no adder)",
+   "to": "per-number {{cat:family=mixing box / LP plenum}} with an area: the area x the per-sq.m rate, supply and install (no adder)",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "mixing box / LP plenum",
+    "convert",
+    "count",
+    1,
+    "rule"
+   ],
+   "from": "per-number mixing box / LP plenum: per-sq.m cost x 2 x (L x B + B x H + L x H) / 10^6 sq.m, + the mixing-box supply adder on supply only, rounded up, then the markup",
+   "to": "per-number {{cat:family=mixing box / LP plenum}}: per-sq.m cost x 2 x (L x B + B x H + L x H) / 10^6 sq.m, + the mixing-box supply adder on supply only, rounded up, then the markup",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "slot diffuser",
+    "convert",
+    "count",
+    0,
+    "rule"
+   ],
+   "from": "per-number slot diffuser: the per-metre rate (slots and damper) x the piece length in metres",
+   "to": "per-number {{cat:family=slot diffuser}}: the per-metre rate (slots and damper) x the piece length in metres",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "family_merge",
+    0,
+    "line"
+   ],
+   "from": "spigot with butterfly damper named -> priced as one Butterfly Damper With Spigot",
+   "to": "{{cat:family=spigot}} with {{cat:family=butterfly damper}} named -> priced as one Butterfly Damper With Spigot",
+   "n": 2
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "family_merge",
+    0,
+    "rule"
+   ],
+   "from": "a spigot with a butterfly damper, or a spigot damper, is one Butterfly Damper With Spigot, priced at the spigot's diameter (owner 2026-10-22)",
+   "to": "a {{cat:family=spigot}} with a {{cat:family=butterfly damper}}, or a {{cat:family=spigot}} damper, is one Butterfly Damper With Spigot, priced at the {{cat:family=spigot}}'s diameter (owner 2026-10-22)",
+   "n": 4
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "number_defaults",
+    "face_h_mm",
+    "rule"
+   ],
+   "from": "no size stated - a cross-talk silencer is priced at 300 x 300 (owner 2026-10-23 10:14 / 12:08)",
+   "to": "no size stated - a {{cat:family=cross-talk}} silencer is priced at 300 x 300 (owner 2026-10-23 10:14 / 12:08)",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "number_defaults",
+    "face_w_mm",
+    "rule"
+   ],
+   "from": "no size stated - a cross-talk silencer is priced at 300 x 300 (owner 2026-10-23 10:14 / 12:08)",
+   "to": "no size stated - a {{cat:family=cross-talk}} silencer is priced at 300 x 300 (owner 2026-10-23 10:14 / 12:08)",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "numbers",
+    "slot_count",
+    "not_stocked"
+   ],
+   "from": "No SKU for a {value}-slot diffuser - price this row by hand",
+   "to": "No SKU for a {value}-{{cat:family=slot diffuser}} - price this row by hand",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "refuse_on_unit_class",
+    0,
+    "refuse"
+   ],
+   "from": "No SKU for a slot diffuser per sq.m without damper - price this row by hand",
+   "to": "No SKU for a {{cat:family=slot diffuser}} per sq.m without damper - price this row by hand",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    0,
+    "line"
+   ],
+   "from": "control panel, actuator and cabling named in the heading: not included - add by hand",
+   "to": "{{cat:family=control panel}}, {{cat:family=actuator}} and cabling named in the heading: not included - add by hand",
+   "n": 2
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    0,
+    "rule"
+   ],
+   "from": "R9 option (c): a motorised VCD prices alone; the heading's control panel, actuator and cabling are not included (owner 2026-10-23 23:32; reach Q4 tight 2026-10-24)",
+   "to": "R9 option (c): a {{cat:variant=motorised}} VCD prices alone; the heading's {{cat:family=control panel}}, {{cat:family=actuator}} and cabling are not included (owner 2026-10-23 23:32; reach Q4 tight 2026-10-24)",
+   "n": 3
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    1,
+    "line"
+   ],
+   "from": "shape not stated (or round/square offered): priced as square diffuser - change if round",
+   "to": "shape not stated (or round/square offered): priced as {{cat:family=square diffuser}} - change if round",
+   "n": 1
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    1,
+    "rule"
+   ],
+   "from": "R13: a per-sq.m diffuser whose shape is not settled prices as a square diffuser, with this note (owner 2026-10-23 23:37)",
+   "to": "R13: a per-sq.m diffuser whose shape is not settled prices as a {{cat:family=square diffuser}}, with this note (owner 2026-10-23 23:37)",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    0,
+    "note"
+   ],
+   "from": "Which duct THIS row buys: Rectangular (GI); Spiral / Oval (GI) (spiral, flat oval, elliptical, and round / circular ducts priced per sq.m); Round (GI) - per metre (a round / circular duct the row prices per metre with its diameter); PIR (Pre Insulated Duct) (pre-insulated / PIR panel ducts); Fire Rated (MS) (MS / black steel / fire-rated / kitchen exhaust ducts). Answer from the row, or a heading that describes this row's duct. 'None' when the row names a duct but no shape. THE ITEM OF THE ROW DECIDES: when the row buys a duct, answer the duct even where its words also name what the duct connects to, what it is for, or what else is supplied with it (dampers, plenums, plenum boxes, grilles / diffusers, attenuators / silencers, flexible duct, butterfly dampers, access doors) - those are extras, not the item. A gauge 'for ducts above 2250 mm and plenum' is a duct of that gauge; a 'duct for return air plenum' is a duct; 'PIR panels' are PIR ducts; 'sheet metal ducts with acoustic lining' are ducts (Insulated Yes, the lining as their insulation item); a removal of existing ducts that also removes their insulation or silencers is a duct row. 'none of these' only when the item itself is not a duct (a damper, plenum box, grille, diffuser, silencer, flexible duct, canvas, turning vanes, a VRF / AC unit, a valve, a sensor or thermostat, a copper / refrigerant pipe, insulation on its own) - copy what it is in duct_type_as_written. A row that pays ONLY for painting, a fire-retardant coating or air balancing of ducts returns NO main item - only its Misc item.",
+   "to": "Which duct THIS row buys: {{cat:duct_type=Rectangular (GI)}}; {{cat:duct_type=Spiral / Oval (GI)}} (spiral, flat oval, elliptical, and round / circular ducts priced per sq.m); Round (GI) - per metre (a round / circular duct the row prices per metre with its diameter); {{cat:duct_type=PIR (Pre Insulated Duct)}} (pre-insulated / PIR panel ducts); {{cat:duct_type=Fire Rated (MS)}} (MS / black steel / fire-rated / kitchen exhaust ducts). Answer from the row, or a heading that describes this row's duct. 'None' when the row names a duct but no shape. THE ITEM OF THE ROW DECIDES: when the row buys a duct, answer the duct even where its words also name what the duct connects to, what it is for, or what else is supplied with it (dampers, plenums, plenum boxes, grilles / diffusers, attenuators / silencers, {{cat:family=flexible duct}}, butterfly dampers, access doors) - those are extras, not the item. A gauge 'for ducts above 2250 mm and plenum' is a duct of that gauge; a 'duct for return air plenum' is a duct; 'PIR panels' are PIR ducts; 'sheet metal ducts with acoustic lining' are ducts (Insulated Yes, the lining as their insulation item); a removal of existing ducts that also removes their insulation or silencers is a duct row. 'none of these' only when the item itself is not a duct (a damper, plenum box, grille, diffuser, silencer, {{cat:family=flexible duct}}, canvas, turning vanes, a VRF / AC unit, a valve, a sensor or thermostat, a copper / refrigerant pipe, insulation on its own) - copy what it is in duct_type_as_written. A row that pays ONLY for painting, a fire-retardant coating or {{cat:item=Air Balancing|lower}} of ducts returns NO main item - only its Misc item.",
+   "n": 7
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    1,
+    "note"
+   ],
+   "from": "The duct shape / material words as the BoQ writes them for THIS row ('GSS rectangular', 'spiral flat oval', 'MS welded', 'aluminium', 'removal of existing duct'), one continuous piece. Leave out when none.",
+   "to": "The duct shape / material words as the BoQ writes them for THIS row ('GSS rectangular', 'spiral flat oval', 'MS welded', '{{cat:variant=aluminium}}', 'removal of existing duct'), one continuous piece. Leave out when none.",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    3,
+    "note"
+   ],
+   "from": "The duct size THIS row states, with its unit: the sides of a rectangular duct ('1500 x 600'), the diameter of a round duct ('150 mm dia', 'Ø 200'), the axes of an oval duct, or the size band ('up to 750 mm', '751-1500 mm'). Leave out when none.",
+   "to": "The duct size THIS row states, with its unit: the sides of a rectangular duct ('1500 x 600'), the diameter of a round duct ('{{cat:item_detail=150 MM DIA|lower}}', 'Ø 200'), the axes of an oval duct, or the size band ('up to 750 mm', '751-1500 mm'). Leave out when none.",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    0,
+    "why"
+   ],
+   "from": "aluminium and stainless steel are not on our sheet (owner, 2026-11-13 20:57); stainless steel: a duct / ducting row -> 'price this row by hand', any other -> the butterfly-valve re-file note (owner, 2026-11-16 16:38)",
+   "to": "{{cat:variant=aluminium}} and stainless steel are not on our sheet (owner, 2026-11-13 20:57); stainless steel: a duct / ducting row -> 'price this row by hand', any other -> the butterfly-valve re-file note (owner, 2026-11-16 16:38)",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    35,
+    "why"
+   ],
+   "from": "MS 16G / aluminium unpriced; stainless steel rows are butterfly valves - re-file (owner, 2026-11-13 20:53 / 20:57)",
+   "to": "MS 16G / {{cat:variant=aluminium}} unpriced; stainless steel rows are butterfly valves - re-file (owner, 2026-11-13 20:53 / 20:57)",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    4,
+    "title"
+   ],
+   "from": "^A heading naming aluminium",
+   "to": "^A heading naming {{cat:variant=aluminium}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "family_text",
+    "refuse",
+    0,
+    "refuse"
+   ],
+   "from": "Aluminium duct is not on our sheet - price this row by hand",
+   "to": "{{cat:item_detail=Aluminium}} duct is not on our sheet - price this row by hand",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "family_text",
+    "refuse",
+    0,
+    "rule"
+   ],
+   "from": "DR11 aluminium unpriced (owner 2026-11-13 20:57)",
+   "to": "DR11 {{cat:variant=aluminium}} unpriced (owner 2026-11-13 20:57)",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "family_text",
+    "refuse",
+    1,
+    "refuse"
+   ],
+   "from": "Aluminium duct is not on our sheet - price this row by hand",
+   "to": "{{cat:item_detail=Aluminium}} duct is not on our sheet - price this row by hand",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "family_text",
+    "refuse",
+    1,
+    "rule"
+   ],
+   "from": "DR11 aluminium unpriced (owner 2026-11-13 20:57)",
+   "to": "DR11 {{cat:variant=aluminium}} unpriced (owner 2026-11-13 20:57)",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "no_sku_refusals",
+    0,
+    "refuse"
+   ],
+   "from": "Reads as a valve, not a duct - re-file this row under Valve Package",
+   "to": "Reads as a valve, not a duct - re-file this row under {{cat:group=Valve Package}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "no_sku_refusals",
+    6,
+    "refuse"
+   ],
+   "from": "Reads as a sound attenuator, not a duct - re-file this row under ADP",
+   "to": "Reads as a {{cat:item_name=Sound Attenuator|lower}}, not a duct - re-file this row under ADP",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "no_sku_refusals",
+    7,
+    "refuse"
+   ],
+   "from": "Reads as a flexible duct, not a ducting item - re-file this row under ADP",
+   "to": "Reads as a {{cat:family=flexible duct}}, not a ducting item - re-file this row under ADP",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "no_sku_refusals",
+    8,
+    "refuse"
+   ],
+   "from": "Reads as a canvas connection, not a duct - re-file this row under ADP",
+   "to": "Reads as a {{cat:family=canvas connection}}, not a duct - re-file this row under ADP",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    2,
+    "line"
+   ],
+   "from": "Also names plenum boxes / attenuators / silencers / flexible duct - each priced in its own row, not in this price",
+   "to": "Also names plenum boxes / attenuators / silencers / {{cat:family=flexible duct}} - each priced in its own row, not in this price",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    2,
+    "rule_line"
+   ],
+   "from": "A duct row naming plenum boxes, attenuators, silencers or flexible duct carries a note that they are not in this price",
+   "to": "A duct row naming plenum boxes, attenuators, silencers or {{cat:family=flexible duct}} carries a note that they are not in this price",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    4,
+    "line"
+   ],
+   "from": "heading says Aluminium - check the material before quoting",
+   "to": "heading says {{cat:item_detail=Aluminium}} - check the material before quoting",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    4,
+    "rule_line"
+   ],
+   "from": "A heading naming aluminium over a row of another material carries a check-the-material note",
+   "to": "A heading naming {{cat:variant=aluminium}} over a row of another material carries a check-the-material note",
+   "n": 1
+  },
+  {
+   "c": "hvac_ducting",
+   "p": [
+    "list_spec",
+    "sections",
+    2,
+    "family_note"
+   ],
+   "from": "Which Misc item THIS row buys for the ducts: Paint (painting of ducts - primer, enamel, spray or roller paint in a shade); Fire Retardant Spray Paint (a fire-retardant / fire-resistant / intumescent coating on ducts); Air Balancing (testing, adjusting and balancing of the air system). Answer 'none of these' for anything else and copy its words into 'Item as written'. On a row that buys a duct, return no Misc item: painting, coating or balancing a duct row names are noted there, not priced (they are priced on their own rows).",
+   "to": "Which Misc item THIS row buys for the ducts: Paint (painting of ducts - primer, enamel, spray or roller paint in a shade); {{cat:item=Fire Retardant Spray Paint}} (a fire-retardant / fire-resistant / intumescent coating on ducts); {{cat:item=Air Balancing}} (testing, adjusting and balancing of the air system). Answer 'none of these' for anything else and copy its words into 'Item as written'. On a row that buys a duct, return no Misc item: painting, coating or balancing a duct row names are noted there, not priced (they are priced on their own rows).",
+   "n": 2
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    0,
+    "note"
+   ],
+   "from": "Which insulation the row buys. The family: it decides the SKU set and the unit. Open cell is Acoustic Nitrile Insulation; closed cell on a duct, sheet, wall, ceiling or slab is Thermal Nitrile Insulation, also where the row or its heading calls it acoustic insulation ('acoustic insulation ... with closed cell nitrile rubber' on a duct is Thermal Nitrile Insulation); closed cell on a pipe is Nitrile Rubber Insulation. Fibre glass, glass wool or resin-bonded glass wool of ANY density -- 32 kg/m3 included -- is ' Fiberglass Rigid Board Insulation, Density 48Kg/m3' (the density is ignored). 'none of these' for an insulation material the catalogue does not stock (rockwool, mineral wool, XLPE, phenolic, EPDM, PIR, polyethylene / EPS). A row that names only a GENERIC insulation -- 'insulation', 'insulation foam', 'foam insulation' -- and no material of its own takes the material its heading names: under a heading naming nitrile rubber it is nitrile (Nitrile Rubber Insulation on a pipe, Thermal Nitrile Insulation on a duct or sheet). 'none of these' is only for a material the catalogue does not stock, never for a generic word. Answer 'none of these' only for a material the BoQ NAMES that the catalogue does not stock; when the row and its headings name no insulation material at all, leave this out -- the pricer applies the ruled default. Where the BoQ offers materials as alternatives ('nitrile rubber/XLPE', 'rockwool/glasswool'), copy the material as written in full, both names, into 'Insulation material as written'. A row that describes only a cladding or coating applied over insulation, with no insulation material being supplied, is 'Cladding Only'. Tubular nitrile rubber, nitrile tube or nitrile tubing (any spelling of nitrile) is Nitrile Rubber Insulation; 'Tubular Puf Insulation' only where PUF or polyurethane is named.",
+   "to": "Which insulation the row buys. The family: it decides the SKU set and the unit. Open cell is {{cat:item=Acoustic Nitrile Insulation}}; closed cell on a duct, sheet, wall, ceiling or slab is {{cat:item=Thermal Nitrile Insulation}}, also where the row or its heading calls it acoustic insulation ('acoustic insulation ... with closed cell nitrile rubber' on a duct is {{cat:item=Thermal Nitrile Insulation}}); closed cell on a pipe is {{cat:item=Nitrile Rubber Insulation}}. Fibre glass, glass wool or resin-bonded glass wool of ANY density -- 32 kg/m3 included -- is ' {{cat:item= Fiberglass Rigid Board Insulation, Density 48Kg/m3|trim}}' (the density is ignored). 'none of these' for an insulation material the catalogue does not stock (rockwool, mineral wool, XLPE, phenolic, EPDM, PIR, polyethylene / EPS). A row that names only a GENERIC insulation -- 'insulation', 'insulation foam', 'foam insulation' -- and no material of its own takes the material its heading names: under a heading naming nitrile rubber it is nitrile ({{cat:item=Nitrile Rubber Insulation}} on a pipe, {{cat:item=Thermal Nitrile Insulation}} on a duct or sheet). 'none of these' is only for a material the catalogue does not stock, never for a generic word. Answer 'none of these' only for a material the BoQ NAMES that the catalogue does not stock; when the row and its headings name no insulation material at all, leave this out -- the pricer applies the ruled default. Where the BoQ offers materials as alternatives ('nitrile rubber/XLPE', 'rockwool/glasswool'), copy the material as written in full, both names, into 'Insulation material as written'. A row that describes only a cladding or coating applied over insulation, with no insulation material being supplied, is '{{cat:item=Cladding Only}}'. Tubular nitrile rubber, nitrile tube or nitrile tubing (any spelling of nitrile) is {{cat:item=Nitrile Rubber Insulation}}; '{{cat:item=Tubular Puf Insulation}}' only where PUF or polyurethane is named.",
+   "n": 10
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    1,
+    "note"
+   ],
+   "from": "What covers the insulation. 'No' means the row states none. A cladding a heading names applies to every row under it that changes only the material or the thickness and names no cladding of its own: answer the heading's cladding there. A cladding a heading names with 'where required', 'if required', 'as required' or 'as directed' still applies to every row under that heading: answer it. Only a condition that names WHERE the item is (pipes exposed to sun or atmosphere, outdoor, exposed areas) limits the cladding to rows that meet that condition. 'Exposed insulation material with <a cladding>' describes the insulation's own outer face, not a place: that cladding applies to every row under the heading (owner 2026-10-23). Aluminium foil and glass cloth offered as alternatives ('Al Foil / GC cloth') is 'Aluminium Foil'. When neither the row nor its headings mention a cladding, answer 'None' - never leave it out for that reason. 'Al. foil', 'Alu foil' or aluminium foil is 'Aluminium Foil'. A GI or galvanised sheet cladding with no frame and no perforated sheet named ('26 G GI cladding') is not stocked: LEAVE THIS OUT and copy the cladding exactly as written into 'Cladding as written'. A GI frame, grid or framework of any gauge (a 22G GI frame work) carrying a perforated sheet is 'GI Framework with perforated Al sheet'. A perforated GSS sheet (galvanised steel sheet, 22G / 26G, powder coated or not) carried on such a frame is the SAME cladding, 'GI Framework with perforated Al sheet' -- the sheet metal the row names does not make it a different cladding, so do not flag or withhold it for saying GSS rather than aluminium. A paint or coating over glass cloth (two coats of UV paint, a flame-retardant coating sandwiched with glass cloth) is 'Glass Cloth with paint' -- a paint or coating alone NEVER makes it aluminium. A paint or coating ('polyshield coating', 'fire retardant coating', 'protective coating', a UV coating, a lacquer) is not a cladding and never changes the price (owner 2026-10-23): where it is the only covering the text names, with no glass cloth, answer 'None' -- never 'Glass Cloth with paint' -- and leave it out of 'Cladding as written'. A cladding named beside it (an aluminium sheet, a foil) is answered as that cladding. Where the coating IS sandwiched with or applied over glass cloth, it is the paint of 'Glass Cloth with paint': copy the words up to and including the glass cloth into 'Cladding as written'. A co-extruded polymer jacket or covering is copied as written into 'Cladding as written' and never mapped to a stocked cladding. Where aluminium is ALSO named beside the glass cloth it is '<gauge> Aluminium with Glass Cloth' at the gauge the BoQ states; aluminium named with no gauge is 26G ('26G Aluminium', '26G Aluminium with Glass Cloth'): no gauge stated -> priced as 26G. A perforated GSS sheet bolted or screwed on with no frame named is still 'GI Framework with perforated Al sheet'. A bare 'glass cloth' with no paint or coating named is still 'Glass Cloth with paint'. A factory-laminated or reinforced glass cloth or fibre cloth facing ('factory laminated fire resistant fibre cloth fabric', 'reinforced glass cloth') IS the glass cloth cladding: 'Glass Cloth with paint', or '<gauge> Aluminium with Glass Cloth' where aluminium is also named. A FOIL facing ('reinforced foil facing', 'foil facing', 'foil-faced', 'FSK') is 'Aluminium Foil', never a glass cloth (owner 2026-10-23); an aluminium cladding and a foil facing offered as alternatives ('aluminum cladding / reinforced foil facing') is 'Aluminium Foil'.",
+   "to": "What covers the insulation. 'No' means the row states none. A cladding a heading names applies to every row under it that changes only the material or the thickness and names no cladding of its own: answer the heading's cladding there. A cladding a heading names with 'where required', 'if required', 'as required' or 'as directed' still applies to every row under that heading: answer it. Only a condition that names WHERE the item is (pipes exposed to sun or atmosphere, outdoor, exposed areas) limits the cladding to rows that meet that condition. 'Exposed insulation material with <a cladding>' describes the insulation's own outer face, not a place: that cladding applies to every row under the heading (owner 2026-10-23). Aluminium foil and glass cloth offered as alternatives ('Al Foil / GC cloth') is '{{cat:cladding=Aluminium Foil}}'. When neither the row nor its headings mention a cladding, answer 'None' - never leave it out for that reason. 'Al. foil', 'Alu foil' or {{cat:cladding=Aluminium Foil|lower}} is '{{cat:cladding=Aluminium Foil}}'. A GI or galvanised sheet cladding with no frame and no perforated sheet named ('26 G GI cladding') is not stocked: LEAVE THIS OUT and copy the cladding exactly as written into 'Cladding as written'. A GI frame, grid or framework of any gauge (a 22G GI frame work) carrying a perforated sheet is '{{cat:cladding=GI Framework with perforated Al sheet}}'. A perforated GSS sheet (galvanised steel sheet, 22G / 26G, powder coated or not) carried on such a frame is the SAME cladding, '{{cat:cladding=GI Framework with perforated Al sheet}}' -- the sheet metal the row names does not make it a different cladding, so do not flag or withhold it for saying GSS rather than {{cat:variant=aluminium}}. A paint or coating over glass cloth (two coats of UV paint, a flame-retardant coating sandwiched with glass cloth) is '{{cat:cladding=Glass Cloth with paint}}' -- a paint or coating alone NEVER makes it {{cat:variant=aluminium}}. A paint or coating ('polyshield coating', 'fire retardant coating', 'protective coating', a UV coating, a lacquer) is not a cladding and never changes the price (owner 2026-10-23): where it is the only covering the text names, with no glass cloth, answer 'None' -- never '{{cat:cladding=Glass Cloth with paint}}' -- and leave it out of 'Cladding as written'. A cladding named beside it (an {{cat:variant=aluminium}} sheet, a foil) is answered as that cladding. Where the coating IS sandwiched with or applied over glass cloth, it is the paint of '{{cat:cladding=Glass Cloth with paint}}': copy the words up to and including the glass cloth into 'Cladding as written'. A co-extruded polymer jacket or covering is copied as written into 'Cladding as written' and never mapped to a stocked cladding. Where {{cat:variant=aluminium}} is ALSO named beside the glass cloth it is '<gauge> {{cat:item_detail=Aluminium}} with Glass Cloth' at the gauge the BoQ states; {{cat:variant=aluminium}} named with no gauge is 26G ('{{cat:cladding=26G Aluminium}}', '{{cat:cladding=26G Aluminium with Glass Cloth}}'): no gauge stated -> priced as 26G. A perforated GSS sheet bolted or screwed on with no frame named is still '{{cat:cladding=GI Framework with perforated Al sheet}}'. A bare 'glass cloth' with no paint or coating named is still '{{cat:cladding=Glass Cloth with paint}}'. A factory-laminated or reinforced glass cloth or fibre cloth facing ('factory laminated fire resistant fibre cloth fabric', 'reinforced glass cloth') IS the glass cloth cladding: '{{cat:cladding=Glass Cloth with paint}}', or '<gauge> {{cat:item_detail=Aluminium}} with Glass Cloth' where {{cat:variant=aluminium}} is also named. A FOIL facing ('reinforced foil facing', 'foil facing', 'foil-faced', 'FSK') is '{{cat:cladding=Aluminium Foil}}', never a glass cloth (owner 2026-10-23); an {{cat:variant=aluminium}} cladding and a foil facing offered as alternatives ('aluminum cladding / reinforced foil facing') is '{{cat:cladding=Aluminium Foil}}'.",
+   "n": 24
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    2,
+    "note"
+   ],
+   "from": "The cladding in the BoQ's OWN WORDS, copied exactly as the row or its heading writes it ('26 G GI cladding', '24 G aluminium with glass cloth'). Answer it whenever the text names a cladding, also when 'Cladding' is answered; leave it out when no cladding is named. Recorded and shown; the pricer maps a cladding the catalogue does not stock. Copy the words exactly as the BoQ writes them, as one continuous piece; never shorten, never join pieces with '...' or any other mark; if the words are long, copy the shortest continuous piece that holds the value.",
+   "to": "The cladding in the BoQ's OWN WORDS, copied exactly as the row or its heading writes it ('26 G GI cladding', '24 G {{cat:variant=aluminium}} with glass cloth'). Answer it whenever the text names a cladding, also when 'Cladding' is answered; leave it out when no cladding is named. Recorded and shown; the pricer maps a cladding the catalogue does not stock. Copy the words exactly as the BoQ writes them, as one continuous piece; never shorten, never join pieces with '...' or any other mark; if the words are long, copy the shortest continuous piece that holds the value.",
+   "n": 1
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    7,
+    "note"
+   ],
+   "from": "A paint or coating the row or its heading names that is NOT the paint of 'Glass Cloth with paint' (a UV coating, a fire or flame retardant coating, a polyshield or protective coating, a lacquer), in the BoQ's own words; leave it out when no such coating is named. Shown on the panel only: the price never reads it. Copy the words exactly as the BoQ writes them, as one continuous piece; never shorten, never join pieces with '...' or any other mark; if the words are long, copy the shortest continuous piece that holds the value.",
+   "to": "A paint or coating the row or its heading names that is NOT the paint of '{{cat:cladding=Glass Cloth with paint}}' (a UV coating, a fire or flame retardant coating, a polyshield or protective coating, a lacquer), in the BoQ's own words; leave it out when no such coating is named. Shown on the panel only: the price never reads it. Copy the words exactly as the BoQ writes them, as one continuous piece; never shorten, never join pieces with '...' or any other mark; if the words are long, copy the shortest continuous piece that holds the value.",
+   "n": 1
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "pricing",
+    "choice_text",
+    0,
+    "rule"
+   ],
+   "from": "R2 GI cladding is priced as aluminium of its gauge until a GI cladding item exists (owner 2026-10-15)",
+   "to": "R2 GI cladding is priced as {{cat:variant=aluminium}} of its gauge until a GI cladding item exists (owner 2026-10-15)",
+   "n": 1
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Cladding Only",
+    "units",
+    "length",
+    "pipelines",
+    "supply",
+    "steps",
+    6,
+    "explain"
+   ],
+   "from": "cladding: (aluminium sheet x overlap + glass cloth) x girth -- the composites' own rule",
+   "to": "cladding: ({{cat:variant=aluminium}} sheet x overlap + glass cloth) x girth -- the composites' own rule",
+   "n": 1
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Nitrile Rubber Insulation",
+    "units",
+    "length",
+    "pipelines",
+    "supply",
+    "steps",
+    8,
+    "explain"
+   ],
+   "from": "cladding: (aluminium sheet x overlap + glass cloth) x girth",
+   "to": "cladding: ({{cat:variant=aluminium}} sheet x overlap + glass cloth) x girth",
+   "n": 1
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Tubular Puf Insulation",
+    "units",
+    "length",
+    "pipelines",
+    "supply",
+    "steps",
+    8,
+    "explain"
+   ],
+   "from": "cladding: (aluminium sheet x overlap + glass cloth) x girth",
+   "to": "cladding: ({{cat:variant=aluminium}} sheet x overlap + glass cloth) x girth",
+   "n": 1
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "pricing",
+    "refuse_on_unit_class",
+    0,
+    "refuse"
+   ],
+   "from": "glass cloth is not offered on sheet insulation - price this row by hand",
+   "to": "glass cloth is not offered on {{cat:type=Sheet Insulation|lower}} - price this row by hand",
+   "n": 1
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "pricing",
+    "refuse_on_unit_class",
+    0,
+    "rule"
+   ],
+   "from": "D9b sheet insulation does not take glass cloth (owner 2026-10-11); 12d-4aF: the three SHEET families only -- Cladding Only per sq.m prices (12c F2, 294 / 70)",
+   "to": "D9b {{cat:type=Sheet Insulation|lower}} does not take glass cloth (owner 2026-10-11); 12d-4aF: the three SHEET families only -- {{cat:item=Cladding Only}} per sq.m prices (12c F2, 294 / 70)",
+   "n": 2
+  },
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "notes"
+   ],
+   "from": "SLICE 12a (owner I-1): the CATALOGUE and the MECHANISM. Pricing, extraction and the panel are 12b, which is why `pipelines` is empty -- `config_is_eligible` needs pipelines AND definitions, so no BoQ screen changes. The cost parts are stored SEPARATELY and never baked (owner I-3: a row's own parts stay editable); an unclad row stores cost_cladding 0 explicitly. 24G is the same rate as 26G (owner I-10) and differs only in the gauge. SLICE 12c: the pricing RULES, in `list_spec` only -- `pipelines` stays EMPTY so the category is still not eligible and every Insulation BoQ row keeps its coming-soon card (Q13). Cladding is computed from the seven HVAC Pricing Inputs, so `cost_cladding` is no longer stored on the pipe rows. SLICE 12c FINISH: the five CLADDING-ONLY SKUs (owner F1) -- one per cladding type, priced from the ROW'S own pipe size and thickness by the composites' own cladding formula, wastage included. A per-sq.m cladding-only row takes the plain sheet rate with NO overlap (owner F2). FA7 (owner ruling 2026-10-04, option A): `calculator_only` admits this category to the Pricing CALCULATOR tab only -- BoQ rows still show the coming-soon card and the category stays out of the extraction population. TEMPORARY: the slice that makes Insulation fully eligible REMOVES this key in the same slice, so there is never a second on/off switch. Owner 2026-10-04: every attribute is a DROPDOWN built from the active catalogue rows (`panel_controls`), so adding a catalogue item adds its option with no code change. Owner C-R1/C-R2/C-R3 2026-10-04: the pipe size resolves FIRST so a composition is built from ONE pipe size's rows, and a tie that closeness cannot break goes to the lowest summed cost_insulation. SLICE 12d-1a (owner R1-R9, 2026-10-07): the model's questions (item note, 'none of these', the cladding note, brand), the cladding default, family_when_none, value_map, panel_readonly, second_opinion ON while building. calculator_only STAYS; eligibility is 12d-2's. SLICE 12d-1b (owner T1-T8, 2026-10-07): the thickness note (schedule / list / layers as written), numbers.thickness_mm.several = highest, number_defaults.thickness_mm on every family, material_as_written + no_sku_named_by. calculator_only STAYS; eligibility is 12d-2's. SLICE 12d-2 (owner S1-S8, 2026-10-07): SWITCHED ON. `calculator_only` REMOVED -- the category is eligible through the ONE generic predicate (pricing rules that run: its `list_spec.pricing` families; `pipelines` stays EMPTY because every unit block carries its own and a top-level entry would never execute). Insulation rows now price on BoQs and join the extraction population. The thickness note states the four-step read order (S3: the row's OWN value wins; else the heading schedule for THIS row's size; else the list as written; else left out -- the highest / the 9 mm default are CODE, never the prompt). second_opinion stays ON for the paid sample (S8; it goes OFF in 12d-4). SLICE 12d-2F (owner F3, 2026-10-07): the cladding note states that a 22G / 26G GSS perforated sheet on a GI frame IS 'GI Framework with perforated Al sheet' (the second opinion had flagged three such rows as 'GSS, not aluminium'); no pricing rule, no item and no other config changed. The FG + GI framework double count fixed in the same slice was a SERVING defect (the read-time cladding projection written into the served rates), not an asset change. SLICE 12d-4a (owner D1-D14 on the 12d-3 audit, 2026-10-11): FOUR new SKUs -- Acoustic Nitrile Insulation x 'GI Framework with perforated Al sheet' at 9 / 13 / 15 / 19 mm (cost_insulation derived from the No-cladding row, cost_cladding 0 because the framework is priced live by the pipeline's gi*gif + gia branch, install cladding 150 as the Fiberglass GI rows carry it; source rows numbered past the workbook's last Insulation row -- asset-minted, not workbook rows). FOUR pricing keys: named_in_row (D3: a cladding named in the row's OWN text but answered 'None' refuses for a person; headings never trigger it), unstocked_materials (D7: EPDM and the listed materials refuse by name whatever family the model picked), refuse_on_unit_class (D9b: glass cloth on a sheet row refuses), read_notes (D8: the 'BoQ says 32 kg/m3 -> priced as the 48 kg/m3 board' line). Notes: D5 ('A mm + B mm thick' under a pipe heading is pipe + thickness), D8 (fibre glass of any density is the 48 kg board), D9a (paint over glass cloth is 'Glass Cloth with paint'; aluminium beside it at the stated gauge; no gauge -> 26G), D13 (a bolted-on perforated GSS sheet with no frame is the GI framework cladding). D10 (QRO) and D11 (refusal order) are code. D2 / D6 / D12 / D14: no change by ruling. SLICE 12d-4aF (owner, 'agree. we need to fix'): refuse_on_unit_class now NAMES its families -- Thermal Nitrile, Acoustic Nitrile and the Fiberglass board (the sheet families); Cladding Only per sq.m with glass cloth prices again at the plain rate (12c F2, 294 / 70). Nothing else changed from the 12d-4a asset (the version lives only in the filename). SLICE 12d-4c (owner C1 'agreed', C2 'it is ok. make it explicit', C4 'switch off now'): the item note says a row describing only a cladding or coating over insulation, with no insulation material supplied, is 'Cladding Only'; the cladding note says a bare 'glass cloth' with no paint or coating named is still 'Glass Cloth with paint'; the second opinion is OFF for Insulation (a build-time instrument, switched off before the category goes live -- ADP's stays as it is). Nothing else changed from the 12d-4aF asset (the version lives only in the filename).",
+   "to": "SLICE 12a (owner I-1): the CATALOGUE and the MECHANISM. Pricing, extraction and the panel are 12b, which is why `pipelines` is empty -- `config_is_eligible` needs pipelines AND definitions, so no BoQ screen changes. The cost parts are stored SEPARATELY and never baked (owner I-3: a row's own parts stay editable); an unclad row stores cost_cladding 0 explicitly. 24G is the same rate as 26G (owner I-10) and differs only in the gauge. SLICE 12c: the pricing RULES, in `list_spec` only -- `pipelines` stays EMPTY so the category is still not eligible and every Insulation BoQ row keeps its coming-soon card (Q13). Cladding is computed from the seven HVAC Pricing Inputs, so `cost_cladding` is no longer stored on the pipe rows. SLICE 12c FINISH: the five CLADDING-ONLY SKUs (owner F1) -- one per cladding type, priced from the ROW'S own pipe size and thickness by the composites' own cladding formula, wastage included. A per-sq.m cladding-only row takes the plain sheet rate with NO overlap (owner F2). FA7 (owner ruling 2026-10-04, option A): `calculator_only` admits this category to the Pricing CALCULATOR tab only -- BoQ rows still show the coming-soon card and the category stays out of the extraction population. TEMPORARY: the slice that makes Insulation fully eligible REMOVES this key in the same slice, so there is never a second on/off switch. Owner 2026-10-04: every attribute is a DROPDOWN built from the active catalogue rows (`panel_controls`), so adding a catalogue item adds its option with no code change. Owner C-R1/C-R2/C-R3 2026-10-04: the pipe size resolves FIRST so a composition is built from ONE pipe size's rows, and a tie that closeness cannot break goes to the lowest summed cost_insulation. SLICE 12d-1a (owner R1-R9, 2026-10-07): the model's questions (item note, 'none of these', the cladding note, brand), the cladding default, family_when_none, value_map, panel_readonly, second_opinion ON while building. calculator_only STAYS; eligibility is 12d-2's. SLICE 12d-1b (owner T1-T8, 2026-10-07): the thickness note (schedule / list / layers as written), numbers.thickness_mm.several = highest, number_defaults.thickness_mm on every family, material_as_written + no_sku_named_by. calculator_only STAYS; eligibility is 12d-2's. SLICE 12d-2 (owner S1-S8, 2026-10-07): SWITCHED ON. `calculator_only` REMOVED -- the category is eligible through the ONE generic predicate (pricing rules that run: its `list_spec.pricing` families; `pipelines` stays EMPTY because every unit block carries its own and a top-level entry would never execute). Insulation rows now price on BoQs and join the extraction population. The thickness note states the four-step read order (S3: the row's OWN value wins; else the heading schedule for THIS row's size; else the list as written; else left out -- the highest / the 9 mm default are CODE, never the prompt). second_opinion stays ON for the paid sample (S8; it goes OFF in 12d-4). SLICE 12d-2F (owner F3, 2026-10-07): the cladding note states that a 22G / 26G GSS perforated sheet on a GI frame IS '{{cat:cladding=GI Framework with perforated Al sheet}}' (the second opinion had flagged three such rows as 'GSS, not {{cat:variant=aluminium}}'); no pricing rule, no item and no other config changed. The FG + GI framework double count fixed in the same slice was a SERVING defect (the read-time cladding projection written into the served rates), not an asset change. SLICE 12d-4a (owner D1-D14 on the 12d-3 audit, 2026-10-11): FOUR new SKUs -- {{cat:item=Acoustic Nitrile Insulation}} x '{{cat:cladding=GI Framework with perforated Al sheet}}' at 9 / 13 / 15 / 19 mm (cost_insulation derived from the No-cladding row, cost_cladding 0 because the framework is priced live by the pipeline's gi*gif + gia branch, install cladding 150 as the Fiberglass GI rows carry it; source rows numbered past the workbook's last Insulation row -- asset-minted, not workbook rows). FOUR pricing keys: named_in_row (D3: a cladding named in the row's OWN text but answered 'None' refuses for a person; headings never trigger it), unstocked_materials (D7: EPDM and the listed materials refuse by name whatever family the model picked), refuse_on_unit_class (D9b: glass cloth on a sheet row refuses), read_notes (D8: the 'BoQ says 32 kg/m3 -> priced as the 48 kg/m3 board' line). Notes: D5 ('A mm + B mm thick' under a pipe heading is pipe + thickness), D8 (fibre glass of any density is the 48 kg board), D9a (paint over glass cloth is '{{cat:cladding=Glass Cloth with paint}}'; {{cat:variant=aluminium}} beside it at the stated gauge; no gauge -> 26G), D13 (a bolted-on perforated GSS sheet with no frame is the GI framework cladding). D10 (QRO) and D11 (refusal order) are code. D2 / D6 / D12 / D14: no change by ruling. SLICE 12d-4aF (owner, 'agree. we need to fix'): refuse_on_unit_class now NAMES its families -- Thermal Nitrile, Acoustic Nitrile and the Fiberglass board (the sheet families); {{cat:item=Cladding Only}} per sq.m with glass cloth prices again at the plain rate (12c F2, 294 / 70). Nothing else changed from the 12d-4a asset (the version lives only in the filename). SLICE 12d-4c (owner C1 'agreed', C2 'it is ok. make it explicit', C4 'switch off now'): the item note says a row describing only a cladding or coating over insulation, with no insulation material supplied, is '{{cat:item=Cladding Only}}'; the cladding note says a bare 'glass cloth' with no paint or coating named is still '{{cat:cladding=Glass Cloth with paint}}'; the second opinion is OFF for Insulation (a build-time instrument, switched off before the category goes live -- ADP's stays as it is). Nothing else changed from the 12d-4aF asset (the version lives only in the filename).",
+   "n": 9
+  },
+  {
+   "c": "hvac_misc",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    0,
+    "note"
+   ],
+   "from": "Which Misc item THIS row buys: a thermometer or temperature gauge; a pressure gauge; rubber bellows, a flexible pipe connection or an expansion joint; a test plug, test point or thermowell. Answer 'none of these' for anything else (a flow meter, a gauge cock) and copy its words into 'Item as written'. A thermowell named WITH a thermometer, and a syphon, gauge cock, needle valve or small isolation cock named WITH a gauge, is part of that instrument, never a second item. A ball, gate or needle valve the row ties to the gauge ('for isolation', 'of suitable size', 'cost included in this item', 'with syphon') is part of the gauge too: one Pressure Gauge item. A 'provision' to connect a (digital) thermometer or thermowell 'in future' is a Test Plug / Thermowell (the provision is priced as a test plug). A differential pressure gauge is a Pressure Gauge; copy 'differential' in item_as_written. A thermometer 'with (necessary) isolation valves' is ONE Temperature Gauge / Thermometer item; return no valve item for its isolation valves. A pressure gauge 'provision' (sockets, ball valves, siphon to fix a gauge later) is a Test Plug / Thermowell; the gauge itself is not part of it.",
+   "to": "Which Misc item THIS row buys: a thermometer or temperature gauge; a {{cat:item=Pressure Gauge|lower}}; rubber bellows, a flexible pipe connection or an expansion joint; a test plug, test point or thermowell. Answer 'none of these' for anything else (a flow meter, a gauge cock) and copy its words into 'Item as written'. A thermowell named WITH a thermometer, and a syphon, gauge cock, needle valve or small isolation cock named WITH a gauge, is part of that instrument, never a second item. A ball, gate or needle valve the row ties to the gauge ('for isolation', 'of suitable size', 'cost included in this item', 'with syphon') is part of the gauge too: one {{cat:item=Pressure Gauge}} item. A 'provision' to connect a (digital) thermometer or thermowell 'in future' is a {{cat:item=Test Plug / Thermowell}} (the provision is priced as a test plug). A differential {{cat:item=Pressure Gauge|lower}} is a {{cat:item=Pressure Gauge}}; copy 'differential' in item_as_written. A thermometer 'with (necessary) isolation valves' is ONE {{cat:item=Temperature Gauge / Thermometer}} item; return no valve item for its isolation valves. A {{cat:item=Pressure Gauge|lower}} 'provision' (sockets, ball valves, siphon to fix a gauge later) is a {{cat:item=Test Plug / Thermowell}}; the gauge itself is not part of it.",
+   "n": 8
+  },
+  {
+   "c": "hvac_misc",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    1,
+    "rule_line"
+   ],
+   "from": "A pressure gauge's own syphon, gauge cock or needle valve are part of it, with a note",
+   "to": "A {{cat:item=Pressure Gauge|lower}}'s own syphon, gauge cock or needle valve are part of it, with a note",
+   "n": 1
+  },
+  {
+   "c": "hvac_misc",
+   "p": [
+    "notes"
+   ],
+   "from": "VP-1 (2026-11-13): the Misc category's rules for its 12 priced items (owner 2026-11-12 12:14-12:27, 'option a'), BORROW-ONLY (QR-1 Q5 (a)): no top-level attribute_definitions, so it is never eligible on its own -- Misc rows keep 'coming soon'; Valve Package prices these items under these rules. Built properly when the Misc category is built.",
+   "to": "VP-1 (2026-11-13): the Misc category's rules for its 12 priced items (owner 2026-11-12 12:14-12:27, 'option a'), BORROW-ONLY (QR-1 Q5 (a)): no top-level attribute_definitions, so it is never eligible on its own -- Misc rows keep 'coming soon'; {{cat:group=Valve Package}} prices these items under these rules. Built properly when the Misc category is built.",
+   "n": 1
+  },
+  {
+   "c": "hvac_piping",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    0,
+    "note"
+   ],
+   "from": "Which pipe THIS row buys - one of the four stocked types. Answer it only when the row's own text, or a heading that describes this row's pipe, names that very type or the service that decides it: copper, refrigerant, VRF or VRV piping is Copper, also where the word copper is not written, and on EVERY pipe row under such a heading, whatever level the heading sits at (a 'VRF SYSTEM' heading two or three levels up still makes each pipe row below it Copper) - unless the row itself, or a nearer heading, names another type for that pipe (a uPVC drain under a VRF heading is uPVC); MS or mild steel piping is MS, and chilled water piping that names no type is MS; PVC is PVC; CPVC is CPVC. A drain or condensate line takes the type the text names for it. A drain pipe whose material the BoQ does not name: leave the pipe type out (do not guess); the code prices it as CPVC. The row's own word wins over a heading: a row that says PVC under a CPVC heading is PVC. Where the text names any other type (GI, uPVC, HDPE, SS, anything else), or names two different types for this pipe and the row itself does not say which, LEAVE THIS OUT - never choose the nearest stocked type; the pricer does that from 'Pipe type as written'. Return one item per pipe the row pays for. Testing, painting, sleeves, welding, nitrogen or vacuum work, civil work, identification and valves named with the pipe are NOT items and change no attribute: ignore them.",
+   "to": "Which pipe THIS row buys - one of the four stocked types. Answer it only when the row's own text, or a heading that describes this row's pipe, names that very type or the service that decides it: copper, refrigerant, VRF or VRV piping is {{cat:pipe_type=Copper}}, also where the word copper is not written, and on EVERY pipe row under such a heading, whatever level the heading sits at (a 'VRF SYSTEM' heading two or three levels up still makes each pipe row below it {{cat:pipe_type=Copper}}) - unless the row itself, or a nearer heading, names another type for that pipe (a uPVC drain under a VRF heading is uPVC); MS or mild steel piping is MS, and chilled water piping that names no type is MS; PVC is PVC; CPVC is CPVC. A drain or condensate line takes the type the text names for it. A drain pipe whose material the BoQ does not name: leave the pipe type out (do not guess); the code prices it as CPVC. The row's own word wins over a heading: a row that says PVC under a CPVC heading is PVC. Where the text names any other type (GI, uPVC, HDPE, SS, anything else), or names two different types for this pipe and the row itself does not say which, LEAVE THIS OUT - never choose the nearest stocked type; the pricer does that from 'Pipe type as written'. Return one item per pipe the row pays for. Testing, painting, sleeves, welding, nitrogen or vacuum work, civil work, identification and valves named with the pipe are NOT items and change no attribute: ignore them.",
+   "n": 2
+  },
+  {
+   "c": "hvac_piping",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    2,
+    "note"
+   ],
+   "from": "The pipe's own size AS THE ROW WRITES IT, with its unit: mm, an NB number (50 NB), inches (5/8\", 1-1/4\", 2 inch) or an outside diameter in mm (22.3 mm O.D). Never converted, never rounded. The row's own size comes first; a heading gives the size only when the row states none. Where the text names two sizes and says which one is this pipe's, return that one; otherwise copy both as written (25/32 mm). Where the row writes its size as a bare number with no unit (3/4, 1, 1-1/4), take the UNIT - never the size - from a heading that describes this row's pipe, or from the neighbouring rows of the same list (rows beside it written 3/4\", 1\", 1-1/4\" make a bare 1 an inch size), and write the unit with the size ('1 inch'). Where neither the row, its headings nor its neighbours give a unit, return the number bare, exactly as written. A wall thickness, a gauge, a class, a schedule or a pressure rating is NEVER the pipe size: in '22.3 mm O.D (wall Thickness-1.0 mm)' the size is 22.3 mm. A number or a slash pair written next to 'insulation', 'insulated', 'thick' or 'thickness' ('insulation : 13/19 mm', 'with 6/9 mm nitrile rubber insulation', '9 MM insulation foam') is a THICKNESS and is never the pipe size. Copy the words exactly as the BoQ writes them, as one continuous piece; never shorten, never join pieces with '...' or any other mark; if the words are long, copy the shortest continuous piece that holds the value.",
+   "to": "The pipe's own size AS THE ROW WRITES IT, with its unit: mm, an NB number (50 NB), inches (5/8\", 1-1/4\", 2 inch) or an outside diameter in mm (22.3 mm O.D). Never converted, never rounded. The row's own size comes first; a heading gives the size only when the row states none. Where the text names two sizes and says which one is this pipe's, return that one; otherwise copy both as written (25/32 mm). Where the row writes its size as a bare number with no unit (3/4, 1, 1-1/4), take the UNIT - never the size - from a heading that describes this row's pipe, or from the neighbouring rows of the same list (rows beside it written 3/4\", 1\", 1-1/4\" make a bare 1 an inch size), and write the unit with the size ('1 inch'). Where neither the row, its headings nor its neighbours give a unit, return the number bare, exactly as written. A wall thickness, a gauge, a class, a schedule or a pressure rating is NEVER the pipe size: in '22.3 mm O.D (wall Thickness-1.0 mm)' the size is 22.3 mm. A number or a slash pair written next to 'insulation', 'insulated', 'thick' or 'thickness' ('insulation : 13/19 mm', 'with 6/9 mm {{cat:item=Nitrile Rubber Insulation|lower}}', '9 MM insulation foam') is a THICKNESS and is never the pipe size. Copy the words exactly as the BoQ writes them, as one continuous piece; never shorten, never join pieces with '...' or any other mark; if the words are long, copy the shortest continuous piece that holds the value.",
+   "n": 1
+  },
+  {
+   "c": "hvac_piping",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Copper",
+    "units",
+    "length",
+    "pipelines",
+    "supply",
+    "steps",
+    2,
+    "explain"
+   ],
+   "from": "BCS pipe: the pipe's own cost from the sheet; the accessories share (the Pricing Input 'Piping accessories - Copper') and the supply markup are added below",
+   "to": "BCS pipe: the pipe's own cost from the sheet; the accessories share (the Pricing Input 'Piping accessories - {{cat:pipe_type=Copper}}') and the supply markup are added below",
+   "n": 1
+  },
+  {
+   "c": "hvac_sensors",
+   "p": [
+    "category_display"
+   ],
+   "from": "Sensors & Controls",
+   "to": "{{cat:group=Sensors}} & Controls",
+   "n": 1
+  },
+  {
+   "c": "hvac_sensors",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    0,
+    "note"
+   ],
+   "from": "Which sensor THIS row buys: a CO2 sensor; a differential pressure switch. Answer 'none of these' for anything else and copy its words into 'Sensor as written'.",
+   "to": "Which sensor THIS row buys: a CO2 sensor; a {{cat:sensor=Differential Pressure Switch|lower}}. Answer 'none of these' for anything else and copy its words into 'Sensor as written'.",
+   "n": 1
+  },
+  {
+   "c": "hvac_sensors",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "CO2 Sensor",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the Sensors SKU",
+   "to": "match the {{cat:group=Sensors}} SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_sensors",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "CO2 Sensor",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the Sensors SKU",
+   "to": "match the {{cat:group=Sensors}} SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_sensors",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Differential Pressure Switch",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the Sensors SKU",
+   "to": "match the {{cat:group=Sensors}} SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_sensors",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Differential Pressure Switch",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the Sensors SKU",
+   "to": "match the {{cat:group=Sensors}} SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_sensors",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Duct Static Pressure Sensor",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the Sensors SKU",
+   "to": "match the {{cat:group=Sensors}} SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_sensors",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Duct Static Pressure Sensor",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the Sensors SKU",
+   "to": "match the {{cat:group=Sensors}} SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_sensors",
+   "p": [
+    "list_spec",
+    "pricing",
+    "unit_refusal"
+   ],
+   "from": "unit '{unit}' is not a Sensors unit - these sensors are priced per Nos - price this row by hand",
+   "to": "unit '{unit}' is not a {{cat:group=Sensors}} unit - these sensors are priced per Nos - price this row by hand",
+   "n": 1
+  },
+  {
+   "c": "hvac_sensors",
+   "p": [
+    "notes"
+   ],
+   "from": "VAV-1 (2026-11-19; owner QR-2 (a) 2026-11-19 00:57): the Sensors & Controls category's rules for its 2 priced items, BORROW-ONLY as Misc was at VP-1: no top-level attribute_definitions, so it is never eligible on its own -- Sensors rows keep 'coming soon'; VAV Box prices these items under these rules. Built properly when the Sensors category is built.",
+   "to": "VAV-1 (2026-11-19; owner QR-2 (a) 2026-11-19 00:57): the {{cat:group=Sensors}} & Controls category's rules for its 2 priced items, BORROW-ONLY as Misc was at VP-1: no top-level attribute_definitions, so it is never eligible on its own -- {{cat:group=Sensors}} rows keep 'coming soon'; {{cat:group=VAV Box}} prices these items under these rules. Built properly when the {{cat:group=Sensors}} category is built.",
+   "n": 4
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "attribute_definitions",
+    7,
+    "label"
+   ],
+   "from": "Strainer type",
+   "to": "{{cat:valve_type=Strainer}} type",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    0,
+    "note"
+   ],
+   "from": "Which valve or valve-type item THIS row buys. Butterfly Valve = a manual (lever / gear) butterfly valve; Motorised Butterfly Valve = a butterfly valve with an electric / motorised actuator; Balancing Valve = a balancing valve, DRV, double regulating or commissioning set; NRV / Check Valve = any non-return, check or reflux valve; PIBCV = a pressure independent (balancing) control valve, PICV or PIBCV; Sluice / Gate Valve = a sluice or gate valve; Strainer = any strainer; Ball Valve = a ball valve, and a drain valve or drain cock; Test & Drain Valve = only where the row says 'test and drain' valve; Foot Valve = a foot valve; Automatic Air Vent = an automatic air vent / air release / air purger; BTU Meter = a BTU, heat or thermal energy meter; 2-Way Valve = a 2-way (motorised) control valve that is not pressure independent. A thermometer, temperature or pressure gauge, test plug / point, thermowell, rubber bellows, flexible connection or expansion joint is NOT a valve: return it as its own item in the misc section. Answer 'none of these' for any other valve or instrument (a flow meter, a 3-way valve, a pot strainer, a gauge cock, an isolation valve with no type, a valve whose type is not written) and copy its words into 'Valve type as written'. Return one item per valve or instrument the row pays for: a valve named with gauges, a thermometer or another valve is several items. A part built into the valve (its actuator, its flanges, its handle) is never a second item. The row's own text wins over a heading; take the type from a heading only when it describes this row's item (a size-only row under 'Butterfly valves'). A thermostat, controller, remote controller, actuator or actuator panel named WITH a PIBCV (pressure independent control valve) is PART of the PIBCV item - our PIBCV item already includes its thermostat and actuator: return the one PIBCV item and no second item for them. This is only for a PIBCV: a thermostat named with any other valve (a 2-way valve) is still its own item. A ball, gate or needle valve the row ties to a pressure gauge ('for isolation', 'of suitable size', 'cost included in this item', 'with syphon') is part of the gauge: return the gauge alone, in the misc section, and no valve item; a valve the row prices as its own item with its own size stays a separate valve. An automatic air vent with a ball valve: the row's one size is the BALL VALVE's size - put it on the ball valve (the air vent has one price for any size). An abbreviated 'BV' or 'Bal valve' is a Ball Valve when its size is 40 mm or below; above 40 mm take the type from the heading. A valve 'with strainer', or with an integral / built-in strainer, is TWO items: the valve and a Strainer of the same size. A Set whose heading spells out what one Set holds (e.g. one ball valve with strainer and one without) is each of those items, one item each. A kit or package naming several parts: return each part as its own item, so only a part we do not stock is 'none of these'. A ball valve the row ties to a strainer's drain ('ball valve for strainer drain', 'drain valve ... included') is PART of the strainer: return the one Strainer item and no ball valve item; a valve the row prices with its own size stays its own item. A valve that is BOTH balancing and modulating ('2 way modulating balancing valve') is a PIBCV. A 'high rangeability control valve' is a 2-Way Valve with operation Modulating. Under a heading saying 'with and without strainer' over rows that state only a size, return the valve alone (no Strainer item): the BoQ does not say how many have one. A 'swing check' NRV is an NRV / Check Valve: copy 'swing check' in valve_type_as_written and leave nrv_type 'None' (swing check is neither Flanged nor Dual Plate). A balancing valve with INTEGRATED P/T test points is one Balancing Valve item (the test points are part of it); list test plugs only when the BoQ counts separate test points. A '2 way pressure independent on-off' valve is a PIBCV; copy 'on-off' in valve_type_as_written. An air vent named only in the heading, over a row whose own words describe only a ball valve, is not an item: return the ball valve alone.",
+   "to": "Which valve or valve-type item THIS row buys. {{cat:item_name=Butterfly Valve}} = a manual (lever / gear) {{cat:item_name=Butterfly Valve|lower}}; {{cat:valve_type=Motorised Butterfly Valve}} = a {{cat:item_name=Butterfly Valve|lower}} with an electric / {{cat:variant=motorised}} {{cat:family=actuator}}; {{cat:valve_type=Balancing Valve}} = a {{cat:valve_type=Balancing Valve|lower}}, DRV, double regulating or commissioning set; {{cat:valve_type=NRV / Check Valve}} = any non-return, check or reflux valve; PIBCV = a pressure independent (balancing) control valve, PICV or PIBCV; {{cat:valve_type=Sluice / Gate Valve}} = a sluice or gate valve; {{cat:valve_type=Strainer}} = any strainer; {{cat:item_name=Ball Valve}} = a {{cat:item_name=Ball Valve|lower}}, and a drain valve or drain cock; {{cat:item_name=Test & Drain Valve}} = only where the row says 'test and drain' valve; {{cat:valve_type=Foot Valve}} = a {{cat:valve_type=Foot Valve|lower}}; {{cat:item_name=Automatic Air Vent}} = an {{cat:item_name=Automatic Air Vent|lower}} / air release / air purger; {{cat:item_name=BTU Meter}} = a BTU, heat or thermal energy meter; {{cat:valve_type=2-Way Valve}} = a 2-way ({{cat:variant=motorised}}) control valve that is not pressure independent. A thermometer, temperature or {{cat:item=Pressure Gauge|lower}}, test plug / point, thermowell, rubber bellows, flexible connection or expansion joint is NOT a valve: return it as its own item in the misc section. Answer 'none of these' for any other valve or instrument (a flow meter, a 3-way valve, a pot strainer, a gauge cock, an isolation valve with no type, a valve whose type is not written) and copy its words into 'Valve type as written'. Return one item per valve or instrument the row pays for: a valve named with gauges, a thermometer or another valve is several items. A part built into the valve (its {{cat:family=actuator}}, its flanges, its handle) is never a second item. The row's own text wins over a heading; take the type from a heading only when it describes this row's item (a size-only row under 'Butterfly valves'). A thermostat, controller, {{cat:item=Remote Controller|lower}}, {{cat:family=actuator}} or {{cat:family=actuator}} panel named WITH a PIBCV (pressure independent control valve) is PART of the PIBCV item - our PIBCV item already includes its thermostat and {{cat:family=actuator}}: return the one PIBCV item and no second item for them. This is only for a PIBCV: a thermostat named with any other valve (a {{cat:valve_type=2-Way Valve|lower}}) is still its own item. A ball, gate or needle valve the row ties to a {{cat:item=Pressure Gauge|lower}} ('for isolation', 'of suitable size', 'cost included in this item', 'with syphon') is part of the gauge: return the gauge alone, in the misc section, and no valve item; a valve the row prices as its own item with its own size stays a separate valve. An {{cat:item_name=Automatic Air Vent|lower}} with a {{cat:item_name=Ball Valve|lower}}: the row's one size is the BALL VALVE's size - put it on the {{cat:item_name=Ball Valve|lower}} (the air vent has one price for any size). An abbreviated 'BV' or 'Bal valve' is a {{cat:item_name=Ball Valve}} when its size is 40 mm or below; above 40 mm take the type from the heading. A valve 'with strainer', or with an integral / built-in strainer, is TWO items: the valve and a {{cat:valve_type=Strainer}} of the same size. A Set whose heading spells out what one Set holds (e.g. one {{cat:item_name=Ball Valve|lower}} with strainer and one without) is each of those items, one item each. A kit or package naming several parts: return each part as its own item, so only a part we do not stock is 'none of these'. A {{cat:item_name=Ball Valve|lower}} the row ties to a strainer's drain ('{{cat:item_name=Ball Valve|lower}} for strainer drain', 'drain valve ... included') is PART of the strainer: return the one {{cat:valve_type=Strainer}} item and no {{cat:item_name=Ball Valve|lower}} item; a valve the row prices with its own size stays its own item. A valve that is BOTH balancing and modulating ('2 way modulating {{cat:valve_type=Balancing Valve|lower}}') is a PIBCV. A 'high rangeability control valve' is a {{cat:valve_type=2-Way Valve}} with operation {{cat:actuation=Modulating}}. Under a heading saying 'with and without strainer' over rows that state only a size, return the valve alone (no {{cat:valve_type=Strainer}} item): the BoQ does not say how many have one. A 'swing check' NRV is an {{cat:valve_type=NRV / Check Valve}}: copy 'swing check' in valve_type_as_written and leave nrv_type 'None' (swing check is neither {{cat:nrv_type=Flanged}} nor {{cat:nrv_type=Dual Plate}}). A {{cat:valve_type=Balancing Valve|lower}} with INTEGRATED P/T test points is one {{cat:valve_type=Balancing Valve}} item (the test points are part of it); list test plugs only when the BoQ counts separate test points. A '2 way pressure independent on-off' valve is a PIBCV; copy 'on-off' in valve_type_as_written. An air vent named only in the heading, over a row whose own words describe only a {{cat:item_name=Ball Valve|lower}}, is not an item: return the {{cat:item_name=Ball Valve|lower}} alone.",
+   "n": 50
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    3,
+    "note"
+   ],
+   "from": "Motorised butterfly valves only: On-Off or Modulating, as the row or a heading describing this valve states. 'None' when not stated. Clear modulating-control wording counts as Modulating even without the word: '4-20 mA', 'analog' / 'analogue' (signal, output, control), 'proportional'.",
+   "to": "Motorised butterfly valves only: {{cat:actuation=On-Off}} or {{cat:actuation=Modulating}}, as the row or a heading describing this valve states. 'None' when not stated. Clear modulating-control wording counts as {{cat:actuation=Modulating}} even without the word: '4-20 mA', 'analog' / 'analogue' (signal, output, control), 'proportional'.",
+   "n": 3
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    4,
+    "note"
+   ],
+   "from": "2-way valves only: On-Off or Modulating as stated. 'None' when not stated. Clear modulating-control wording counts as Modulating even without the word: '4-20 mA', 'analog' / 'analogue' (signal, output, control), 'proportional'.",
+   "to": "2-way valves only: {{cat:actuation=On-Off}} or {{cat:actuation=Modulating}} as stated. 'None' when not stated. Clear modulating-control wording counts as {{cat:actuation=Modulating}} even without the word: '4-20 mA', 'analog' / 'analogue' (signal, output, control), 'proportional'.",
+   "n": 3
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    5,
+    "note"
+   ],
+   "from": "NRV / check valves only: Dual Plate, Ball Type, Wafer, or Flanged (a swing / flanged NRV). 'None' when the row names no NRV type; flanges named only as companion flanges are not a type. A type stated in the row or in a heading describing this valve is read and wins: 'wafer type dual plate check valve(s) ... with companion flanges' is Dual Plate.",
+   "to": "NRV / check valves only: {{cat:nrv_type=Dual Plate}}, {{cat:nrv_type=Ball Type}}, Wafer, or {{cat:nrv_type=Flanged}} (a swing / flanged NRV). 'None' when the row names no NRV type; flanges named only as companion flanges are not a type. A type stated in the row or in a heading describing this valve is read and wins: 'wafer type {{cat:nrv_type=Dual Plate|lower}} check valve(s) ... with companion flanges' is {{cat:nrv_type=Dual Plate}}.",
+   "n": 5
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    6,
+    "note"
+   ],
+   "from": "Sluice / gate valves only: Rising or Non-rising spindle as stated. 'None' when not stated.",
+   "to": "Sluice / gate valves only: {{cat:spindle=Rising}} or {{cat:spindle=Non-rising}} spindle as stated. 'None' when not stated.",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    7,
+    "label"
+   ],
+   "from": "Strainer type",
+   "to": "{{cat:valve_type=Strainer}} type",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    7,
+    "note"
+   ],
+   "from": "Strainers only: Y-Type or T-Type as stated. 'None' when not stated (a pot / basket strainer is 'none of these' in Valve type).",
+   "to": "Strainers only: {{cat:strainer_type=Y-Type}} or {{cat:strainer_type=T-Type}} as stated. 'None' when not stated (a pot / basket strainer is 'none of these' in Valve type).",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "actuation",
+    "rule"
+   ],
+   "from": "actuator duty not stated - priced as On-Off (a motorised butterfly valve is on-off unless stated)",
+   "to": "{{cat:family=actuator}} duty not stated - priced as {{cat:actuation=On-Off}} (a {{cat:valve_type=Motorised Butterfly Valve|lower}} is on-off unless stated)",
+   "n": 3
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "nrv_type",
+    "rule"
+   ],
+   "from": "NRV type not stated - priced as Dual Plate",
+   "to": "NRV type not stated - priced as {{cat:nrv_type=Dual Plate}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "operation",
+    "rule"
+   ],
+   "from": "2-way valve operation not stated - priced as the 2-way modulating valve",
+   "to": "{{cat:valve_type=2-Way Valve|lower}} operation not stated - priced as the {{cat:item_name=2-way modulating valve}}",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "spindle",
+    "rule"
+   ],
+   "from": "spindle not stated - priced as Non-rising spindle",
+   "to": "spindle not stated - priced as {{cat:spindle=Non-rising}} spindle",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "strainer_type",
+    "rule"
+   ],
+   "from": "strainer type not stated - priced as Y-Type",
+   "to": "strainer type not stated - priced as {{cat:strainer_type=Y-Type}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derive_when_none",
+    0,
+    "rule"
+   ],
+   "from": "flanged NRV with no other type named - priced as the Flanged NRV",
+   "to": "flanged NRV with no other type named - priced as the {{cat:item_name=Flanged NRV}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "material_text",
+    "map",
+    0,
+    "rule"
+   ],
+   "from": "VR3 drain valve = ball valve (owner 2026-11-12)",
+   "to": "VR3 drain valve = {{cat:item_name=Ball Valve|lower}} (owner 2026-11-12)",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "read_notes",
+    0,
+    "line"
+   ],
+   "from": "BoQ says {match} - the size decides the sheet's butterfly valve (lever up to 150 mm, gear box 200-250 mm); the operator is noted, not priced",
+   "to": "BoQ says {match} - the size decides the sheet's {{cat:item_name=Butterfly Valve|lower}} (lever up to {{cat:item_detail=150 mm}}, gear box 200-{{cat:item_detail=250 mm}}); the operator is noted, not priced",
+   "n": 3
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "read_notes",
+    0,
+    "rule_line"
+   ],
+   "from": "A butterfly valve row naming its operator (lever, gear) carries a line: the size decides the sheet's butterfly valve (steel lever 25 mm, hand lever 50-150 mm, gear box 200-250 mm, plain 300 mm), the operator is noted, never refused",
+   "to": "A {{cat:item_name=Butterfly Valve|lower}} row naming its operator (lever, gear) carries a line: the size decides the sheet's {{cat:item_name=Butterfly Valve|lower}} (steel lever 25 mm, hand lever 50-{{cat:item_detail=150 mm}}, gear box 200-{{cat:item_detail=250 mm}}, plain {{cat:item_detail=300 mm}}), the operator is noted, never refused",
+   "n": 5
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "read_notes",
+    1,
+    "line"
+   ],
+   "from": "priced as the sheet's one PIBCV item (Pressure Independent control valve with thermostat and actuator with inbuilt controller) for {match}",
+   "to": "priced as the sheet's one PIBCV item (Pressure Independent control valve with thermostat and {{cat:family=actuator}} with inbuilt controller) for {match}",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    0,
+    "detail"
+   ],
+   "from": "with the line 'thermostat / actuator included in the PIBCV item'; words naming another valve are never folded in; a 2-way valve 'with thermostat' keeps its refusal; the line sits on the item it changed, whatever made the reading (this rule or the model), and is never written twice",
+   "to": "with the line 'thermostat / {{cat:family=actuator}} included in the PIBCV item'; words naming another valve are never folded in; a {{cat:valve_type=2-Way Valve|lower}} 'with thermostat' keeps its refusal; the line sits on the item it changed, whatever made the reading (this rule or the model), and is never written twice",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    0,
+    "title"
+   ],
+   "from": "A thermostat, controller or actuator listed beside a PIBCV is part of the PIBCV item, not a second item",
+   "to": "A thermostat, controller or {{cat:family=actuator}} listed beside a PIBCV is part of the PIBCV item, not a second item",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    10,
+    "title"
+   ],
+   "from": "A high-rangeability control valve is a 2-way modulating valve",
+   "to": "A high-rangeability control valve is a {{cat:item_name=2-way modulating valve}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    14,
+    "detail"
+   ],
+   "from": "'No SKU in the catalogue for swing check NRV - price this row by hand'; never priced as Flanged or Dual Plate",
+   "to": "'No SKU in the catalogue for swing check NRV - price this row by hand'; never priced as {{cat:nrv_type=Flanged}} or {{cat:nrv_type=Dual Plate}}",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    15,
+    "title"
+   ],
+   "from": "A differential pressure gauge is priced as the ordinary pressure gauge, with a note",
+   "to": "A differential {{cat:item=Pressure Gauge|lower}} is priced as the ordinary {{cat:item=Pressure Gauge|lower}}, with a note",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    17,
+    "title"
+   ],
+   "from": "A provision to fix a pressure gauge later is priced as the Test Plug / Thermowell, with a note",
+   "to": "A provision to fix a {{cat:item=Pressure Gauge|lower}} later is priced as the {{cat:item=Test Plug / Thermowell}}, with a note",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    18,
+    "title"
+   ],
+   "from": "A balancing valve with integrated P/T test points is the balancing valve alone, with a note",
+   "to": "A {{cat:valve_type=Balancing Valve|lower}} with integrated P/T test points is the {{cat:valve_type=Balancing Valve|lower}} alone, with a note",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    1,
+    "detail"
+   ],
+   "from": "'dual plate' in the item's own words, the row or its nearest heading; the line sits on the item it changed, whatever made the reading (this rule or the model), and is never written twice",
+   "to": "'{{cat:nrv_type=Dual Plate|lower}}' in the item's own words, the row or its nearest heading; the line sits on the item it changed, whatever made the reading (this rule or the model), and is never written twice",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    1,
+    "title"
+   ],
+   "from": "An NRV the BoQ calls dual plate is priced as the Dual Plate NRV, over the flanged rule",
+   "to": "An NRV the BoQ calls {{cat:nrv_type=Dual Plate|lower}} is priced as the {{cat:item_name=Dual Plate NRV}}, over the flanged rule",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    20,
+    "detail"
+   ],
+   "from": "the ball valve alone, no note; an air purge, air release valve or air eliminator in the row's own words is the air vent; '... with (a) ball valve' keeps the heading's air vent with its ball valve",
+   "to": "the {{cat:item_name=Ball Valve|lower}} alone, no note; an air purge, air release valve or air eliminator in the row's own words is the air vent; '... with (a) {{cat:item_name=Ball Valve|lower}}' keeps the heading's air vent with its {{cat:item_name=Ball Valve|lower}}",
+   "n": 3
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    20,
+    "title"
+   ],
+   "from": "An air vent named only in the heading does not add itself to a row that buys only a ball valve",
+   "to": "An air vent named only in the heading does not add itself to a row that buys only a {{cat:item_name=Ball Valve|lower}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    23,
+    "detail"
+   ],
+   "from": "the Misc Test Plug / Thermowell; no valve item for the valve it names; a valve with its own size is left as read -- why: price as thermowell - owner 2026-11-15 11:46; build ruled 2026-11-20 00:10",
+   "to": "the Misc {{cat:item=Test Plug / Thermowell}}; no valve item for the valve it names; a valve with its own size is left as read -- why: price as thermowell - owner 2026-11-15 11:46; build ruled 2026-11-20 00:10",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    3,
+    "title"
+   ],
+   "from": "A small valve with no size of its own that the BoQ ties to a pressure gauge is part of the gauge",
+   "to": "A small valve with no size of its own that the BoQ ties to a {{cat:item=Pressure Gauge|lower}} is part of the gauge",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    4,
+    "detail"
+   ],
+   "from": "the air vent has one price for any size, so a size read on it moves to a sizeless ball valve on the same row; a stray inch mark after 'mm' is dropped; below 15 mm -> 15 by the ladder",
+   "to": "the air vent has one price for any size, so a size read on it moves to a sizeless {{cat:item_name=Ball Valve|lower}} on the same row; a stray inch mark after 'mm' is dropped; below 15 mm -> 15 by the ladder",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    4,
+    "title"
+   ],
+   "from": "An air vent's size belongs to the ball valve beside it, and '25mm\"' reads 25 mm",
+   "to": "An air vent's size belongs to the {{cat:item_name=Ball Valve|lower}} beside it, and '25mm\"' reads 25 mm",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    5,
+    "detail"
+   ],
+   "from": "in amber, switchable; never 'ball valve' or 'balancing'; above 40 mm the model's reading stands",
+   "to": "in amber, switchable; never '{{cat:item_name=Ball Valve|lower}}' or 'balancing'; above 40 mm the model's reading stands",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    5,
+    "title"
+   ],
+   "from": "'BV' or 'Bal valve' at 40 mm and below is read as a Ball Valve",
+   "to": "'BV' or 'Bal valve' at 40 mm and below is read as a {{cat:item_name=Ball Valve}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    7,
+    "detail"
+   ],
+   "from": "'ball valve for strainer drain', 'drain valve ... included / part of'; a ball valve with its own size stays its own item; the line sits on the item it changed, whatever made the reading (this rule or the model), and is never written twice",
+   "to": "'{{cat:item_name=Ball Valve|lower}} for strainer drain', 'drain valve ... included / part of'; a {{cat:item_name=Ball Valve|lower}} with its own size stays its own item; the line sits on the item it changed, whatever made the reading (this rule or the model), and is never written twice",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    7,
+    "title"
+   ],
+   "from": "A ball valve with no size that the BoQ ties to the strainer's drain is part of the strainer",
+   "to": "A {{cat:item_name=Ball Valve|lower}} with no size that the BoQ ties to the strainer's drain is part of the strainer",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    8,
+    "detail"
+   ],
+   "from": "both words in one valve's own words; the nearest heading counts only for an item already read as a 2-way or balancing valve; never a second PIBCV on a row that has one; the line sits on the item it changed, whatever made the reading (this rule or the model), and is never written twice",
+   "to": "both words in one valve's own words; the nearest heading counts only for an item already read as a 2-way or {{cat:valve_type=Balancing Valve|lower}}; never a second PIBCV on a row that has one; the line sits on the item it changed, whatever made the reading (this rule or the model), and is never written twice",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "rule_lines",
+    9,
+    "title"
+   ],
+   "from": "A provision for a thermometer or thermowell is priced as the Misc Test Plug / Thermowell",
+   "to": "A provision for a thermometer or thermowell is priced as the Misc {{cat:item=Test Plug / Thermowell}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    1,
+    "line"
+   ],
+   "from": "priced as the sheet's Flanged Balancing Valve - the only balancing valve on our sheet",
+   "to": "priced as the sheet's {{cat:item_name=Flanged Balancing Valve}} - the only {{cat:valve_type=Balancing Valve|lower}} on our sheet",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    1,
+    "rule_line"
+   ],
+   "from": "A balancing valve row is priced as the sheet's Flanged Balancing Valve, with a note",
+   "to": "A {{cat:valve_type=Balancing Valve|lower}} row is priced as the sheet's {{cat:item_name=Flanged Balancing Valve}}, with a note",
+   "n": 2
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    3,
+    "line"
+   ],
+   "from": "One price for an automatic air vent of any size - the sheet has a single air-vent price",
+   "to": "One price for an {{cat:item_name=Automatic Air Vent|lower}} of any size - the sheet has a single air-vent price",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    3,
+    "rule_line"
+   ],
+   "from": "An automatic air vent has one price for any size, with a note",
+   "to": "An {{cat:item_name=Automatic Air Vent|lower}} has one price for any size, with a note",
+   "n": 1
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "notes"
+   ],
+   "from": "VP-1 (2026-11-13): the Valve Package -- the 124 SKUs of the owner's ruled valve sheet (Valve_Package_after_V1_rulings_2026-11-11.xlsx; BoQ supply = ROUNDUP(BCS x 1.4), install = ROUNDUP(BCS install x 2)), the item-list shape of Piping, the Misc instruments borrowed under Misc's own rules (list_spec.sections), the scope pick, rulings VR1-VR12, QR-1 / QR-2, ANSWER 3.",
+   "to": "VP-1 (2026-11-13): the {{cat:group=Valve Package}} -- the 124 SKUs of the owner's ruled valve sheet (Valve_Package_after_V1_rulings_2026-11-11.xlsx; BoQ supply = ROUNDUP(BCS x 1.4), install = ROUNDUP(BCS install x 2)), the item-list shape of Piping, the Misc instruments borrowed under Misc's own rules (list_spec.sections), the scope pick, rulings VR1-VR12, QR-1 / QR-2, ANSWER 3.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "attribute_definitions",
+    1,
+    "note"
+   ],
+   "from": "The VAV Box sheet's own Item text, verbatim.",
+   "to": "The {{cat:group=VAV Box}} sheet's own Item text, verbatim.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    0,
+    "note"
+   ],
+   "from": "Which VAV Box sheet item this line is: a VAV box (a VAV or CAV terminal box); the VAV Integrator; a BACnet over IP controller; a duct connection; a conical piece; integrator cabling (per metre); or the installation of a VAV box of any size. Answer 'none of these' for anything else and copy its words into 'VAV item as written'. A duct connection only when the row ASKS for one (e.g. 'with flexible duct connection'); a row that only says the box is 'suitable for duct connections' describes the box - that is NOT a duct connection item. A row for a controller for BACnet integration above the VAV boxes is the BACnet over IP controller, not the VAV Integrator.",
+   "to": "Which {{cat:group=VAV Box}} sheet item this line is: a VAV box (a VAV or CAV terminal box); the {{cat:item_name=VAV Integrator}}; a {{cat:item_name=BACnet over IP controller}}; a {{cat:item_name=Duct connection|lower}}; a {{cat:item_name=Conical piece|lower}}; {{cat:item_name=Integrator cabling|lower}} (per metre); or the installation of a VAV box of any size. Answer 'none of these' for anything else and copy its words into 'VAV item as written'. A {{cat:item_name=Duct connection|lower}} only when the row ASKS for one (e.g. 'with flexible {{cat:item_name=Duct connection|lower}}'); a row that only says the box is 'suitable for duct connections' describes the box - that is NOT a {{cat:item_name=Duct connection|lower}} item. A row for a controller for BACnet integration above the VAV boxes is the {{cat:item_name=BACnet over IP controller}}, not the {{cat:item_name=VAV Integrator}}.",
+   "n": 11
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    12,
+    "note"
+   ],
+   "from": "VAV boxes only: 'Yes' when THIS row's payload mentions a DP sensor for the VAVs in any form - a differential pressure sensor, switch or transmitter, a 'DP sensor' / 'DPS', a duct static pressure sensor; every DP sensor mention counts. 'No' otherwise. A 'DP signal' alone, a pressure gauge, an air-flow monitoring station or the box's own velocity sensor is not a DP sensor.",
+   "to": "VAV boxes only: 'Yes' when THIS row's payload mentions a DP sensor for the VAVs in any form - a differential pressure sensor, switch or transmitter, a 'DP sensor' / 'DPS', a {{cat:sensor=Duct Static Pressure Sensor|lower}}; every DP sensor mention counts. 'No' otherwise. A 'DP signal' alone, a {{cat:item=Pressure Gauge|lower}}, an air-flow monitoring station or the box's own velocity sensor is not a DP sensor.",
+   "n": 2
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    2,
+    "note"
+   ],
+   "from": "VAV boxes only: Rectangular or Oval, as the BoQ states. A box the BoQ calls round, oval or circular is Oval; 'DIA', diameter or the diameter sign give an inlet or sensor size, not the box shape.",
+   "to": "VAV boxes only: {{cat:shape=Rectangular}} or Oval, as the BoQ states. A box the BoQ calls round, oval or circular is Oval; 'DIA', diameter or the diameter sign give an inlet or sensor size, not the box shape.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    3,
+    "note"
+   ],
+   "from": "VAV box: Nothing specific mentioned, AHRI Certified, or AHRI Certified Imported. VAV Integrator: Nothing specific mentioned or Imported. As the BoQ states.",
+   "to": "VAV box: {{cat:vav_type=Nothing specific mentioned}}, {{cat:vav_type=AHRI Certified}}, or {{cat:vav_type=AHRI Certified Imported}}. {{cat:item_name=VAV Integrator}}: {{cat:vav_type=Nothing specific mentioned}} or {{cat:vav_type=Imported}}. As the BoQ states.",
+   "n": 6
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    6,
+    "note"
+   ],
+   "from": "VAV boxes only: the round inlet size as the BoQ writes it, in inches or mm, e.g. '8 inch', '200 mm dia'. Not a tag or item number. Answer 'None' if no inlet size is stated.",
+   "to": "VAV boxes only: the round inlet size as the BoQ writes it, in inches or mm, e.g. '8 inch', '{{cat:item_detail=200 MM DIA|lower}}'. Not a tag or item number. Answer 'None' if no inlet size is stated.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    7,
+    "note"
+   ],
+   "from": "VAV boxes only: the airflow band of the box on the VAV Box sheet, in CFM.",
+   "to": "VAV boxes only: the airflow band of the box on the {{cat:group=VAV Box}} sheet, in CFM.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    8,
+    "note"
+   ],
+   "from": "How many of this item go with one row unit (one box); for integrator cabling, the metres per box. Two of an item when the row asks for two ('two thermostats'; a piece 'on either side' = 2).",
+   "to": "How many of this item go with one row unit (one box); for {{cat:item_name=Integrator cabling|lower}}, the metres per box. Two of an item when the row asks for two ('two thermostats'; a piece 'on either side' = 2).",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "chain_values",
+    2,
+    "line"
+   ],
+   "from": "The BoQ names a direct-output temperature sensor. It is priced as the Digital Thermostat. Change it if a different sensor is needed.",
+   "to": "The BoQ names a direct-output temperature sensor. It is priced as the {{cat:item=Digital Thermostat}}. Change it if a different sensor is needed.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "shape",
+    "note"
+   ],
+   "from": "Shape not stated - priced as Rectangular (assumed).",
+   "to": "Shape not stated - priced as {{cat:shape=Rectangular}} (assumed).",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "shape",
+    "rule"
+   ],
+   "from": "shape not stated - priced as Rectangular",
+   "to": "shape not stated - priced as {{cat:shape=Rectangular}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "vav_type",
+    "note"
+   ],
+   "from": "Type not named - priced as Nothing specific mentioned (assumed).",
+   "to": "Type not named - priced as {{cat:vav_type=Nothing specific mentioned}} (assumed).",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "vav_type",
+    "rule"
+   ],
+   "from": "type not named - priced as 'Nothing specific mentioned' (assumed)",
+   "to": "type not named - priced as '{{cat:vav_type=Nothing specific mentioned}}' (assumed)",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    0,
+    "why"
+   ],
+   "from": "VAV items are priced per Nos, the VAV Box sheet's unit; a row with no unit is priced per Nos with a strong warning - owner 2026-11-24 20:00 \"[no unit] price it by number and mention it clearly in notes. the notes should be a stronger warning\" (in place of the earlier refusal, 2026-11-15 13:39 / 13:41)",
+   "to": "VAV items are priced per Nos, the {{cat:group=VAV Box}} sheet's unit; a row with no unit is priced per Nos with a strong warning - owner 2026-11-24 20:00 \"[no unit] price it by number and mention it clearly in notes. the notes should be a stronger warning\" (in place of the earlier refusal, 2026-11-15 13:39 / 13:41)",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    12,
+    "why"
+   ],
+   "from": "a box whose facts match no VAV Box sheet line is not priced - never a nearest pick (owner points 3 / 4, 2026-11-18 23:53: above 8,000 CFM or no airflow -> not priced)",
+   "to": "a box whose facts match no {{cat:group=VAV Box}} sheet line is not priced - never a nearest pick (owner points 3 / 4, 2026-11-18 23:53: above 8,000 CFM or no airflow -> not priced)",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    19,
+    "why"
+   ],
+   "from": "\"if they are charged seprately in any boq row, price not to be added an appropriate note to be given with row refreence..else prices added and declared\" (owner 2026-11-18 23:32); the same sheet, Ducting's way at 90% (owner 2026-11-19 00:57); quantities blank or 0 -> the separate row decides (01:23, agreed); a row whose own description names the extra before any VAV box counts as that extra's own row, for the BACnet over IP controller (owner 2026-11-19 18:56; 2026-11-20 00:34)",
+   "to": "\"if they are charged seprately in any boq row, price not to be added an appropriate note to be given with row refreence..else prices added and declared\" (owner 2026-11-18 23:32); the same sheet, Ducting's way at 90% (owner 2026-11-19 00:57); quantities blank or 0 -> the separate row decides (01:23, agreed); a row whose own description names the extra before any VAV box counts as that extra's own row, for the {{cat:item_name=BACnet over IP controller}} (owner 2026-11-19 18:56; 2026-11-20 00:34)",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    1,
+    "why"
+   ],
+   "from": "the box and VAV's own extras are separate VAV items on one row (owner, 2026-11-19 00:57); the kinds = the VAV Box sheet's box and VAV Integrator, the four extras the owner made SKUs (BACnet over IP controller 2026-11-18 22:30; duct connection 23:24; conical piece 23:27 / 23:32; integrator cabling 23:14) and 'VAV installation - any size' (owner 2026-11-19 01:23 \"agree on all 3\")",
+   "to": "the box and VAV's own extras are separate VAV items on one row (owner, 2026-11-19 00:57); the kinds = the {{cat:group=VAV Box}} sheet's box and {{cat:item_name=VAV Integrator}}, the four extras the owner made SKUs ({{cat:item_name=BACnet over IP controller}} 2026-11-18 22:30; {{cat:item_name=Duct connection|lower}} 23:24; {{cat:item_name=Conical piece|lower}} 23:27 / 23:32; {{cat:item_name=Integrator cabling|lower}} 23:14) and '{{cat:item_name=VAV installation - any size}}' (owner 2026-11-19 01:23 \"agree on all 3\")",
+   "n": 7
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    22,
+    "why"
+   ],
+   "from": "shape not stated -> Rectangular, with a note (owner agreed, 2026-11-18 22:16)",
+   "to": "shape not stated -> {{cat:shape=Rectangular}}, with a note (owner agreed, 2026-11-18 22:16)",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    30,
+    "why"
+   ],
+   "from": "\"Duct Static Pressure Sensor Greystone/Honeywell ... 1 sensor per 30 boxes\", for every DP sensor mention (owner 2026-11-20 14:35 / 14:37); never counted twice with the DDC panel (14:39)",
+   "to": "\"{{cat:sensor=Duct Static Pressure Sensor}} {{cat:make=Greystone/Honeywell}} ... 1 sensor per 30 boxes\", for every DP sensor mention (owner 2026-11-20 14:35 / 14:37); never counted twice with the DDC panel (14:39)",
+   "n": 2
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    34,
+    "why"
+   ],
+   "from": "the per-box controller goes, replaced by the per-sheet share (owner 2026-11-20 14:18); the Differential Pressure Switch is no longer used for VAV (14:35 / 14:37; 15:23 \"yes and starts borrowing the Duct Static Pressure sensor\")",
+   "to": "the per-box controller goes, replaced by the per-sheet share (owner 2026-11-20 14:18); the {{cat:sensor=Differential Pressure Switch}} is no longer used for VAV (14:35 / 14:37; 15:23 \"yes and starts borrowing the Duct Static Pressure sensor\")",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    38,
+    "why"
+   ],
+   "from": "\"same shold apply to all extras\" (owner 2026-11-20 21:05) and agreed (21:47): an extra's own row with quantity 0 or blank, on a sheet whose VAV rows carry a quantity, does not count as charged separately - the extra is added with a note naming the row (integrator cabling: only when every cabling row is 0 / blank); VAV rows blank / 0 keep the 19 Nov 01:23 rule",
+   "to": "\"same shold apply to all extras\" (owner 2026-11-20 21:05) and agreed (21:47): an extra's own row with quantity 0 or blank, on a sheet whose VAV rows carry a quantity, does not count as charged separately - the extra is added with a note naming the row ({{cat:item_name=Integrator cabling|lower}}: only when every cabling row is 0 / blank); VAV rows blank / 0 keep the 19 Nov 01:23 rule",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    39,
+    "why"
+   ],
+   "from": "owner 2026-11-21 01:07 \"i think we should be able to add a full bcakner using that. we will need it for seperate rows i think\"; 01:09 \"yes for both\" (the Duct Static Pressure Sensor at full rate, a plain item with a typed quantity, 01:21 \"2 yes\"). The helper never adds it by itself",
+   "to": "owner 2026-11-21 01:07 \"i think we should be able to add a full bcakner using that. we will need it for seperate rows i think\"; 01:09 \"yes for both\" (the {{cat:sensor=Duct Static Pressure Sensor}} at full rate, a plain item with a typed quantity, 01:21 \"2 yes\"). The helper never adds it by itself",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    3,
+    "why"
+   ],
+   "from": "every VAV item has one rate per Nos on the VAV Box sheet; integrator cabling is a per-metre rate counted per box: BCS cost 140 per metre, quoted 196 per metre (BCS x 1.4; 392 for 2 m) (owner 2026-11-18 23:14 \"2 mts of cabling per VAV at 140 per meter\"; 2026-11-19 12:35 \"the 140 per meter is BCSrate and not quoting rate\")",
+   "to": "every VAV item has one rate per Nos on the {{cat:group=VAV Box}} sheet; {{cat:item_name=Integrator cabling|lower}} is a per-metre rate counted per box: BCS cost 140 per metre, quoted 196 per metre (BCS x 1.4; 392 for 2 m) (owner 2026-11-18 23:14 \"2 mts of cabling per VAV at 140 per meter\"; 2026-11-19 12:35 \"the 140 per meter is BCSrate and not quoting rate\")",
+   "n": 2
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    43,
+    "why"
+   ],
+   "from": "owner 2026-11-21 10:44 \"when both bacnet  and ddc blocks are on a row...a more prominent warning for possible double counting of Bacnets should be given\"; 10:45, agreed (the same for a DP sensor; the amber block above the row total); 13:59 (the same block for a DDC panel share with a full-rate DDC panel; its small line goes); 14:46 \"go with your recommendations for all cases\" (the same block for a BACnet share with a full-rate BACnet controller and a DP share with a Duct Static Pressure Sensor)",
+   "to": "owner 2026-11-21 10:44 \"when both bacnet  and ddc blocks are on a row...a more prominent warning for possible double counting of Bacnets should be given\"; 10:45, agreed (the same for a DP sensor; the amber block above the row total); 13:59 (the same block for a DDC panel share with a full-rate DDC panel; its small line goes); 14:46 \"go with your recommendations for all cases\" (the same block for a BACnet share with a full-rate BACnet controller and a DP share with a {{cat:sensor=Duct Static Pressure Sensor}})",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    45,
+    "why"
+   ],
+   "from": "owner 2026-11-21 10:40 \"can we combine addmisc  and add sensor into one group...the user does not  need to know where it is coming from.\"; 10:41 (\"Add other item\", VAV Box only); 10:40 (one entry adding the thermostat and the CO2 sensor); 10:50 \"ok for wrning and techincal working lines ...\" (headings without the source sheet)",
+   "to": "owner 2026-11-21 10:40 \"can we combine addmisc  and add sensor into one group...the user does not  need to know where it is coming from.\"; 10:41 (\"Add other item\", {{cat:group=VAV Box}} only); 10:40 (one entry adding the thermostat and the CO2 sensor); 10:50 \"ok for wrning and techincal working lines ...\" (headings without the source sheet)",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    4,
+    "why"
+   ],
+   "from": "the VAV Box sheet prices a box by shape, type, integrator included and airflow band (the owner's workbook, 2 Nov 2026); integrator inside the rate -> Yes, else No (owner, 2026-11-18 22:37); the VAV Integrator by its type (the sheet's two lines; owner point 8, 23:53)",
+   "to": "the {{cat:group=VAV Box}} sheet prices a box by shape, type, integrator included and airflow band (the owner's workbook, 2 Nov 2026); integrator inside the rate -> Yes, else No (owner, 2026-11-18 22:37); the {{cat:item_name=VAV Integrator}} by its type (the sheet's two lines; owner point 8, 23:53)",
+   "n": 2
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    51,
+    "why"
+   ],
+   "from": "owner 2026-11-24 20:00 \"map it to thermostat..and mention in note properly\": a direct-output temperature sensor named with the VAV boxes is priced as the Digital Thermostat (BOQ-26-00137 r148-153)",
+   "to": "owner 2026-11-24 20:00 \"map it to thermostat..and mention in note properly\": a direct-output temperature sensor named with the VAV boxes is priced as the {{cat:item=Digital Thermostat}} (BOQ-26-00137 r148-153)",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    5,
+    "why"
+   ],
+   "from": "BoQ rate = BCS x (1 + markup), rounded up to the rupee: supply x 1.4, install x 1.6 on the VAV Box sheet (the owner's workbook, 2 Nov 2026; the new SKUs 'same supply and install markup as others', owner 2026-11-18 22:30)",
+   "to": "BoQ rate = BCS x (1 + markup), rounded up to the rupee: supply x 1.4, install x 1.6 on the {{cat:group=VAV Box}} sheet (the owner's workbook, 2 Nov 2026; the new SKUs 'same supply and install markup as others', owner 2026-11-18 22:30)",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    8,
+    "why"
+   ],
+   "from": "borrowed, never copied: Digital Thermostat (owner, 2026-11-18 22:35), Temperature Gauge / Thermometer as 'Room temperature sensor' (22:35; 2026-11-19 00:57), Transformation Pieces (22:38) are priced by Misc's own rules; \"ducting should read these directly ... and not keep a second copy\" (owner 2026-11-13 00:19)",
+   "to": "borrowed, never copied: {{cat:item=Digital Thermostat}} (owner, 2026-11-18 22:35), {{cat:item=Temperature Gauge / Thermometer}} as 'Room temperature sensor' (22:35; 2026-11-19 00:57), {{cat:item=Transformation Pieces}} (22:38) are priced by Misc's own rules; \"ducting should read these directly ... and not keep a second copy\" (owner 2026-11-13 00:19)",
+   "n": 3
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "derivation_reasons",
+    9,
+    "why"
+   ],
+   "from": "the CO2 sensor and the differential pressure switch are borrowed from the Sensors sheet under its own rules (owner 2026-11-18 23:14; borrow-only Sensors, 2026-11-19 00:57)",
+   "to": "the CO2 sensor and the {{cat:sensor=Differential Pressure Switch|lower}} are borrowed from the {{cat:group=Sensors}} sheet under its own rules (owner 2026-11-18 23:14; borrow-only {{cat:group=Sensors}}, 2026-11-19 00:57)",
+   "n": 3
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "BACnet over IP controller",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "BACnet over IP controller",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Conical piece",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Conical piece",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Duct connection",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Duct connection",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Integrator cabling",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "Integrator cabling",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "VAV Integrator",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "VAV Integrator",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "VAV box",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "VAV box",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "VAV installation - any size",
+    "units",
+    "count",
+    "pipelines",
+    "install",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "families",
+    "VAV installation - any size",
+    "units",
+    "count",
+    "pipelines",
+    "supply",
+    "steps",
+    0,
+    "explain"
+   ],
+   "from": "match the VAV Box sheet SKU",
+   "to": "match the {{cat:group=VAV Box}} sheet SKU",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "integrator_cabling",
+    "lines",
+    "added"
+   ],
+   "from": "{qty} m of integrator cabling added per box - no separate integrator cabling row naming VAV found on this sheet. Remove it if not needed.",
+   "to": "{qty} m of {{cat:item_name=Integrator cabling|lower}} added per box - no separate {{cat:item_name=Integrator cabling|lower}} row naming VAV found on this sheet. Remove it if not needed.",
+   "n": 2
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "integrator_cabling",
+    "lines",
+    "input_missing"
+   ],
+   "from": "Integrator cabling not added: the Pricing Input '{input}' is not set.",
+   "to": "{{cat:item_name=Integrator cabling}} not added: the Pricing Input '{input}' is not set.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "integrator_cabling",
+    "lines",
+    "low_length"
+   ],
+   "from": "Integrator cabling not added: {rows} {prices} it for this sheet's VAVs. Its quantity looks low ({metres} m against {need} m = {per_box} m x {boxes} VAV boxes, below {pct}%): check the cabling quantity and add the cabling price to this row if required.",
+   "to": "{{cat:item_name=Integrator cabling}} not added: {rows} {prices} it for this sheet's VAVs. Its quantity looks low ({metres} m against {need} m = {per_box} m x {boxes} VAV boxes, below {pct}%): check the cabling quantity and add the cabling price to this row if required.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "integrator_cabling",
+    "lines",
+    "priced_separately"
+   ],
+   "from": "Integrator cabling not added: {rows} {prices} it for this sheet's VAVs. Add it here only if {that_row} {does} not cover these boxes.",
+   "to": "{{cat:item_name=Integrator cabling}} not added: {rows} {prices} it for this sheet's VAVs. Add it here only if {that_row} {does} not cover these boxes.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "scope",
+    "rule",
+    "install_row_texts",
+    "integrator_cabling.lines.priced_separately"
+   ],
+   "from": "Integrator cabling not added: {rows} {prices} it for this sheet's VAVs. Add it here only if {that_row} {does} not cover the VAVs this row installs.",
+   "to": "{{cat:item_name=Integrator cabling}} not added: {rows} {prices} it for this sheet's VAVs. Add it here only if {that_row} {does} not cover the VAVs this row installs.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "sheet_shares",
+    "double_count",
+    "with",
+    4,
+    "line"
+   ],
+   "from": "The DP sensor share on this row already covers {n} DP sensor{s}. A Duct Static Pressure Sensor is also on this row. Remove one of them unless both are needed.",
+   "to": "The DP sensor share on this row already covers {n} DP sensor{s}. A {{cat:sensor=Duct Static Pressure Sensor}} is also on this row. Remove one of them unless both are needed.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "sheet_shares",
+    "whole",
+    0,
+    "heading"
+   ],
+   "from": "BACnet over IP controller - full rate, per unit",
+   "to": "{{cat:item_name=BACnet over IP controller}} - full rate, per unit",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "sheet_shares",
+    "whole",
+    0,
+    "label"
+   ],
+   "from": "BACnet over IP controller (full rate)",
+   "to": "{{cat:item_name=BACnet over IP controller}} (full rate)",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "sheet_shares",
+    "whole",
+    1,
+    "label"
+   ],
+   "from": "DDC Panel/ Controller (full rate)",
+   "to": "{{cat:item_name=DDC Panel/ Controller}} (full rate)",
+   "n": 1
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "sections",
+    1,
+    "family_note"
+   ],
+   "from": "Which Misc item goes with THIS VAV box: Digital Thermostat (a thermostat for the box; a thermostat with a CO2 sensor or a CO2 display is TWO items - this Digital Thermostat and a CO2 Sensor under Sensor); Temperature Gauge / Thermometer = Room temperature sensor - priced at Misc's Temperature Gauge / Thermometer (a room temperature sensor with no thermostat); Transformation Pieces (a transition / transformation piece between the box and the duct). Answer 'none of these' for anything else and copy its words into 'Item as written'. A direct-output temperature sensor supplied with the VAVs is the Digital Thermostat, not the Temperature Gauge / Thermometer.",
+   "to": "Which Misc item goes with THIS VAV box: {{cat:item=Digital Thermostat}} (a thermostat for the box; a thermostat with a CO2 sensor or a CO2 display is TWO items - this {{cat:item=Digital Thermostat}} and a {{cat:sensor=CO2 Sensor}} under Sensor); {{cat:item=Temperature Gauge / Thermometer}} = Room temperature sensor - priced at Misc's {{cat:item=Temperature Gauge / Thermometer}} (a room temperature sensor with no thermostat); {{cat:item=Transformation Pieces}} (a transition / transformation piece between the box and the duct). Answer 'none of these' for anything else and copy its words into 'Item as written'. A direct-output temperature sensor supplied with the VAVs is the {{cat:item=Digital Thermostat}}, not the {{cat:item=Temperature Gauge / Thermometer}}.",
+   "n": 8
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "sections",
+    2,
+    "family_note"
+   ],
+   "from": "Which sensor goes with THIS VAV box: CO2 Sensor (a CO2 sensor, also one that comes with a thermostat - a thermostat with a CO2 sensor or a CO2 display is TWO items: the Digital Thermostat under Misc item and this CO2 Sensor). A DP / differential pressure / duct static pressure sensor is NOT an item here: answer it in 'DP sensor mentioned' on the VAV box. Answer 'none of these' for anything else and copy its words into 'Sensor as written'.",
+   "to": "Which sensor goes with THIS VAV box: {{cat:sensor=CO2 Sensor}} (a CO2 sensor, also one that comes with a thermostat - a thermostat with a CO2 sensor or a CO2 display is TWO items: the {{cat:item=Digital Thermostat}} under Misc item and this {{cat:sensor=CO2 Sensor}}). A DP / differential pressure / {{cat:sensor=Duct Static Pressure Sensor|lower}} is NOT an item here: answer it in 'DP sensor mentioned' on the VAV box. Answer 'none of these' for anything else and copy its words into 'Sensor as written'.",
+   "n": 4
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "notes"
+   ],
+   "from": "VAV-1 (2026-11-19): the VAV Box price sheet -- the workbook's VAV Box tab (84 box lines + 2 VAV Integrator lines; BoQ = ROUNDUP(BCS x 1.4) supply, ROUNDUP(BCS x 1.6) install) + the owner's 4 new SKUs and 'VAV installation - any size'; the Misc and Sensors items borrowed live under their own rules (list_spec.sections). The BoQ-row rules (the reading, the sheet checks, the panel) are VAV-2a / VAV-2b.",
+   "to": "VAV-1 (2026-11-19): the {{cat:group=VAV Box}} price sheet -- the workbook's {{cat:group=VAV Box}} tab (84 box lines + 2 {{cat:item_name=VAV Integrator}} lines; BoQ = ROUNDUP(BCS x 1.4) supply, ROUNDUP(BCS x 1.6) install) + the owner's 4 new SKUs and '{{cat:item_name=VAV installation - any size}}'; the Misc and {{cat:group=Sensors}} items borrowed live under their own rules (list_spec.sections). The BoQ-row rules (the reading, the sheet checks, the panel) are VAV-2a / VAV-2b.",
+   "n": 5
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "attribute_definitions",
+    1,
+    "note"
+   ],
+   "from": "The sheet's Category (Outdoor / Indoor / Refnet / Accessories); Misc for the four items shared with the future Misc category. Display only.",
+   "to": "The sheet's Category ({{cat:group=Outdoor}} / {{cat:group=Indoor}} / {{cat:group=Refnet}} / {{cat:group=Accessories}}); Misc for the four items shared with the future Misc category. Display only.",
+   "n": 4
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "attribute_definitions",
+    2,
+    "note"
+   ],
+   "from": "The family: the sheet's Item, with the outdoor units as one family (discharge carries Top / Side) and the two remotes as one (remote type carries Wired / Cordless).",
+   "to": "The family: the sheet's Item, with the outdoor units as one family (discharge carries Top / Side) and the two remotes as one (remote type carries Wired / {{cat:remote_type=Cordless}}).",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "attribute_definitions",
+    4,
+    "note"
+   ],
+   "from": "Outdoor units: Cool Only or Heat Pump (the sheet writes HEAT PUMP on Blue Star and Heat Pump on Daikin: one value).",
+   "to": "{{cat:group=Outdoor}} units: {{cat:cooling=Cool Only}} or {{cat:cooling=Heat Pump}} (the sheet writes HEAT PUMP on Blue Star and {{cat:cooling=Heat Pump}} on Daikin: one value).",
+   "n": 4
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "attribute_definitions",
+    5,
+    "note"
+   ],
+   "from": "Outdoor units: Top or Side, from the sheet's Item.",
+   "to": "{{cat:group=Outdoor}} units: Top or Side, from the sheet's Item.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "attribute_definitions",
+    6,
+    "note"
+   ],
+   "from": "Outdoor units: Single Compressor where the sheet's Type says so, else Standard (owner D-6).",
+   "to": "{{cat:group=Outdoor}} units: {{cat:compressor=Single Compressor}} where the sheet's Type says so, else {{cat:compressor=Standard}} (owner D-6).",
+   "n": 3
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "attribute_definitions",
+    7,
+    "label"
+   ],
+   "from": "Cassette way",
+   "to": "{{cat:item=Cassette}} way",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "attribute_definitions",
+    8,
+    "note"
+   ],
+   "from": "Remote controllers: Wired or Cordless.",
+   "to": "Remote controllers: Wired or {{cat:remote_type=Cordless}}.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "attribute_definitions",
+    9,
+    "note"
+   ],
+   "from": "The capacity number: HP on an outdoor unit, TR on an indoor unit or an AHU kit. '12.5 / 15.0TR' stocks at 15.",
+   "to": "The capacity number: HP on an {{cat:item=Outdoor Unit|lower}}, TR on an indoor unit or an AHU kit. '{{cat:capacity_label=12.5 / 15.0TR}}' stocks at 15.",
+   "n": 2
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    0,
+    "note"
+   ],
+   "from": "The VRF family this item is: one of the listed families. 'Touch Screen Central Controller' is a central / i-Touch / touch-panel controller for the whole system; 'BACnet Integration Controller for VRF Units' only when the row names BACnet or a BMS gateway. A drain pump bought on its own row is 'Drain Pump'. 'None' when the row does not say what kind of unit it is (an indoor unit whose type is not stated - a person picks it); 'none of these' when the row names an item that is not listed. VRF-5: an accessory the BoQ says is part of a unit's price (frame / stand, gas charge, drain pump, remote, refnet / Y-joint, MCCB / isolator, AV pads and the like) is answered on the unit item (its includes_* questions), never listed as a separate item, unless the row itself is that item. A central controller described as BACnet / BMS compatible is the 'Touch Screen Central Controller' (the BACnet item only when the row itself is a BACnet integration item). A ducted / ceiling suspended ducted indoor unit is 'Ductable'. An inclusion stated in a heading applies to every unit row under it. VRF-6: a frame / stand quoted per Nos is 'MS frame / stand for ODU' (per Kg it stays 'MS Angle Base Frame Structure'). A cassette the BoQ sizes as 600 x 600 mm or 2' x 2' is a Cassette (its way FOUR-WAY COMPACT). A CSU / ceiling suspended unit is 'Ductable'. An ON/OFF central controller is the 'Touch Screen Central Controller'. A capacity written with a stray space ('6 .3 TR') is that number (6.3 TR). Cabling the BoQ ties to a drain pump (a plug top, a power point for the pump) is the pump's, not the unit's power cable. VRF-7: a treated fresh air unit (TFA / fresh air unit) is 'Single Skin Treated Fresh Air', even when the BoQ also calls it CSU or ceiling suspended. VRF-9 (S9 / S10): a row that only charges / tops up refrigerant gas is 'Refrigerant Gas Filling (R-410)'; a row for the outdoor units' MS base frame / stand / structure is 'MS frame / stand for ODU' -- never leave the item out.",
+   "to": "The VRF family this item is: one of the listed families. '{{cat:item=Touch Screen Central Controller}}' is a central / i-Touch / touch-panel controller for the whole system; '{{cat:item=BACnet Integration Controller for VRF Units}}' only when the row names BACnet or a BMS gateway. A {{cat:item=Drain Pump|lower}} bought on its own row is '{{cat:item=Drain Pump}}'. 'None' when the row does not say what kind of unit it is (an indoor unit whose type is not stated - a person picks it); 'none of these' when the row names an item that is not listed. VRF-5: an accessory the BoQ says is part of a unit's price (frame / stand, gas charge, {{cat:item=Drain Pump|lower}}, remote, refnet / Y-joint, MCCB / isolator, AV pads and the like) is answered on the unit item (its includes_* questions), never listed as a separate item, unless the row itself is that item. A central controller described as BACnet / BMS compatible is the '{{cat:item=Touch Screen Central Controller}}' (the BACnet item only when the row itself is a BACnet integration item). A ducted / ceiling suspended ducted indoor unit is '{{cat:item=Ductable}}'. An inclusion stated in a heading applies to every unit row under it. VRF-6: a frame / stand quoted per Nos is '{{cat:item=MS frame / stand for ODU}}' (per Kg it stays '{{cat:item=MS Angle Base Frame Structure}}'). A cassette the BoQ sizes as 600 x 600 mm or 2' x 2' is a {{cat:item=Cassette}} (its way {{cat:way=FOUR-WAY COMPACT}}). A CSU / ceiling suspended unit is '{{cat:item=Ductable}}'. An ON/OFF central controller is the '{{cat:item=Touch Screen Central Controller}}'. A capacity written with a stray space ('6 .3 TR') is that number (6.3 TR). Cabling the BoQ ties to a {{cat:item=Drain Pump|lower}} (a plug top, a power point for the pump) is the pump's, not the unit's power cable. VRF-7: a treated fresh air unit (TFA / fresh air unit) is '{{cat:item=Single Skin Treated Fresh Air}}', even when the BoQ also calls it CSU or ceiling suspended. VRF-9 (S9 / S10): a row that only charges / tops up refrigerant gas is '{{cat:item=Refrigerant Gas Filling (R-410)}}'; a row for the outdoor units' MS base frame / stand / structure is '{{cat:item=MS frame / stand for ODU}}' -- never leave the item out.",
+   "n": 17
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    11,
+    "note"
+   ],
+   "from": "Yes when the unit's price includes its power cabling / power supply wiring to the unit. No when it says it is extra or by others. 'None' when it is silent. Cabling for a drain pump (a plug top, a power point for the pump) is NOT the unit's power cable. VRF-8: REQUIRED on every item - never leave it out. Answer Yes or No from the words wherever anything describes this unit's price or scope for it (decide - never leave it out because it is hard to tell); 'None' only when nothing at all describes it. With Yes, the _words answer copies ONE exact clause of the BoQ (never '...') and _where says where it sits. VRF-8: 'inclusive of plug top & necessary power cable' on a unit is its power cable: Yes; cabling 'for the drain pump' is not. 'Necessary interconnections with power supply / earthing / refrigerant connections' is connection work only: No.",
+   "to": "Yes when the unit's price includes its power cabling / power supply wiring to the unit. No when it says it is extra or by others. 'None' when it is silent. Cabling for a {{cat:item=Drain Pump|lower}} (a plug top, a power point for the pump) is NOT the unit's power cable. VRF-8: REQUIRED on every item - never leave it out. Answer Yes or No from the words wherever anything describes this unit's price or scope for it (decide - never leave it out because it is hard to tell); 'None' only when nothing at all describes it. With Yes, the _words answer copies ONE exact clause of the BoQ (never '...') and _where says where it sits. VRF-8: 'inclusive of plug top & necessary power cable' on a unit is its power cable: Yes; cabling 'for the {{cat:item=Drain Pump|lower}}' is not. 'Necessary interconnections with power supply / earthing / refrigerant connections' is connection work only: No.",
+   "n": 2
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    13,
+    "label"
+   ],
+   "from": "Copper size as written",
+   "to": "{{cat:pipe_type=Copper}} size as written",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    35,
+    "label"
+   ],
+   "from": "Includes drain pump",
+   "to": "Includes {{cat:item=Drain Pump|lower}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    35,
+    "note"
+   ],
+   "from": "Yes when this row's text, or a heading or note that describes this unit, says the unit's price includes its drain pump. Answer it HERE on the unit item -- never list it as a separate item of this row, unless the row itself is that item. No when it says it is extra or by others. 'None' when it is silent. VRF-8: REQUIRED on every item - never leave it out. Answer Yes or No from the words wherever anything describes this unit's price or scope for it (decide - never leave it out because it is hard to tell); 'None' only when nothing at all describes it. With Yes, the _words answer copies ONE exact clause of the BoQ (never '...') and _where says where it sits.",
+   "to": "Yes when this row's text, or a heading or note that describes this unit, says the unit's price includes its {{cat:item=Drain Pump|lower}}. Answer it HERE on the unit item -- never list it as a separate item of this row, unless the row itself is that item. No when it says it is extra or by others. 'None' when it is silent. VRF-8: REQUIRED on every item - never leave it out. Answer Yes or No from the words wherever anything describes this unit's price or scope for it (decide - never leave it out because it is hard to tell); 'None' only when nothing at all describes it. With Yes, the _words answer copies ONE exact clause of the BoQ (never '...') and _where says where it sits.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    36,
+    "label"
+   ],
+   "from": "Where drain pump is stated",
+   "to": "Where {{cat:item=Drain Pump|lower}} is stated",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    36,
+    "note"
+   ],
+   "from": "Only when 'includes_drain_pump' is Yes: 'Row' when THIS row's own text says the price includes the drain pump; 'Heading' when only a heading above says so; 'Note' when only a note says so. An inclusion stated in a heading applies to every unit row under it.",
+   "to": "Only when 'includes_drain_pump' is Yes: 'Row' when THIS row's own text says the price includes the {{cat:item=Drain Pump|lower}}; 'Heading' when only a heading above says so; 'Note' when only a note says so. An inclusion stated in a heading applies to every unit row under it.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    37,
+    "label"
+   ],
+   "from": "How drain pump is worded",
+   "to": "How {{cat:item=Drain Pump|lower}} is worded",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    38,
+    "label"
+   ],
+   "from": "drain pump quantity as written",
+   "to": "{{cat:item=Drain Pump|lower}} quantity as written",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    38,
+    "note"
+   ],
+   "from": "A quantity the BoQ states for this unit's drain pump ('2 nos', '15 kg'), copied exactly as written. Leave it out when none is stated.",
+   "to": "A quantity the BoQ states for this unit's {{cat:item=Drain Pump|lower}} ('2 nos', '15 kg'), copied exactly as written. Leave it out when none is stated.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    39,
+    "label"
+   ],
+   "from": "Includes remote controller",
+   "to": "Includes {{cat:item=Remote Controller|lower}}",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    39,
+    "note"
+   ],
+   "from": "Yes when this row's text, or a heading or note that describes this unit, says the unit's price includes its remote controller. Answer it HERE on the unit item -- never list it as a separate item of this row, unless the row itself is that item. No when it says it is extra or by others. 'None' when it is silent. VRF-7: a unit supplied with or without a remote as the client requires counts as Yes (the remote is priced in). An individual controller for the units of a system means one remote per indoor unit: Yes. VRF-8: REQUIRED on every item - never leave it out. Answer Yes or No from the words wherever anything describes this unit's price or scope for it (decide - never leave it out because it is hard to tell); 'None' only when nothing at all describes it. With Yes, the _words answer copies ONE exact clause of the BoQ (never '...') and _where says where it sits.",
+   "to": "Yes when this row's text, or a heading or note that describes this unit, says the unit's price includes its {{cat:item=Remote Controller|lower}}. Answer it HERE on the unit item -- never list it as a separate item of this row, unless the row itself is that item. No when it says it is extra or by others. 'None' when it is silent. VRF-7: a unit supplied with or without a remote as the client requires counts as Yes (the remote is priced in). An individual controller for the units of a system means one remote per indoor unit: Yes. VRF-8: REQUIRED on every item - never leave it out. Answer Yes or No from the words wherever anything describes this unit's price or scope for it (decide - never leave it out because it is hard to tell); 'None' only when nothing at all describes it. With Yes, the _words answer copies ONE exact clause of the BoQ (never '...') and _where says where it sits.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    3,
+    "note"
+   ],
+   "from": "Outdoor units: Cool Only or Heat Pump (the sheet writes HEAT PUMP on Blue Star and Heat Pump on Daikin: one value). VRF-7: a unit the BoQ describes for cooling and heating together (cooling/heating, cooling or heating or both, cooling as well as heating) is 'Heat Pump'. The row's own cooling type wins over a heading. VRF-8: when the headings above a unit disagree on cooling / heating, the heading NEARER the row wins.",
+   "to": "{{cat:group=Outdoor}} units: {{cat:cooling=Cool Only}} or {{cat:cooling=Heat Pump}} (the sheet writes HEAT PUMP on Blue Star and {{cat:cooling=Heat Pump}} on Daikin: one value). VRF-7: a unit the BoQ describes for cooling and heating together (cooling/heating, cooling or heating or both, cooling as well as heating) is '{{cat:cooling=Heat Pump}}'. The row's own cooling type wins over a heading. VRF-8: when the headings above a unit disagree on cooling / heating, the heading NEARER the row wins.",
+   "n": 5
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    40,
+    "label"
+   ],
+   "from": "Where remote controller is stated",
+   "to": "Where {{cat:item=Remote Controller|lower}} is stated",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    40,
+    "note"
+   ],
+   "from": "Only when 'includes_remote' is Yes: 'Row' when THIS row's own text says the price includes the remote controller; 'Heading' when only a heading above says so; 'Note' when only a note says so. An inclusion stated in a heading applies to every unit row under it.",
+   "to": "Only when 'includes_remote' is Yes: 'Row' when THIS row's own text says the price includes the {{cat:item=Remote Controller|lower}}; 'Heading' when only a heading above says so; 'Note' when only a note says so. An inclusion stated in a heading applies to every unit row under it.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    41,
+    "label"
+   ],
+   "from": "How remote controller is worded",
+   "to": "How {{cat:item=Remote Controller|lower}} is worded",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    42,
+    "label"
+   ],
+   "from": "remote controller quantity as written",
+   "to": "{{cat:item=Remote Controller|lower}} quantity as written",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    42,
+    "note"
+   ],
+   "from": "A quantity the BoQ states for this unit's remote controller ('2 nos', '15 kg'), copied exactly as written. Leave it out when none is stated.",
+   "to": "A quantity the BoQ states for this unit's {{cat:item=Remote Controller|lower}} ('2 nos', '15 kg'), copied exactly as written. Leave it out when none is stated.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    47,
+    "note"
+   ],
+   "from": "Yes when this row's text, or a heading or note that describes this unit, says the unit's price includes its MCCB / isolator. Answer it HERE on the unit item -- never list it as a separate item of this row, unless the row itself is that item. No when it says it is extra or by others. 'None' when it is silent. Breakers / protection (MCB, ELCB, MCCB, isolator) a note says the outdoor unit's price includes mean Yes. VRF-8: REQUIRED on every item - never leave it out. Answer Yes or No from the words wherever anything describes this unit's price or scope for it (decide - never leave it out because it is hard to tell); 'None' only when nothing at all describes it. With Yes, the _words answer copies ONE exact clause of the BoQ (never '...') and _where says where it sits. VRF-8: 'breaker (if required)' in a note = Yes, even where another note puts the MCCB / isolator in the electrical contractor's scope; the electrical contractor's scope alone = No.",
+   "to": "Yes when this row's text, or a heading or note that describes this unit, says the unit's price includes its MCCB / isolator. Answer it HERE on the unit item -- never list it as a separate item of this row, unless the row itself is that item. No when it says it is extra or by others. 'None' when it is silent. Breakers / protection (MCB, ELCB, MCCB, isolator) a note says the {{cat:item=Outdoor Unit|lower}}'s price includes mean Yes. VRF-8: REQUIRED on every item - never leave it out. Answer Yes or No from the words wherever anything describes this unit's price or scope for it (decide - never leave it out because it is hard to tell); 'None' only when nothing at all describes it. With Yes, the _words answer copies ONE exact clause of the BoQ (never '...') and _where says where it sits. VRF-8: 'breaker (if required)' in a note = Yes, even where another note puts the MCCB / isolator in the electrical contractor's scope; the electrical contractor's scope alone = No.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    4,
+    "note"
+   ],
+   "from": "Outdoor units: Top or Side, from the sheet's Item. VRF-7: as the BoQ states it anywhere for this unit - the row, its notes, a heading or note above ('top discharge', 'side discharge', 'top throw'). 'None' when nothing states it.",
+   "to": "{{cat:group=Outdoor}} units: Top or Side, from the sheet's Item. VRF-7: as the BoQ states it anywhere for this unit - the row, its notes, a heading or note above ('{{cat:item_name=Top Discharge|lower}}', '{{cat:item_name=Side Discharge|lower}}', 'top throw'). 'None' when nothing states it.",
+   "n": 3
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    54,
+    "note"
+   ],
+   "from": "A length the BoQ gives for THIS unit's power cable only ('around a distance of 5m', 'up to 15 m'), copied as written. A length written for another item (the piping, the communication cable) is not this one's. Leave it out when none is stated for the power cable. VRF-8: 'single feeder / DB ... within N m(tr) distance from ODU' is the outdoor unit's power cable length: N m.",
+   "to": "A length the BoQ gives for THIS unit's power cable only ('around a distance of 5m', 'up to 15 m'), copied as written. A length written for another item (the piping, the communication cable) is not this one's. Leave it out when none is stated for the power cable. VRF-8: 'single feeder / DB ... within N m(tr) distance from ODU' is the {{cat:item=Outdoor Unit|lower}}'s power cable length: N m.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    56,
+    "label"
+   ],
+   "from": "Copper piping length as written",
+   "to": "{{cat:pipe_type=Copper}} piping length as written",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    57,
+    "label"
+   ],
+   "from": "Copper piping - BoQ words",
+   "to": "{{cat:pipe_type=Copper}} piping - BoQ words",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    5,
+    "note"
+   ],
+   "from": "Outdoor units: Single Compressor where the sheet's Type says so, else Standard (owner D-6).",
+   "to": "{{cat:group=Outdoor}} units: {{cat:compressor=Single Compressor}} where the sheet's Type says so, else {{cat:compressor=Standard}} (owner D-6).",
+   "n": 3
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    65,
+    "label"
+   ],
+   "from": "Refnet - BoQ words",
+   "to": "{{cat:group=Refnet}} - BoQ words",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    67,
+    "note"
+   ],
+   "from": "Outdoor units only: the module make-up the BoQ states for THIS unit, copied as written ('16HP+16HP', 'minimum 2 units of at least 20 HP each'). Leave it out when none is stated.",
+   "to": "{{cat:group=Outdoor}} units only: the module make-up the BoQ states for THIS unit, copied as written ('16HP+16HP', 'minimum 2 units of at least 20 HP each'). Leave it out when none is stated.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    6,
+    "label"
+   ],
+   "from": "Cassette way",
+   "to": "{{cat:item=Cassette}} way",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    6,
+    "note"
+   ],
+   "from": "Cassettes: the sheet's Type -- answered whenever the row, its notes or ANY heading or note above it states the way (one-way, two-way, four-way, compact). A 600 x 600 mm / 2' x 2' cassette is FOUR-WAY COMPACT.",
+   "to": "Cassettes: the sheet's Type -- answered whenever the row, its notes or ANY heading or note above it states the way (one-way, two-way, four-way, compact). A 600 x 600 mm / 2' x 2' cassette is {{cat:way=FOUR-WAY COMPACT}}.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    7,
+    "note"
+   ],
+   "from": "Remote controllers, AND every indoor unit whose price includes a remote: that remote's type, from the row, its notes or a heading / note that describes this unit. Wireless, handset or cordless = Cordless; corded, wired or 'with wire' on its own = Wired; when the text offers both ('corded or cordless', 'cordless/corded', 'corded less') = Cordless. 'None' when nothing says which.",
+   "to": "Remote controllers, AND every indoor unit whose price includes a remote: that remote's type, from the row, its notes or a heading / note that describes this unit. Wireless, handset or cordless = {{cat:remote_type=Cordless}}; corded, wired or 'with wire' on its own = Wired; when the text offers both ('corded or cordless', 'cordless/corded', 'corded less') = {{cat:remote_type=Cordless}}. 'None' when nothing says which.",
+   "n": 2
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "attribute_definitions",
+    8,
+    "note"
+   ],
+   "from": "The capacity AS WRITTEN for this item, with its unit (16 HP, 1.5 TR). The outdoor units are sold in HP and the indoor units and AHU kits in TR. A split the row writes is copied WHOLE on this ONE item ('60 HP (18+18+24)', '26(14+12)HP', '38HP (20+18)') - never one item per module; '2# 12 HP' is 12 HP. VRF-8: a fresh-air (TFA) unit 'complete with suitable outdoor unit' is TWO items - the fresh-air unit and an Outdoor Unit with the HP the row states. One capacity written twice and another once: copy the repeated one. VRF-9 (S7): a fresh-air (TFA) unit takes the capacity the row states (CFM / TR, else HP) -- copy it.",
+   "to": "The capacity AS WRITTEN for this item, with its unit (16 HP, 1.5 TR). The outdoor units are sold in HP and the indoor units and AHU kits in TR. A split the row writes is copied WHOLE on this ONE item ('60 HP (18+18+24)', '26(14+12)HP', '38HP (20+18)') - never one item per module; '2# 12 HP' is 12 HP. VRF-8: a fresh-air (TFA) unit 'complete with suitable {{cat:item=Outdoor Unit|lower}}' is TWO items - the fresh-air unit and an {{cat:item=Outdoor Unit}} with the HP the row states. One capacity written twice and another once: copy the repeated one. VRF-9 (S7): a fresh-air (TFA) unit takes the capacity the row states (CFM / TR, else HP) -- copy it.",
+   "n": 2
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "defaults",
+    "cooling",
+    "rule"
+   ],
+   "from": "cooling not stated - priced as Cool Only (team default: heat pump only when the BoQ mentions it)",
+   "to": "cooling not stated - priced as {{cat:cooling=Cool Only}} (team default: {{cat:cooling=Heat Pump|lower}} only when the BoQ mentions it)",
+   "n": 2
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "extras",
+    "accessories",
+    1,
+    "qty_per_size",
+    "line"
+   ],
+   "from": "Gas charge: {size} HP outdoor unit -> {qty} {unit} (kg = HP of the outdoor unit, owner team rule 2026-11-09)",
+   "to": "Gas charge: {size} HP {{cat:item=Outdoor Unit|lower}} -> {qty} {unit} (kg = HP of the {{cat:item=Outdoor Unit|lower}}, owner team rule 2026-11-09)",
+   "n": 2
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "extras",
+    "accessories",
+    4,
+    "builtin",
+    "line"
+   ],
+   "from": "BoQ says built-in drain pump - added as a separate pump, please check",
+   "to": "BoQ says built-in {{cat:item=Drain Pump|lower}} - added as a separate pump, please check",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "extras",
+    "accessories",
+    6,
+    "title"
+   ],
+   "from": "Refnet / Y-joint",
+   "to": "{{cat:group=Refnet}} / Y-joint",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "extras",
+    "includes",
+    0,
+    "label"
+   ],
+   "from": "Copper piping",
+   "to": "{{cat:pipe_type=Copper}} piping",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "extras",
+    "lines",
+    "drain_cable_line"
+   ],
+   "from": "Power cable: NOT added - the BoQ's cabling \"{said}\" is for the drain pump, not the unit's power cable",
+   "to": "Power cable: NOT added - the BoQ's cabling \"{said}\" is for the {{cat:item=Drain Pump|lower}}, not the unit's power cable",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "extras",
+    "lines",
+    "drain_cable_line_silent"
+   ],
+   "from": "Power cable: not added - the BoQ's cabling \"{said}\" ({where}) is for the drain pump, not the unit's power cable",
+   "to": "Power cable: not added - the BoQ's cabling \"{said}\" ({where}) is for the {{cat:item=Drain Pump|lower}}, not the unit's power cable",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "extras",
+    "lines",
+    "drain_cable_row_line"
+   ],
+   "from": "Power cable: NOT added - the BoQ's cabling \"{said}\" is the drain pump's: the sheet quotes it only on the drain-pump row ({rows})",
+   "to": "Power cable: NOT added - the BoQ's cabling \"{said}\" is the {{cat:item=Drain Pump|lower}}'s: the sheet quotes it only on the drain-pump row ({rows})",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "extras",
+    "prepare",
+    "implied_includes",
+    3,
+    "line"
+   ],
+   "from": "MS frame / stand: the BoQ says \"{said}\" ({where}) - \"supports\" in the outdoor unit's rate / heading = the MS stand",
+   "to": "MS frame / stand: the BoQ says \"{said}\" ({where}) - \"supports\" in the {{cat:item=Outdoor Unit|lower}}'s rate / heading = the MS stand",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "extras",
+    "prepare",
+    "tfa_outdoor",
+    "line"
+   ],
+   "from": "BoQ says \"{said}\" - the fresh-air unit is priced with an outdoor unit of the stated {hp} HP",
+   "to": "BoQ says \"{said}\" - the fresh-air unit is priced with an {{cat:item=Outdoor Unit|lower}} of the stated {hp} HP",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "extras",
+    "safeguard",
+    "lines",
+    "copper_usual"
+   ],
+   "from": "Copper piping is usually quoted separately in a VRF BoQ - please check the sheet",
+   "to": "{{cat:pipe_type=Copper}} piping is usually quoted separately in a VRF BoQ - please check the sheet",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "per_set",
+    "counted",
+    "counts",
+    0,
+    "label"
+   ],
+   "from": "Outdoor units in this system *",
+   "to": "{{cat:group=Outdoor}} units in this system *",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "per_set",
+    "counted",
+    "counts",
+    0,
+    "note"
+   ],
+   "from": "Outdoor refnets = outdoor units - 1.",
+   "to": "{{cat:group=Outdoor}} refnets = outdoor units - 1.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "per_set",
+    "counted",
+    "counts",
+    1,
+    "label"
+   ],
+   "from": "Indoor units in this system *",
+   "to": "{{cat:group=Indoor}} units in this system *",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "pricing",
+    "per_set",
+    "counted",
+    "counts",
+    1,
+    "note"
+   ],
+   "from": "Indoor refnets = indoor units - 1.",
+   "to": "{{cat:group=Indoor}} refnets = indoor units - 1.",
+   "n": 1
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "notes"
+   ],
+   "from": "VRF-1 (owner, 2026-11-03): the VRF CATALOGUE only -- 152 SKUs from the VRF sheet of 'HVAC_BOQ_BCS PRICING_ Nitesh Edits - 2 nov 2026.xlsx' (Blue Star 122, Daikin 30), each with the sheet's own cost, supply markup, BOQ install, machine-install cost and commissioning cost, stored as the sheet gives them (no rounding: R-ROUND rounds at pricing). Plus the four Misc items VRF takes over now as the SHARED kind hvac_misc_item, each with its Misc-sheet markups -- the future Misc category lists the same stored set, never a copy (R-MISC). DATA-ONLY: no pricing block, so it never prices a BoQ row and the calculator shows 'coming soon' until VRF-2 / VRF-4. The two conversion factors are Pricing Inputs (vrf_hp_per_tr, vrf_kw_per_tr). VRF-2a (owner, 2026-11-03): the VRF families PRICE IN THE CALCULATOR -- the list_spec pricing block below -- while `calculator_only` (owner Q1 A, temporary, removed at VRF-4) keeps every VRF BoQ row on the coming-soon text and every VRF row out of Suggest. The Blue Star ductables VFM-216A (18 TR) and VFM-264A (22 TR) are retired (R-RETIRE): a ductable above 8 TR refuses. The four Misc items stay unpriced until VRF-2c. VRF-2b (owner, 2026-11-03): a capacity stated in HP, TR or kW is read and converted to the family's own unit through the two VRF Pricing Inputs (an airflow refuses, named); the unit picker beside the typed box; the size options show their unit; the four Misc items price here (Nos / Kg, `extra_kinds`); several or off-sheet brands price as Blue Star, naming the row's words; 'Nos/Ro' reads as Nos with a line. calculator_only stays until VRF-4. VRF-3a (owner, 2026-11-04): an Outdoor Unit above the largest size of its brand and variant is split by the helper into separate lines (the fewest units, adding up exactly, else the smallest total above, then the cheapest; each line the row's brand and variant; an edit never re-splits); a split the row writes is one line per module (a module above the largest refuses); a condition the row states is quoted; an airflow range is one airflow; 'Set' prices one piece per Set with a bar (a refnet's pieces come from the system's unit counts); Lot, LS, Job, per HP and 'complete system' refuse with a bar. calculator_only stays until VRF-4. VRF-3b (owner, 2026-11-05): a unit's price can include its copper (Piping), insulation (Insulation) and power / communication cable (Electrical, read only), each its own line per Nos under each indoor / outdoor unit, sized from the Pricing Inputs by the unit's capacity, removable, held when a size is missing; Lot is offered in the calculator's Row unit. calculator_only stays until VRF-4. VRF-4 (owner, 2026-11-06): VRF is live on BoQ rows (calculator_only removed). The model is asked per item whether the unit's price includes copper, insulation, power and communication cable, and copies the sizes, brand, working + standby words and refnet coverage as written; each borrowed field is priced by its own sheet's rules; refnet unit counts are added up from the sheet; a working + standby row prices one unit under a red bar. second_opinion is ON for testing and must be switched off before deploy. VRF-5 (owner, 2026-11-06): an accessory the BoQ says a unit's price includes (MS frame, gas charge, drain pump, remote, refnet, MCCB / isolator) is priced as the unit's own line -- the quantity from the BoQ, else the Pricing Inputs default -- and never blocks the unit; an inclusion only a heading or note states is added unless the same sheet quotes it on its own row, with a review note; a cable named without a size takes the default; an outdoor unit below the smallest Top unit defaults to Side; several makes -> Blue Star if stated, else the first stocked; supply only / installation only (the installation-only uplift is a Pricing Input). second_opinion stays ON for testing and must be switched off before deploy. VRF-6 (owner, 2026-11-09): the remote's type follows the BoQ (ambiguous 'corded or cordless' -> Cordless, then the model's answer, then the words); every included extra that is not added says why; the own-row check reads each row's category first; '12HP x 2NOS' is a written split, a written module above the largest unit is split, a size no single unit matches takes the single that covers it unless a covering pair is cheaper (then the cheaper pair with the least excess); a cable length reaches only its own cable, 'AL' is aluminium, drain-pump cabling is not the power cable; accessories take the unit's make; per outdoor module: one MS frame / stand (its own Nos item), gas kg = HP, one MCB + ELCB by the HP schedule; built-in drain pump, scope conflicts and installation-only settled by the sheet's own rows; control wiring = comm cable; a 'quantified separately' note wins; two capacities refuse. second_opinion is OFF (owner 2026-11-09 18:52: the standing rule for every category, new-category testing included).",
+   "to": "VRF-1 (owner, 2026-11-03): the VRF CATALOGUE only -- 152 SKUs from the VRF sheet of 'HVAC_BOQ_BCS PRICING_ Nitesh Edits - 2 nov 2026.xlsx' (Blue Star 122, Daikin 30), each with the sheet's own cost, supply markup, BOQ install, machine-install cost and commissioning cost, stored as the sheet gives them (no rounding: R-ROUND rounds at pricing). Plus the four Misc items VRF takes over now as the SHARED kind hvac_misc_item, each with its Misc-sheet markups -- the future Misc category lists the same stored set, never a copy (R-MISC). DATA-ONLY: no pricing block, so it never prices a BoQ row and the calculator shows 'coming soon' until VRF-2 / VRF-4. The two conversion factors are Pricing Inputs (vrf_hp_per_tr, vrf_kw_per_tr). VRF-2a (owner, 2026-11-03): the VRF families PRICE IN THE CALCULATOR -- the list_spec pricing block below -- while `calculator_only` (owner Q1 A, temporary, removed at VRF-4) keeps every VRF BoQ row on the coming-soon text and every VRF row out of Suggest. The Blue Star ductables VFM-216A (18 TR) and VFM-264A (22 TR) are retired (R-RETIRE): a ductable above 8 TR refuses. The four Misc items stay unpriced until VRF-2c. VRF-2b (owner, 2026-11-03): a capacity stated in HP, TR or kW is read and converted to the family's own unit through the two VRF Pricing Inputs (an airflow refuses, named); the unit picker beside the typed box; the size options show their unit; the four Misc items price here (Nos / Kg, `extra_kinds`); several or off-sheet brands price as Blue Star, naming the row's words; 'Nos/Ro' reads as Nos with a line. calculator_only stays until VRF-4. VRF-3a (owner, 2026-11-04): an {{cat:item=Outdoor Unit}} above the largest size of its brand and variant is split by the helper into separate lines (the fewest units, adding up exactly, else the smallest total above, then the cheapest; each line the row's brand and variant; an edit never re-splits); a split the row writes is one line per module (a module above the largest refuses); a condition the row states is quoted; an airflow range is one airflow; 'Set' prices one piece per Set with a bar (a refnet's pieces come from the system's unit counts); Lot, LS, Job, per HP and 'complete system' refuse with a bar. calculator_only stays until VRF-4. VRF-3b (owner, 2026-11-05): a unit's price can include its copper (Piping), insulation (Insulation) and power / communication cable (Electrical, read only), each its own line per Nos under each indoor / {{cat:item=Outdoor Unit|lower}}, sized from the Pricing Inputs by the unit's capacity, removable, held when a size is missing; Lot is offered in the calculator's Row unit. calculator_only stays until VRF-4. VRF-4 (owner, 2026-11-06): VRF is live on BoQ rows (calculator_only removed). The model is asked per item whether the unit's price includes copper, insulation, power and communication cable, and copies the sizes, brand, working + standby words and refnet coverage as written; each borrowed field is priced by its own sheet's rules; refnet unit counts are added up from the sheet; a working + standby row prices one unit under a red bar. second_opinion is ON for testing and must be switched off before deploy. VRF-5 (owner, 2026-11-06): an accessory the BoQ says a unit's price includes (MS frame, gas charge, {{cat:item=Drain Pump|lower}}, remote, refnet, MCCB / isolator) is priced as the unit's own line -- the quantity from the BoQ, else the Pricing Inputs default -- and never blocks the unit; an inclusion only a heading or note states is added unless the same sheet quotes it on its own row, with a review note; a cable named without a size takes the default; an {{cat:item=Outdoor Unit|lower}} below the smallest Top unit defaults to Side; several makes -> Blue Star if stated, else the first stocked; supply only / installation only (the installation-only uplift is a Pricing Input). second_opinion stays ON for testing and must be switched off before deploy. VRF-6 (owner, 2026-11-09): the remote's type follows the BoQ (ambiguous 'corded or cordless' -> {{cat:remote_type=Cordless}}, then the model's answer, then the words); every included extra that is not added says why; the own-row check reads each row's category first; '12HP x 2NOS' is a written split, a written module above the largest unit is split, a size no single unit matches takes the single that covers it unless a covering pair is cheaper (then the cheaper pair with the least excess); a cable length reaches only its own cable, 'AL' is {{cat:variant=aluminium}}, drain-pump cabling is not the power cable; accessories take the unit's make; per outdoor module: one MS frame / stand (its own Nos item), gas kg = HP, one MCB + ELCB by the HP schedule; built-in {{cat:item=Drain Pump|lower}}, scope conflicts and installation-only settled by the sheet's own rows; control wiring = comm cable; a 'quantified separately' note wins; two capacities refuse. second_opinion is OFF (owner 2026-11-09 18:52: the standing rule for every category, new-category testing included).",
+   "n": 7
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "companion_items",
+    0,
+    "rules_page_line"
+   ],
+   "from": "A cross-talk row that says 'return air baffle' also pays for one return air grille without damper - 300 x 300 where no grille size is stated - one per unit of the row; its supply and installation are added to the cross-talk's. If that grille cannot be priced, the working says so and it must be added by hand (owner 2026-10-23 23:28 / 23:29; 2026-10-24).",
+   "to": "A {{cat:family=cross-talk}} row that says 'return air baffle' also pays for one return air grille without damper - 300 x 300 where no grille size is stated - one per unit of the row; its supply and installation are added to the {{cat:family=cross-talk}}'s. If that grille cannot be priced, the working says so and it must be added by hand (owner 2026-10-23 23:28 / 23:29; 2026-10-24).",
+   "n": 2
+  }
+ ],
+ "pricing_inputs": {}
+}

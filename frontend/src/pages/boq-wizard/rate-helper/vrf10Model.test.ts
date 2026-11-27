@@ -16,16 +16,17 @@
  */
 import { chai, describe, expect, it } from "vitest"; chai.config.truncateThreshold = 0;
 import type { RateCategoryConfig, RateMasterItem } from "../../pricing/rate-master/rateMasterTypes";
-import { type ExtractedListItem, vrf10On, itemListPricingSpec } from "./itemListPricing";
-import { buildExtractionByRow, makePricingSheetHelper, onOffAmongOthers, VRF10_ONOFF, type ItemListSuggestion, type ItemListView } from "./pricingSheetHelper";
+import { type ExtractedListItem, vrf10On, itemListPricingSpec, codeTarget } from "./itemListPricing";
+import { buildExtractionByRow, makePricingSheetHelper, onOffAmongOthers, type ItemListSuggestion, type ItemListView } from "./pricingSheetHelper";
 import { rowQuantitiesOf, sheetLinesOf } from "./rateSuggestionModel";
 import { readJsonFixture } from "../../pricing/calculatorPanelParity.harness";
 import { showFamilyRawLine } from "./RateHelperPanel";
+import { withNewestCodeTargets } from "./codeTargetsOverlay.harness";   // CAT-2 PIN P-COMPAT (QR-COMPAT (a)): the role blocks read from the newest asset
 
 type Asset = { discipline: string; items: Array<Omit<RateMasterItem, "discipline"> & { brand?: string | null }>; category_configs: RateCategoryConfig[] };
 const DATA = "../../../../../nirmaan_stack/services/boq_rate_master/data/";
-const h65 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v65.json`, import.meta.url));
-const h64 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v64.json`, import.meta.url));
+const h65 = withNewestCodeTargets(readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v65.json`, import.meta.url)));
+const h64 = withNewestCodeTargets(readJsonFixture<Asset>(new URL(`${DATA}rate_master_hvac_all_v64.json`, import.meta.url)));
 const e72 = readJsonFixture<Asset>(new URL(`${DATA}rate_master_electrical_all_v72.json`, import.meta.url));
 
 const toItems = (a: Asset) => a.items.map((it) => ({ ...it, discipline: a.discipline, attributes: it.brand ? { ...it.attributes, brand: it.brand } : { ...it.attributes } } as RateMasterItem));
@@ -201,7 +202,7 @@ describe("VRF-10 F5 -- three cosmetics", () => {
   });
   it("(a) NEGATIVE: a single-function ON / OFF controller keeps the note (and is priced as the touch screen); v64 notes the touch manager", () => {
     const v = one({ items: [{ item: "Remote Controller" }], text: "Central ON / OFF controller for all indoor units" });
-    expect(v.items[0].family).toBe(VRF10_ONOFF.family);
+    expect(v.items[0].family).toBe(codeTarget(itemListPricingSpec(V65()), "onoff_controller"));   // CAT-2 PIN P-READER (QR-READER): BEFORE VRF10_ONOFF.family (deleted; the config's reference)
     expect(review(v)).toContain("BoQ says \"ON / OFF\" controller");
     expect(review(one({ items: [{ item: "Touch Screen Central Controller" }], unit: "Set", text: TM }, false))).toContain("ON / OFF");
   });

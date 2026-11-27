@@ -1,0 +1,132 @@
+{
+ "about": "CAT-2 (2026-11-27; owner 2026-11-26 00:10 / 01:16, R1; ANSWER to CAT2-4 QR-FORM): HVAC v91 = v90 + ONLY these edits -- a `list_spec.code_targets` block on four configs naming, by role, the catalogue values the code rules picked from typed constants until now (each value read from the constant at 998327af0 by scratch/py/build_edits.py, never re-typed). No item, no other key. The load gate checks every value (catalogue_gate.code_target_refs).",
+ "pricing_inputs": {},
+ "configs": [
+  {
+   "c": "hvac_insulation",
+   "p": [
+    "list_spec",
+    "code_targets"
+   ],
+   "from": null,
+   "to": {
+    "gi_framework": {
+     "attr": "cladding",
+     "value": "GI Framework with perforated Al sheet"
+    }
+   }
+  },
+  {
+   "c": "hvac_piping",
+   "p": [
+    "list_spec",
+    "code_targets"
+   ],
+   "from": null,
+   "to": {
+    "cpvc": {
+     "attr": "pipe_type",
+     "value": "CPVC"
+    },
+    "pvc": {
+     "attr": "pipe_type",
+     "value": "PVC"
+    }
+   }
+  },
+  {
+   "c": "hvac_vrf",
+   "p": [
+    "list_spec",
+    "code_targets"
+   ],
+   "from": null,
+   "to": {
+    "frame_families": {
+     "attr": "item",
+     "values": [
+      "MS frame / stand for ODU",
+      "MS Angle Base Frame Structure"
+     ]
+    },
+    "onoff_controller": {
+     "attr": "item",
+     "value": "Touch Screen Central Controller"
+    }
+   }
+  },
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "code_targets"
+   ],
+   "from": null,
+   "to": {
+    "pibcv": {
+     "attr": "valve_type",
+     "value": "PIBCV"
+    },
+    "nrv": {
+     "attr": "valve_type",
+     "value": "NRV / Check Valve"
+    },
+    "gauge": {
+     "section": "misc",
+     "attr": "item",
+     "value": "Pressure Gauge"
+    },
+    "gauge_valve_families": {
+     "attr": "valve_type",
+     "values": [
+      "Ball Valve",
+      "Sluice / Gate Valve"
+     ]
+    },
+    "air_vent": {
+     "attr": "valve_type",
+     "value": "Automatic Air Vent"
+    },
+    "ball": {
+     "attr": "valve_type",
+     "value": "Ball Valve"
+    },
+    "strainer": {
+     "attr": "valve_type",
+     "value": "Strainer"
+    },
+    "two_way": {
+     "attr": "valve_type",
+     "value": "2-Way Valve"
+    },
+    "balancing": {
+     "attr": "valve_type",
+     "value": "Balancing Valve"
+    },
+    "test_plug": {
+     "section": "misc",
+     "attr": "item",
+     "value": "Test Plug / Thermowell"
+    },
+    "thermometer": {
+     "section": "misc",
+     "attr": "item",
+     "value": "Temperature Gauge / Thermometer"
+    },
+    "modulating": {
+     "attr": "operation",
+     "value": "Modulating"
+    },
+    "dual_plate": {
+     "attr": "nrv_type",
+     "value": "Dual Plate"
+    }
+   }
+  }
+ ],
+ "counts": {
+  "configs": 4,
+  "roles": 18,
+  "values": 20
+ }
+}

@@ -1,0 +1,186 @@
+{
+ "about": "CAT-1 (2026-11-26, desktop; the first build slice of the catalogue-link fix): HVAC v89 = v88 + ONLY these edits: R5 the Valve Package 'On-Off' declared as an unstocked answer; R2 the 5 VAV share parts named by item_uid (the name read live); R6 the four ruled rules-page lines on ADP (3) and Piping (1) as `rules_page_line`. No item changes; no category's model request changes. Read by the cat1 tests and the v89 mint script.",
+ "configs": [
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "unstocked_answers"
+   ],
+   "from": null,
+   "to": {
+    "operation": [
+     "On-Off"
+    ]
+   },
+   "why": "R5 (owner 2026-11-26 00:13 'ok for both'): 'On-Off' stays offered for 2-way valves as a DECLARED unstocked answer, so those rows refuse by name as today (VP-1); without it the rebuilt list drops it and the load gate refuses the file"
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "sheet_shares",
+    "shares",
+    0,
+    "parts",
+    0,
+    "sku"
+   ],
+   "from": {
+    "kind": "hvac_vav_item",
+    "attr": "vav_item",
+    "value": "DDC Panel/ Controller"
+   },
+   "to": {
+    "item_uid": "rmi-51319c433867",
+    "attr": "vav_item"
+   },
+   "why": "R2 (owner 2026-11-26 00:06 / 00:10): the ddc share's panels part names its SKU by item_uid; the name ('DDC Panel/ Controller') is read live from 'vav_item' (CAT-D1 E2 R-A)"
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "sheet_shares",
+    "shares",
+    0,
+    "parts",
+    1,
+    "sku"
+   ],
+   "from": {
+    "kind": "hvac_vav_item",
+    "attr": "vav_item",
+    "value": "BACnet over IP controller"
+   },
+   "to": {
+    "item_uid": "rmi-9a2026f993c3",
+    "attr": "vav_item"
+   },
+   "why": "R2 (owner 2026-11-26 00:06 / 00:10): the ddc share's controllers part names its SKU by item_uid; the name ('BACnet over IP controller') is read live from 'vav_item' (CAT-D1 E2 R-A)"
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "sheet_shares",
+    "shares",
+    0,
+    "parts",
+    2,
+    "sku"
+   ],
+   "from": {
+    "kind": "hvac_sensor_item",
+    "attr": "sensor",
+    "value": "Duct Static Pressure Sensor"
+   },
+   "to": {
+    "item_uid": "rmi-3654468a63fc",
+    "attr": "sensor"
+   },
+   "why": "R2 (owner 2026-11-26 00:06 / 00:10): the ddc share's sensors part names its SKU by item_uid; the name ('Duct Static Pressure Sensor') is read live from 'sensor' (CAT-D1 E2 R-A)"
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "sheet_shares",
+    "shares",
+    1,
+    "parts",
+    0,
+    "sku"
+   ],
+   "from": {
+    "kind": "hvac_vav_item",
+    "attr": "vav_item",
+    "value": "BACnet over IP controller"
+   },
+   "to": {
+    "item_uid": "rmi-9a2026f993c3",
+    "attr": "vav_item"
+   },
+   "why": "R2 (owner 2026-11-26 00:06 / 00:10): the bacnet share's controllers part names its SKU by item_uid; the name ('BACnet over IP controller') is read live from 'vav_item' (CAT-D1 E2 R-A)"
+  },
+  {
+   "c": "hvac_vav_box",
+   "p": [
+    "list_spec",
+    "pricing",
+    "sheet_shares",
+    "shares",
+    2,
+    "parts",
+    0,
+    "sku"
+   ],
+   "from": {
+    "kind": "hvac_sensor_item",
+    "attr": "sensor",
+    "value": "Duct Static Pressure Sensor"
+   },
+   "to": {
+    "item_uid": "rmi-3654468a63fc",
+    "attr": "sensor"
+   },
+   "why": "R2 (owner 2026-11-26 00:06 / 00:10): the dp share's sensors part names its SKU by item_uid; the name ('Duct Static Pressure Sensor') is read live from 'sensor' (CAT-D1 E2 R-A)"
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "numbers",
+    "neck_mm",
+    "rules_page_line"
+   ],
+   "from": null,
+   "to": "A neck size written as two equal numbers ('300 x 300') is one square neck of that size. Two different numbers are not a neck size: the item is not priced until a person sets the neck size.",
+   "why": "R6 L-a (owner 2026-11-26 01:14 '2 ok'; CAT-D0 D8): the neck size line on the ADP rules page"
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "stream_heading_default",
+    0,
+    "rules_page_line"
+   ],
+   "from": null,
+   "to": "When the heading just above names both supply and return air, and this row names neither and no damper, the damper is set to the item's usual setting, and the working says so - unless the heading itself gives the damper to both streams or to neither (owner 2026-10-23 23:24; 2026-10-24).",
+   "why": "R6 L-b (owner 2026-11-26 01:14 '2 ok'; CAT-D0 D8): the damper when the heading names both streams"
+  },
+  {
+   "c": "hvac_adp",
+   "p": [
+    "list_spec",
+    "pricing",
+    "companion_items",
+    0,
+    "rules_page_line"
+   ],
+   "from": null,
+   "to": "A cross-talk row that says 'return air baffle' also pays for one return air grille without damper - 300 x 300 where no grille size is stated - one per unit of the row; its supply and installation are added to the cross-talk's. If that grille cannot be priced, the working says so and it must be added by hand (owner 2026-10-23 23:28 / 23:29; 2026-10-24).",
+   "why": "R6 L-c (owner 2026-11-26 01:14 '2 ok'; CAT-D0 D8): return air baffle"
+  },
+  {
+   "c": "hvac_piping",
+   "p": [
+    "list_spec",
+    "pricing",
+    "sheet_heading_notes",
+    0,
+    "rules_page_line"
+   ],
+   "from": null,
+   "to": "When a pipe row's heading mentions valves: if this sheet prices valves on their own rows, a note lists those rows (the first 10, then 'and N more') and says valves are not in this pipe price; if no valve row exists, the note says valves are not included and should be added on their own rows (owner 2026-11-12 23:59; 11-13 00:09, 00:33).",
+   "why": "R6 L-d (owner 2026-11-26 01:14 '2 ok'; CAT-D0 D8): valves under a pipe heading"
+  }
+ ],
+ "pricing_inputs": {}
+}

@@ -133,14 +133,16 @@ describe(`VAV-1 T4 live borrow on ${LATEST}: no second copy`, () => {
     // VAV-2b1 K2 (PIN 12, ANSWER 27 condition (ii)): the scan has NO skipped path for the v79 keys -- sheet_shares and withdrawn_families
     // are scanned like every other key (condition (i): the skip list is band_from's two declared data keys only, above). VACUITY x 2:
     // a borrowed figure planted beside a name in withdrawn_families, and one inside a share part's SKU name, each goes red
-    const pr79 = pricingOf(cfg) as { withdrawn_families?: string[]; sheet_shares?: { shares: Array<{ parts: Array<{ sku?: { value?: string } }> }> } };
+    const pr79 = pricingOf(cfg) as { withdrawn_families?: string[]; sheet_shares?: { shares: Array<{ parts: Array<{ sku?: { value?: string; item_uid?: string } }> }> } };
     if (pr79.withdrawn_families && pr79.sheet_shares) {
       const a = structuredClone(pricingOf(cfg)) as typeof pr79;
       a.withdrawn_families!.push("2170");
       expect(hits(scanned(a as Record<string, unknown>))).toEqual(["2170"]);
       const b = structuredClone(pricingOf(cfg)) as typeof pr79;
-      const part = b.sheet_shares!.shares.flatMap((s) => s.parts).find((p) => p.sku?.value)!;
-      part.sku!.value += " 11130";
+      // CAT-1b (PIN P-V1, ANSWER 12 / QR-VAV1 (a)): since v89 a share part names its SKU by item_uid (CAT-1 R2), so the figure is planted there.
+      // BEFORE: find((p) => p.sku?.value) and part.sku!.value += " 11130" (v88's typed-name form, gone since v89)
+      const part = b.sheet_shares!.shares.flatMap((s) => s.parts).find((p) => p.sku?.item_uid)!;
+      part.sku!.item_uid += " 11130";
       expect(hits(scanned(b as Record<string, unknown>))).toEqual(["11130"]);
       // condition (iii): the three counts are READ from the Pricing Inputs -- each share part names an input id; no 32 / 30 / 200 is held
       const ss = JSON.stringify(pr79.sheet_shares);

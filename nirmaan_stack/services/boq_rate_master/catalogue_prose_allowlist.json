@@ -1,0 +1,475 @@
+{
+ "about": "G-PROSE (CAT-1, 2026-11-26): config wording that names a multi-word catalogue value outside a {{cat:..}} placeholder, frozen by path at today's count on the newest HVAC (v89) and Electrical (v72) files. Owner 2026-11-26 01:47 (QR-C-1 (a)): today's mentions stay typed and CAT-1b / CAT-3 convert them; the counts only go down; a NEW mention fails test_catalogue_guards and is listed by the import gate. CAT-1b (HVAC v90, owner 2026-11-26 01:47 / 11:15): the HVAC counts lowered to v90's -- the converted wording is placeholders now; what is left is the mixed-case mentions kept as words (QR-MIXED).",
+ "paths": {
+  "cabletray_raceway > rules[0].guidance": {
+   "MS POWDER COATED": {
+    "count": 1
+   }
+  },
+  "db_switchgear > attribute_definitions[13].note": {
+   "Enclosure Box": {
+    "count": 1
+   }
+  },
+  "db_switchgear > composite_slots.fixed[0].role": {
+   "Enclosure Box": {
+    "count": 1
+   }
+  },
+  "earthing > attribute_definitions[2].label": {
+   "BUS BAR": {
+    "count": 1
+   }
+  },
+  "earthing > notes": {
+   "BUS BAR": {
+    "count": 2
+   }
+  },
+  "earthing > pipelines.earthing_bcs.steps[2].explain": {
+   "BUS BAR": {
+    "count": 2
+   }
+  },
+  "earthing > pipelines.earthing_boq.steps[2].explain": {
+   "BUS BAR": {
+    "count": 2
+   }
+  },
+  "hvac_adp > attribute_definitions[11].label": {
+   "UL 555 Rated": {
+    "count": 1
+   }
+  },
+  "hvac_adp > list_spec.attribute_definitions[0].note": {
+   "Butterfly Damper With SPIGOT": {
+    "count": 1
+   },
+   "control panel": {
+    "count": 1
+   }
+  },
+  "hvac_adp > list_spec.attribute_definitions[10].label": {
+   "control panel": {
+    "count": 1
+   }
+  },
+  "hvac_adp > list_spec.attribute_definitions[14].note": {
+   "GI Rectangular": {
+    "count": 1
+   }
+  },
+  "hvac_adp > list_spec.attribute_definitions[5].note": {
+   "250 mm": {
+    "count": 1
+   }
+  },
+  "hvac_adp > list_spec.pricing.defaults.variant.rule": {
+   "GI Rectangular": {
+    "count": 1
+   }
+  },
+  "hvac_adp > list_spec.pricing.family_merge[0].line": {
+   "Butterfly Damper With SPIGOT": {
+    "count": 1
+   }
+  },
+  "hvac_adp > list_spec.pricing.family_merge[0].rule": {
+   "Butterfly Damper With SPIGOT": {
+    "count": 1
+   }
+  },
+  "hvac_ducting > list_spec.pricing.no_sku_refusals[2].words[0]": {
+   "Outdoor Unit": {
+    "count": 1
+   }
+  },
+  "hvac_insulation > list_spec.attribute_definitions[1].note": {
+   "Aluminium Foil": {
+    "count": 1
+   }
+  },
+  "hvac_sensors > list_spec.attribute_definitions[0].note": {
+   "CO2 Sensor": {
+    "count": 1
+   }
+  },
+  "hvac_valve_package > list_spec.attribute_definitions[0].note": {
+   "Ball Valve": {
+    "count": 1
+   }
+  },
+  "hvac_valve_package > list_spec.attribute_definitions[5].note": {
+   "Flanged NRV": {
+    "count": 1
+   }
+  },
+  "hvac_valve_package > list_spec.pricing.derive_when_none[0].rule": {
+   "Flanged NRV": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.attribute_definitions[0].note": {
+   "VAV Box": {
+    "count": 2
+   }
+  },
+  "hvac_vav_box > list_spec.attribute_definitions[10].note": {
+   "VAV Box": {
+    "count": 3
+   }
+  },
+  "hvac_vav_box > list_spec.attribute_definitions[3].note": {
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.attribute_definitions[4].note": {
+   "VAV Integrator": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.add_group.combos[0].label": {
+   "CO2 Sensor": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.claims_filed.kinds[5].item": {
+   "VAV Integrator": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.claims_filed.kinds[7].item": {
+   "Conical piece": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.claims_filed.kinds[9].item": {
+   "VAV Integrator": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[19].why": {
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[20].title": {
+   "VAV Integrator": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[20].why": {
+   "VAV Integrator": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[21].title": {
+   "VAV Integrator": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[23].title": {
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[28].title": {
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[34].why": {
+   "Duct Static Pressure Sensor": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[36].title": {
+   "VAV Integrator": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[41].title": {
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[45].why": {
+   "CO2 Sensor": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.derivation_reasons[9].why": {
+   "CO2 Sensor": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.existing_boxes.kinds[0].label": {
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.existing_boxes.kinds[1].label": {
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.existing_boxes.kinds[2].label": {
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.own_row_check.extras[0].label": {
+   "Digital Thermostat": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.own_row_check.extras[3].label": {
+   "Differential Pressure Switch": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.own_row_check.extras[4].label": {
+   "CO2 Sensor": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.own_row_check.extras[8].label": {
+   "VAV Integrator": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.own_row_check.lines.attr_changed": {
+   "VAV Integrator": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.own_row_check.serves.also[0]": {
+   "VAV Integrator": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.panel_notes.inlet_size": {
+   "200 mm": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.scope.rule.install_row_texts.sheet_shares.lines.blank_rows": {
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.scope.rule.notes.C_qty": {
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.sheet_shares.lines.not_box_row": {
+   "VAV Box": {
+    "count": 2
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.sheet_shares.not_added_by[5].label": {
+   "Duct Static Pressure Sensor": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.pricing.sheet_shares.separate.extras[3].label": {
+   "Duct Static Pressure Sensor": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.sections[1].family_note": {
+   "CO2 Sensor": {
+    "count": 1
+   },
+   "VAV Box": {
+    "count": 1
+   }
+  },
+  "hvac_vav_box > list_spec.sections[2].family_note": {
+   "CO2 Sensor": {
+    "count": 2
+   },
+   "VAV Box": {
+    "count": 2
+   }
+  },
+  "hvac_vrf > attribute_definitions[4].note": {
+   "Blue Star": {
+    "count": 1
+   },
+   "Heat Pump": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.attribute_definitions[27].note": {
+   "Outdoor Unit": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.attribute_definitions[3].note": {
+   "Blue Star": {
+    "count": 1
+   },
+   "Heat Pump": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.attribute_definitions[63].label": {
+   "Drain Pump": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.pricing.defaults.brand.rule": {
+   "Blue Star": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.pricing.defaults.brand.unlisted.off_sheet": {
+   "Blue Star": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.pricing.defaults.brand.unlisted.several": {
+   "Blue Star": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.pricing.defaults.brand.unlisted.several_rule.first_stocked": {
+   "Blue Star": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.pricing.defaults.brand.unlisted.several_rule.none_stocked": {
+   "Blue Star": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.pricing.defaults.brand.unlisted.several_rule.one_of": {
+   "Blue Star": {
+    "count": 2
+   }
+  },
+  "hvac_vrf > list_spec.pricing.defaults.discharge.rule": {
+   "Top Discharge": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.pricing.extras.accessories[4].label": {
+   "Drain Pump": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.pricing.extras.accessories[4].title": {
+   "Drain Pump": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.pricing.extras.accessories[5].title": {
+   "Remote Controller": {
+    "count": 1
+   }
+  },
+  "hvac_vrf > list_spec.pricing.value_map[0].rule": {
+   "Blue Star": {
+    "count": 2
+   }
+  },
+  "hvac_vrf > notes": {
+   "Blue Star": {
+    "count": 4
+   }
+  },
+  "point_wiring > attribute_definitions[27].label": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "point_wiring > pipelines.pw_bcs.steps[11].explain": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "point_wiring > pipelines.pw_bcs.steps[19].display_label": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "point_wiring > pipelines.pw_boq_install.steps[11].explain": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "point_wiring > pipelines.pw_boq_install.steps[19].display_label": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "point_wiring > pipelines.pw_boq_supply.steps[11].explain": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "point_wiring > pipelines.pw_boq_supply.steps[19].display_label": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "point_wiring > pipelines.pw_boq_supply.steps[19].explain": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "popup_boxes > notes": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "switches_sockets > attribute_definitions[15].label": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "switches_sockets > attribute_definitions[16].label": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "switches_sockets > attribute_definitions[17].label": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "switches_sockets > pipelines.swsock_bcs.steps[0].explain": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "switches_sockets > pipelines.swsock_bcs.steps[8].display_label": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "switches_sockets > pipelines.swsock_boq.steps[0].explain": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "switches_sockets > pipelines.swsock_boq.steps[8].display_label": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "switches_sockets > rules[3].guidance": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "switches_sockets > rules[3].label": {
+   "Back Box": {
+    "count": 1
+   }
+  }
+ }
+}
