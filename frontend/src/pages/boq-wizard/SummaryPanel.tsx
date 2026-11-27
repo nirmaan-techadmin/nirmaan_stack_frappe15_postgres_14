@@ -166,14 +166,16 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
     [rows, columnDescriptors, columnFormulas, reconChoices, bcs],
   );
 
-  // BCS-6a P2g: the note's three exception lists -- only where the cost axis shows (the BCS input is given to cost viewers
-  // only, Admin + Estimates), exactly as the cost columns themselves.
+  // BCS-6a P2g: the note's exception lists. Points 1-3 show only where the cost axis shows (the BCS input is given to cost viewers
+  // only, Admin + Estimates, with BCS on), exactly as the cost columns themselves. K2d (owner ANSWER 13, 2026-11-27 11:15, "ok with
+  // a"): point 4 - rows whose rates appear incorrect - shows on EVERY sheet to everyone who can open the Summary, BCS on or off; it
+  // carries row numbers and a fixed sentence only, never a cost figure. So the lists are computed always; the cost side only feeds 3.
   const exceptions = useMemo(() => {
-    if (!bcs) return null;
     const costRows = new Set<number>();
-    for (const [er, r] of bcs.ratesByExcelRow) if (Number(r.supply_rate) || Number(r.install_rate) || Number(r.combined_rate)) costRows.add(er);
+    if (bcs) for (const [er, r] of bcs.ratesByExcelRow) if (Number(r.supply_rate) || Number(r.install_rate) || Number(r.combined_rate)) costRows.add(er);
     return amountExceptions(rows, columnDescriptors, columnFormulas, reconChoices, costRows);
   }, [rows, columnDescriptors, columnFormulas, reconChoices, bcs]);
+  const showCostNote = !!bcs;
 
   // Default view = expanded down to the shallowest preamble tier (computed from data).
   const [collapsed, setCollapsed] = useState<Set<number>>(() => defaultCollapsedSet(roots));
@@ -428,7 +430,7 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
       {/* BCS-6a P2g -- THE NOTE (owner R-BCS-156 / 158 / 159, R3 / R5 / R6; mockup board 2), wording verbatim. BELOW the
           table: the panel is a full-width strip capped at 40vh above the grid, so a block beside the table would squeeze the
           amount columns (decided on the screen at the cert). The panel's hierarchy above is untouched (R-BCS-159). */}
-      {exceptions && (
+      {showCostNote && (
         <div className="px-3 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground" data-note="how-boq-amount-taken">
           <p className="font-medium text-foreground">How the BoQ amount was taken on this sheet</p>
           <p className="mt-0.5">Every row: quantity x the rate you chose, as shown in the Amount column. Three exceptions, listed by row:</p>
@@ -444,6 +446,15 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
               <li data-exception="suspect">The rates/amounts on these rows appear incorrect. Please review them and change if required.{" "}
                 <RowRangeList rows={exceptions.suspect} onJump={onJumpToRow} /></li>
             )}
+          </ol>
+        </div>
+      )}
+      {/* K2d (owner ANSWER 13): without the cost axis (BCS off, or a viewer without cost access) point 4 shows ALONE, still numbered 4. */}
+      {!showCostNote && exceptions.suspect.length > 0 && (
+        <div className="px-3 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground" data-note="rates-appear-incorrect">
+          <ol start={4} className="list-decimal pl-5">
+            <li data-exception="suspect">The rates/amounts on these rows appear incorrect. Please review them and change if required.{" "}
+              <RowRangeList rows={exceptions.suspect} onJump={onJumpToRow} /></li>
           </ol>
         </div>
       )}

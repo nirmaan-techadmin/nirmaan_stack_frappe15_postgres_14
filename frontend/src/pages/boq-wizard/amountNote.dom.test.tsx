@@ -139,6 +139,38 @@ describe("BCS-6a K2c the note's 4th point (owner ANSWER 12)", () => {
   });
 });
 
+describe("BCS-6a K2d point 4 on every sheet, for every Summary viewer (owner ANSWER 13)", () => {
+  const suspectRows = [...ROWS,
+    row(4, 14, 0, { rate_supply: 3600, rate_install: 360 }),
+    row(5, 15, 0, { qty_total: 460, rate_supply: 945, rate_install: 434700 })];
+  const SENTENCE = "The rates/amounts on these rows appear incorrect. Please review them and change if required.";
+
+  it("(+) without the cost axis (a role without cost access, or BCS off): point 4 shows, points 1-3 do not", async () => {
+    await mount(<SummaryPanel rows={suspectRows as never} columnDescriptors={DESCS} columnFormulas={FORMULAS as never} reconChoices={RECON as never}
+      sheetName="A" onClose={() => {}} />);
+    expect(note()).toBeNull(); // the cost note (points 1-3) is absent
+    const block = host!.querySelector("[data-note='rates-appear-incorrect']")!;
+    expect(block.querySelector("ol")!.getAttribute("start")).toBe("4"); // still numbered 4
+    // (-) no cost figure leaks: the block is the fixed sentence and row numbers only
+    expect(block.textContent).toBe(`${SENTENCE} 2 rows: 14-15`);
+    expect(host!.textContent).not.toContain("left out of the margin");
+  });
+
+  it("(+) a cost viewer with BCS on sees points 1-4 in the one note, and no separate point-4 block", async () => {
+    await mount(<SummaryPanel rows={suspectRows as never} columnDescriptors={DESCS} columnFormulas={FORMULAS as never} reconChoices={RECON as never}
+      bcs={BCS as never} sheetName="A" onClose={() => {}} />);
+    expect(note()!.querySelectorAll("ol > li").length).toBe(4);
+    expect(host!.querySelector("[data-note='rates-appear-incorrect']")).toBeNull();
+  });
+
+  it("(-) without the cost axis and no such rows: nothing at all", async () => {
+    await mount(<SummaryPanel rows={ROWS as never} columnDescriptors={DESCS} columnFormulas={FORMULAS as never} reconChoices={RECON as never}
+      sheetName="A" onClose={() => {}} />);
+    expect(host!.querySelector("[data-note='rates-appear-incorrect']")).toBeNull();
+    expect(note()).toBeNull();
+  });
+});
+
 describe("BCS-6a the long-list form (RowRangeList)", () => {
   it("(+) the count first, the rows joined into ranges, \"show all\" opens the full list", async () => {
     // 40 rows in 20 separate ranges: 1-2, 4-5, 7-8, ...
