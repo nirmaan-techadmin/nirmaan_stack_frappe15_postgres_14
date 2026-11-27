@@ -98,10 +98,17 @@ INDEXES: tuple[tuple[str, tuple[str, ...], str, bool], ...] = (
     ('BoQ Row BCS Rate', ('boq', 'sheet_name', 'committed_version', 'is_current', 'excel_row'), 'BoQ_Row_BCS_Rate_boq_sheet_name_committed_version_1e4269e7_idx', False),
     ('BoQ Row Category', ('boq',), 'BoQ_Row_Category_boq_idx', False),
     ('BoQ Row Category', ('boq', 'sheet_name', 'committed_version', 'discipline', 'is_current'), 'BoQ_Row_Category_boq_sheet_name_committed_version_3b3da27d_idx', False),
+    # BCS-FX (a miss carried since BCS-4 / BCS-5, found at BCS-FX's merge): the BCS branch's helper-edit and summary-inputs
+    # tables. The two add_index calls keep the explicit names their on_doctype_update passes; the search_index field (boq)
+    # takes the table rule, so the next migrate builds BoQ_Row_Helper_Edit_boq_idx beside Frappe's bare "boq".
+    ('BoQ Row Helper Edit', ('boq',), 'BoQ_Row_Helper_Edit_boq_idx', False),
+    ('BoQ Row Helper Edit', ('boq', 'sheet_name', 'committed_version', 'is_current', 'excel_row'), 'boq_row_helper_edit_sheet_row_index', False),
     ('BoQ Row Spec Card', ('payload_sha256', 'prompt_version', 'model'), 'boq_row_spec_card_payload_sha256_prompt_version_model_idx', True),
     ('BoQ Row Spec Card', ('boq', 'sheet'), 'BoQ_Row_Spec_Card_boq_sheet_idx', False),
     ('BoQ Sheet', ('boq',), 'BoQ_Sheet_boq_idx', False),
     ('BoQ Sheet Pricing Lock', ('boq',), 'BoQ_Sheet_Pricing_Lock_boq_idx', False),
+    # BCS-FX: BoQ Summary Inputs' add_index keeps its explicit name (BCS-5; see BoQ Row Helper Edit above).
+    ('BoQ Summary Inputs', ('boq', 'is_current'), 'boq_summary_inputs_boq_current_index', False),
     ('BoQ Template Row', ('path',), 'BoQ_Template_Row_path_idx', False),
     ('BoQ Template Row', ('sheet_name',), 'BoQ_Template_Row_sheet_name_idx', False),
     ('BoQ Template Row', ('template',), 'BoQ_Template_Row_template_idx', False),

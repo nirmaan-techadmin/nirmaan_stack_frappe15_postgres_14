@@ -120,7 +120,8 @@ class TestTheManifestMatchesTheDeclarations(FrappeTestCase):
         # DEV2-B4: 42 -> 44, BoQ Rate Match Run's two add_index calls (boq/sheet_name/active, suggest_run)
         # DEV2-B5: 44 -> 45, BoQ Rate Match Feedback's one (boq/sheet_name/excel_row)
         # SRS-1: 45 -> 48, BoQ AI Suggest Row Record's add_unique + add_index (project) and Run Record's add_index (run_id)
-        self.assertEqual(len(calls), 48)
+        # BCS-FX: 48 -> 50, BoQ Row Helper Edit's and BoQ Summary Inputs' add_index (the BCS branch's BCS-4 / BCS-5)
+        self.assertEqual(len(calls), 50)
         self.assertEqual(calls[("BoQ Rate Match Feedback", ("boq", "sheet_name", "excel_row"), False)],
                          "boq_rate_match_feedback_boq_sheet_name_excel_row_idx")
         self.assertEqual(calls[("BoQ Rate Match Run", ("boq", "sheet_name", "active"), False)],
@@ -132,7 +133,8 @@ class TestTheManifestMatchesTheDeclarations(FrappeTestCase):
         # #1639: 106 -> 109, Expense Bill's search_index fields (bill_check, expense, status); #1761: 110, Project
         # Expenses.credit_card_statement
         # SRS-1: 110 -> 116, BoQ AI Suggest Row Record (project, category_id, run_record, run_date, question) + Run Record (run_id)
-        self.assertEqual(len(_search_index_entries()), 116)
+        # BCS-FX: 116 -> 117, BoQ Row Helper Edit's search_index field (boq) - the BCS branch's BCS-4, entered at BCS-FX
+        self.assertEqual(len(_search_index_entries()), 117)
 
     def test_a_name_that_is_no_literal_constant_is_refused_by_name(self):
         # Negative half of the resolver: a bare name with no top-level literal behind it is refused,
