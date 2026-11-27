@@ -44,7 +44,7 @@ re-read. `bcs_supply_rate` is never written there: every reader shows "not yet -
 are read on the Admin-only "AI Suggest Records" page (`/suggest-records`, under Rate Master) and its two Excel downloads.
 Details: the same section.
 
-**THE CATALOGUE DECIDES WHAT EVERY SCREEN AND THE AI OFFER; NOTHING TYPES A CATALOGUE NAME (CAT-1 / CAT-1b / CAT-2, 2026-11-26/27).** The owner's
+**THE CATALOGUE DECIDES WHAT EVERY SCREEN AND THE AI OFFER; NOTHING TYPES A CATALOGUE NAME (CAT-1 / CAT-1b / CAT-2 / CAT-3, 2026-11-26/28).** The owner's
 words, verbatim: 2026-11-24 18:42 - 19:38 (the mechanism: lists rebuilt from the catalogue, linked by reference); 2026-11-26 00:06 /
 00:10 (full coverage); 00:14 "also we need to put guards that future builds cant bypass these again" / "and the build follows this
 principle everytime"; 01:47 "a a a ok" (QR-C-1 (a): the fill mechanism and gate in CAT-1, the TypeScript fill and the wording
@@ -78,9 +78,38 @@ conversion in CAT-1b; QR-S (a); QR-TEAM (a): C1 scoped to the BoQ / rate-master 
   Package 13 roles (the review-net families PIBCV, NRV, Pressure Gauge, Ball / Sluice for the gauge, Air Vent, Ball, Strainer, 2-Way,
   Balancing, Test Plug, Thermometer; Modulating on `operation`; Dual Plate on `nrv_type`), VRF 2 (`frame_families`,
   `onoff_controller`), Insulation 1 (`gi_framework`), Piping 2 (`cpvc`, `pvc`); the rules page reads the same roles and
-  `paint_row.family`. Stays typed on purpose (R2): BoQ-wording patterns and note sentences, attribute names, the Electrical words
-  (ARMOURED / UNARMOURED, Switch, Bus bar: CAT-3) and the label groups (cloth claddings, cable kinds: CAT-3). A NEW single-target rule
-  adds a role to its config (a new rate file) and reads it; it never types the value.
+  `paint_row.family`. Stays typed on purpose (R2): BoQ-wording patterns and note sentences, attribute names, the rules-page heading
+  word "Switch" (display wording), and "Bus bar" (a single Electrical target: CAT-3b, with an Electrical config key). A NEW
+  single-target rule adds a role to its config (a new rate file) and reads it; it never types the value.
+- **Labels (CAT-3; owner 2026-11-26 00:11 R1, 00:53 R2).** A code rule that recognises a GROUP of SKUs that grows with the catalogue
+  names a LABEL, never a catalogue spelling. ONE rule (`services/boq_rate_master/catalogue_labels.py` `LABEL_RULES`: scope kinds, the
+  attribute read, regex cases, total / partial) makes each row's labels from its OWN values: conductor (`al` / `cu`), armour, poles
+  (1 / 2 / 3 / 4, and the dormant 1+N / 3+N that keep the poles-plus-neutral ladder's rung 1), cloth_cladding, cladding_gauge. A label
+  value is never a catalogue word (so C1 never counts it). NOTHING IS STORED: labels are computed on every read (the LAST step of
+  `get_rate_master_items`, `_serve_items`, after any role filter; Python readers call `label_of_value`), emitted by the exporter, and
+  verified by the loader (G-LABEL: a file whose labels differ is refused; a file without labels loads). A row the rule cannot read on a
+  TOTAL label is SAVED AND PRICED AS BEFORE and flagged (`label_flags`, the amber Rate Master chip) - never refused. Readers name a
+  label value through `lv` (Python) / `labelValue` (TypeScript), and find the SKUs' own spelling with `valueCarrying` (one distinct
+  value, else not stocked). The browser never computes a label. A screen shows a label in the ROW'S OWN words ("Conductor: Aluminium",
+  ANSWER 2), never the internal value. Moved here from code lists: the cable conductor / armour words (readCableKindWords, the
+  extraction corroborator, the rules-page armour gate), the breaker poles of the ladder, the insulation cloth claddings.
+  EVERY pricing reader is handed SERVED items: the browser feeds and the server pricing step read `get_rate_master_items`;
+  an instrument or harness that dumps items labels them the same way (`scripts/_instruments/ac5_dump.py`); a raw row prices
+  every label group as missing (PF2 showed 49 rows move). `test_cat3_pricing_feed_labels` guards the feeds.
+- **Item notes (CAT-3; owner 00:18 R5).** `BoQ Rate Master Item.item_notes` holds a fact about ONE row; Admin edits it in place
+  (`save_rate_master_item_note`, gate first; audited, no supersede, no recompute); everyone with Rate Master access reads it. Carried
+  by the loader, the exporter (emitted only when set) and the CSV round trip (a last `item_notes` column only in a file where a row
+  carries a note; an absent column keeps the notes). Left OUT of the catalogue stamp and of the pricing step's served-catalogue
+  version (`pricing_step._version_canon`): a note edit moves no stamp and no price. Config wording shows a note through
+  `{{note:<item_uid>}}`, filled by the same served fill (the gate refuses a reference to no active item or an empty note). On v92 two
+  one-item facts live there (the Automatic Air Vent's single price, the Pressure Gauge's own fittings); a fact about a GROUP of rows
+  stays in the config (QR-NOTE-2).
+- **The safety net never blocks an edit (CAT-3; owner 00:10 R6).** `rate_master_item_usage(name, proposed_values=None)` (Admin, read-only;
+  `item_usage.py`) is a DIFFERENCE of the reference gate before / after a deactivate or an edit: what will stop working (a plain line
+  and the raw place), what still works, pinned examples naming it. Rate Master's Deactivate and Edit show it and go ahead on
+  "Deactivate anyway" / "Save anyway"; the CSV preview lists "Values no row will carry after this upload". Only a rate-file LOAD refuses.
+- **The Add-row lists** read `item_values`, served BESIDE the config by `get_rate_category_config` (every value the category's grid
+  items carry; brand from the row) - the config itself is byte-identical, so the panel and the rules page never move.
 - **The "Change to..." family picker** (`familyChoices(spec, items)`, CAT-2 P1): with the served catalogue a family is offered only
   when an SKU of the block's kinds carries it; an offered alias follows its target.
 - **The guards** (each green on the tree, red on one injected typed value in a new place): **C1** (`scripts/residence_check.py`, in
@@ -96,8 +125,11 @@ conversion in CAT-1b; QR-S (a); QR-TEAM (a): C1 scoped to the BoQ / rate-master 
   throws there. `catalogueFill.parity.test.ts` + `test_cat1b_wording` hold TS fill == Python fill byte for byte. The replay dump
   (`scripts/_instruments/ac5_dump.py`) reads the served configs. A series test that reads the RAW live config undoes v90's edits
   through `cat1b_undo_support.as_v89`, and v91's through `cat2_undo_support.as_v90` (TypeScript: `cat2Edits.harness.undoCat2`, first in
-  the `undoVav2c3d` chain). An older test that drives a code-target rule on a PRE-v91 asset wraps that asset's load in
-  `codeTargetsOverlay.harness.withNewestCodeTargets` (the role blocks read from the newest asset; QR-COMPAT (a)).
+  the `undoVav2c3d` chain), and v92's through `cat3_undo_support.as_v91` / `cat3Edits.harness.undoCat3`. An older test that drives a
+  code-target rule on a PRE-v91 asset wraps that asset's load in `codeTargetsOverlay.harness.withNewestCodeTargets` (the role blocks
+  read from the newest asset; QR-COMPAT (a)). `readJsonFixture` also attaches the served `labels` to a raw rate file's items
+  (`labelsOverlay.harness.ts`, from `__fixtures__/catalogueLabels.json`, which `test_catalogue_labels` proves equal to the rule;
+  regenerate it after a mint).
 - **K3 correction.** CAT-1's K3 (d43f84bc6) message says "HVAC wording as placeholders"; v89 converted none (owner 01:47 QR-C-1 (a));
   the conversion is CAT-1b's v90.
 

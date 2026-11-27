@@ -26,9 +26,15 @@ Load-bearing invariants, "THE CATALOGUE DECIDES ...".
   reads the roles and the constants are deleted (C1 115 -> 95 entries); the rules page's Paint reads
   `paint_row.family`; the "Change to..." picker offers only families an SKU carries. Nothing a pricer
   sees changes (replay 0 / 0, 21 AI requests byte-identical).
-- **Left:** CAT-3a / CAT-3b (Electrical, incl. its 53 placeholders, the Electrical lists, the labels;
-  and the four Electrical rules-page words CAT-2 left: ARMOURED / UNARMOURED, Switch, Bus bar), CAT-4
-  (item notes, the deactivate warning, Rate Master screens). Still a candidate:
+- **CAT-3 (the old CAT-3a + CAT-4; HVAC v92), built; the browser cert waits for a sign-in; not pushed:** catalogue labels
+  made from each row's own values on every read / export / load, and the cable / pole / cloth code lists
+  read them (C1 95 -> 78); the Rate Master Add-row lists from the items; `item_notes` (Admin; one field
+  + migrate), the Notes and Labels columns, the amber "could not label" chip, the "what stops working"
+  list on Deactivate and Edit, the CSV preview list; v92 moves two one-item facts (Automatic Air Vent,
+  Pressure Gauge) to item notes. No price, no AI request moves. The deploy note: the migrate, the
+  generated type, v92.
+- **Left:** CAT-3b (after the BCS merge): the Electrical placeholders, the gate on BCS's pricing-input
+  references, the earthing "Bus bar" target, any Electrical served-list declaration. Still a candidate:
   the raw readers (CSV export `category_display`, the load validators) filling, so the 15 whole-value
   texts can become references.
 
