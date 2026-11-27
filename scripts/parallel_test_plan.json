@@ -2669,6 +2669,21 @@
     "tabWorkflow"
    ]
   },
+  "nirmaan_stack.services.boq_rate_master.test_cat3_pricing_feed_labels": {
+   "seconds": 23.3,
+   "series": [],
+   "writes": [],
+   "reads": [
+    "tabAssignment Rule",
+    "tabBlock Module",
+    "tabBoQ Rate Category Config",
+    "tabBoQ Rate Master Item",
+    "tabBoQ Rate Master Snapshot",
+    "tabMilestone Tracker",
+    "tabServer Script",
+    "tabWorkflow"
+   ]
+  },
   "nirmaan_stack.services.boq_rate_master.test_cat3_v92": {
    "seconds": 12.3,
    "series": [],
