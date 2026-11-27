@@ -386,12 +386,17 @@
     "count": 1
    }
   },
-  "point_wiring > pipelines.pw_bcs.steps[11].explain": {
+  "point_wiring > pipelines.pw_bcs.steps[12].explain": {
    "Back Box": {
     "count": 1
    }
   },
-  "point_wiring > pipelines.pw_bcs.steps[19].display_label": {
+  "point_wiring > pipelines.pw_bcs.steps[20].display_label": {
+   "Back Box": {
+    "count": 1
+   }
+  },
+  "point_wiring > pipelines.pw_bcs.steps[20].explain": {
    "Back Box": {
     "count": 1
    }
