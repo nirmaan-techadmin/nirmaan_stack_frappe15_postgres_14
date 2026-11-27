@@ -50,6 +50,15 @@ INDEXES: tuple[tuple[str, tuple[str, ...], str, bool], ...] = (
     ('BOQs', ('project',), 'BOQs_project_idx', False),
     ('BoQ AI Run Log', ('boq',), 'boq_ai_run_log_boq', False),
     ('BoQ AI Run Log', ('status',), 'boq_ai_run_log_status', False),
+    # SRS-1 (QR-IDX (a), 2026-11-27): the Suggest run store. The unique key and the two add_index calls keep the explicit names
+    # their on_doctype_update passes; the four search_index fields take the table rule.
+    ('BoQ AI Suggest Row Record', ('boq', 'sheet_name', 'committed_version', 'excel_row'), 'boq_ai_suggest_row_record_key_unique', True),
+    ('BoQ AI Suggest Row Record', ('project',), 'boq_ai_suggest_row_record_project_index', False),
+    ('BoQ AI Suggest Row Record', ('category_id',), 'BoQ_AI_Suggest_Row_Record_category_id_idx', False),
+    ('BoQ AI Suggest Row Record', ('run_record',), 'BoQ_AI_Suggest_Row_Record_run_record_idx', False),
+    ('BoQ AI Suggest Row Record', ('run_date',), 'BoQ_AI_Suggest_Row_Record_run_date_idx', False),
+    ('BoQ AI Suggest Row Record', ('question',), 'BoQ_AI_Suggest_Row_Record_question_idx', False),
+    ('BoQ AI Suggest Run Record', ('run_id',), 'boq_ai_suggest_run_record_run_id_index', False),
     ('BoQ Category Truth Snapshot', ('boq',), 'BoQ_Category_Truth_Snapshot_boq_idx', False),
     ('BoQ Category Truth Snapshot', ('snapshot_batch',), 'BoQ_Category_Truth_Snapshot_snapshot_batch_idx', False),
     ('BoQ Category Truth Snapshot', ('boq', 'sheet_name', 'excel_row', 'discipline', 'snapshot_batch'), 'BoQ_Category_Truth_Snapshot_boq_sheet_name_excel_r_67a71145_idx', False),
