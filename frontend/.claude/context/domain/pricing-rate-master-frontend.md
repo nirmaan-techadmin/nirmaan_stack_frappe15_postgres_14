@@ -338,6 +338,15 @@ status / decisions: `frontend/.claude/plans/pricing-module-plan.md`.
   it is both the selection key and the import title; (2) **`path` must stay a SINGLE top-level segment**, because
   the sidebar's active-item matching is single-segment (`pathname.slice(1).split("/")[0]`, then
   `` `/${selectedKeys}` === subitem.key ``) — a nested `/pricing/hvac` would never highlight.
+- **THE SPREADSHEET SWITCH (BCS-6b, owner R-BCS-152 Q2 b / Q3 a / Q5 a): each registry entry's `spreadsheet`.**
+  HVAC `true`, Electrical `false`, ELV `true`. `false` = the page renders the Calculator alone (no tab strip) and never
+  mounts the sheet - that workbook and its Sandbox cannot be opened from the page; `true` = as before. Only a page
+  with a Calculator (`CALCULATOR_WORKBOOKS` in `PricingCalculator.tsx`: Electrical, HVAC) can switch it off
+  (`spreadsheetOnForPath`). Rules: `boq-pricing-editor.md` § "The slice-6 screens - BCS-6b".
+- **THE PAGE IS KEYED BY ITS WORKBOOK PATH (BCS-6b).** The separate route objects below do NOT by themselves
+  unmount the page: the three routes render the same element at the same place, so React kept one instance (and
+  its chosen tab) across Pricing pages. `PricingWorkbookPage` renders `PricingWorkbookPageFor key={workbook path}`,
+  which is what now guarantees the fresh mount (and the sheet's unmount) on every switch between Pricing pages.
 - **ONE generic page, one route object PER workbook (PW-1) — do NOT collapse them into `/pricing/:key`.**
   `PricingWorkbookPage` resolves its own entry from `useLocation().pathname` via `workbookForPath`; an
   unregistered path renders a visible "Unknown pricing workbook" state, never a blank page. Separate route

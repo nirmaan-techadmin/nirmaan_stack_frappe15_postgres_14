@@ -149,7 +149,7 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   the rollup's tendered - the denominator the sheet's grid and Summary panel divide by (BCS-6a, below).
 - THE TICKED BLOCK (R2): the user ticks the sheets one Electrical installation cost covers (default ticks: sheets whose Suggest
   population is majority Electrical). They are ONE clubbed block: each shows its own BoQ amount, BCS supply and rows; the block
-  shows ONE installation figure and ONE margin, then a "Ticked block" sub-total. A ticked sheet's installation TYPED on its rows
+  shows ONE installation figure and ONE margin, then its "Block total" (laid out as one band - BCS-6b, below). A ticked sheet's installation TYPED on its rows
   is NOT counted (the area figure replaces it); an UNticked sheet's typed installation counts, with no label after it (owner
   R6, BCS-6a).
 - THE INSTALLATION FIGURE (R3 - R6): area x the live Pricing Input `elec_bcs_install_per_sqft` (`rates.amount`, read from the
@@ -193,7 +193,7 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   shows a short grey line per exception under a sheet's name and a yellow box "How these figures are worked out".
 - POINT 4 OF THE NOTE (owner ANSWER 12 / 13): "The rates/amounts on these rows appear incorrect. Please review them and change if
   required." Shown on the Summary panel of EVERY sheet to everyone who can open the Summary, BCS on or off - inside the note as its
-  4th item for a cost viewer with BCS on, otherwise alone (still numbered 4); only when such rows exist; row numbers and the fixed
+  4th item for a cost viewer with BCS on, otherwise alone and then WITHOUT the number "4." (owner R4, BCS-6b); only when such rows exist; row numbers and the fixed
   sentence only, never a cost figure. A Preamble / Line Item row is listed when, on its rates as the grid shows them (a rate typed
   in the app counts): (1) a rate is present but the quantity is missing or 0; or (2) the install rate is more than
   `SUSPECT_INSTALL_TO_SUPPLY_RATIO` (1.5, `reconcile.ts`) times the supply rate, both > 0 - no lower limit. Never a comparison
@@ -206,3 +206,32 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   `qty_cell_text` (the file's own text in the row's quantity column(s), from the committed grid, one query per sheet; null for
   a number, a blank or no grid).
 
+
+### The slice-6 screens - BCS-6b (2026-11-27)
+- ELECTRICAL PRICING OPENS ON THE CALCULATOR (owner R-BCS-152 Q2 b / Q3 a / Q5 a; mockup board 4): THE switch is the
+  `spreadsheet` value of each Pricing page's entry in `frontend/src/pages/pricing/pricingWorkbooks.ts` (`PRICING_WORKBOOKS`):
+  HVAC `true`, Electrical `false`, ELV `true`. Off = the page renders the Calculator alone (no tab strip) and never mounts the
+  sheet, so that discipline's workbook and its Sandbox cannot be opened from the page. To bring a Spreadsheet back, set its entry
+  to `true` (one value). A page without a Calculator (`CALCULATOR_WORKBOOKS`: Electrical and HVAC have one; ELV has none) always
+  shows its Spreadsheet (`spreadsheetOnForPath`). HVAC / ELV lose their Spreadsheet only when their own BCS legs go live (R2 Q5).
+- THE TAB IS NOT CARRIED ACROSS PRICING PAGES: the three Pricing routes render the same element at the same place, so React kept
+  one page instance - and its `useState` tab - when moving between them. `PricingWorkbookPage` is keyed by its workbook path, so
+  each Pricing page mounts fresh on its own default (and moving between two sheet pages remounts the sheet, as the route needs).
+  This key is on the page, never on the app-shell error boundary (`resetKey` rule, frontend `CLAUDE.md`).
+- "PREVIOUSLY PRICED" SHOWS THE PAST ROW'S BCS (owner R-BCS-152 Q4 / Q5 a; board 3): the pop-up's four values (Supply / Install /
+  Total / Priced on, from the stored match run) sit in a green "BoQ - what we quoted the customer" box; under it a blue
+  "BCS - our cost (Admin and Estimates only)" box: BCS supply / BCS install / BCS combined of the PAST row, "-" where it has none,
+  a stored 0 as 0. Any discipline, every row's pop-up; view only. ⚠️ WHO is decided by the SERVER: `get_match_results`
+  (`api/boq/rate_match.py`) makes ONE call to `services/boq_bcs/past_rows.attach_past_row_bcs`, which adds `bcs_supply` /
+  `bcs_install` / `bcs_combined` to each shown match ONLY for a caller passing `bcs.may_see_bcs_cost` (Administrator or the
+  pricing-access set); for anyone else the keys are ABSENT from the response, and the pop-up shows the blue box only when the
+  keys are present. WHERE FROM: the past row's CURRENT `BoQ Row BCS Rate` record (is_current = 1) on the past sheet's CURRENT
+  committed version - what that past BoQ holds today - whether or not that sheet's BCS switch is on. Read only, one query per
+  batch of past rows; the stored match results are never changed.
+- THE BoQ SUMMARY'S ELECTRICAL INSTALLATION BLOCK AS ONE BAND (owner R1 26 Nov, R-BCS-152 Q6 a; board 1): the table keeps the
+  BoQ's sheet order, with the ticked sheets together where the first ticked sheet stands, inside one tinted band headed
+  "Electrical installation block · one installation figure (area x Rs <figure> + floor cutting) for these sheets" - the Rs figure
+  is `rates.install_per_sqft`, the value the installation cost itself uses, never typed -, their rows indented, and "Block total"
+  directly under them inside the band; then the other sheets; then "BoQ total". No "[x]" before a name. Layout only: the figures
+  come from `summaryTable` / `sheetFigures` unchanged (the Block total is the block sub-total as before).
+- POINT 4 ALONE carries no "4." (owner R4): see POINT 4 above.

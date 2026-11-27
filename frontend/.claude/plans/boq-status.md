@@ -35,25 +35,18 @@ Load-bearing invariants, "THE CATALOGUE DECIDES ...".
 Before CAT: **DU-3**, the fix slice from the DU-2 review of the Ducting rows (the last `## Slice DU-3`
 section of `boq-upload-plan.md`).
 
-The last recorded main-line slice is **DU-3**, the fix slice from the DU-2 review of the Ducting rows. Its
-record is the last `## Slice DU-3` section of `boq-upload-plan.md`.
-
-**BCS lane (branch `feature/boq-bcs`, dev2):** slice **BCS-6a** made every BCS margin (the sheet's % Margin column, its
-Summary panel, the BoQ summary) work from the amount on screen: the BOQ Total choice found by its real column, the Summary's
-amount fallback, one-sided rows counted (and shown in their Amount (Total) cell), the calculated amount as the default where the
-file's amount differs, no-rate rows without an amount left out, only priceable rows counted; plus the note "How the BoQ amount
-was taken on this sheet" and the BoQ summary's exception lines, and the note's point 4 - rows whose rates appear incorrect,
-shown on every sheet's Summary to every viewer (rules: `.claude/context/domain/boq-pricing-editor.md` § "Every margin from the
-amount on screen"). It did NOT take main in: main's ten commits past `31d29db45` (HVAC v89 / v90 rate files,
-rate-master guards) wait for the next BCS slice, whose merge meets a `boq-status.md` conflict. Before it, slice **BCS-5** built the BoQ
-summary: for Admin and Estimates, a foldable box at the top of a BoQ's main page with one line per priceable sheet
-(BoQ amount, BCS supply, BCS installation, margin), the ticked sheets as one clubbed block with one installation
-figure (area x the live Rs per sq ft + floor cutting at our cost, both parts editable / removable), stored per BoQ
-in the new `BoQ Summary Inputs` and carried to a revision; plus one line on a ticked sheet's own Summary (rules:
-`.claude/context/domain/boq-pricing-editor.md` § "The BoQ summary on the BoQ's main page"). Left for the BCS phase:
-slice 6b ("Previously priced" with BCS, the BoQ summary's band layout, the Electrical Spreadsheet removal), then the final fix
-slice (the full test sets). Open from BCS-6a: point 4 still lists rows whose quantity reads 0 although the uploaded file shows
-a number (BOQ-26-00012 'HVAC - Low side' row 48 is one); why the quantity is lost is the owner's read-only investigation N9.
+**BCS lane (branch `feature/boq-bcs`, dev2):** slice **BCS-6b** took main in (CAT-1, CAT-1b, CAT-M, CAT-2: HVAC v89 / v90 /
+v91 loaded on dev2; Electrical stays v75; no migrate was needed) and built the slice-6 screens (rules:
+`.claude/context/domain/boq-pricing-editor.md` § "The slice-6 screens - BCS-6b"): Electrical Pricing opens on the
+Calculator, the Spreadsheet behind the `spreadsheet` switch in `pricingWorkbooks.ts`; the chosen tab no longer carried across
+Pricing pages; "Previously priced" shows the past row's BCS supply / install / combined to Admin and Estimates (server-side);
+the BoQ summary's ticked sheets as one tinted "Electrical installation block" band with its "Block total" directly under them;
+point 4 shown alone carries no "4.". The merge needed one main-file change the final merge must carry:
+`services/boq_rate_master/catalogue_prose_allowlist.json` (the G-PROSE baseline re-keyed to Electrical v74 / v75's point-wiring
+BCS steps). Before it, **BCS-6a** made every BCS margin work from the amount on screen, and **BCS-5** built the BoQ summary.
+Left for the BCS phase: the final fix slice (the full test sets, the final reconciliation with main incl. SRS-1). Open:
+point 4 still lists rows whose quantity reads 0 although the uploaded file shows a number (BOQ-26-00012 'HVAC - Low side' row
+48 is one; the owner's read-only investigation N9).
 
 The session that starts the next slice replaces this section with: the slice's name, what it must
 deliver, and what is left.
