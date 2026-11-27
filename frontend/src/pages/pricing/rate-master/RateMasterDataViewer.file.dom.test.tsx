@@ -92,15 +92,29 @@ function render(asset: Asset, config: RateCategoryConfig): { host: HTMLElement; 
 }
 
 /** A header cell's file id, as drawn beneath its label; "" for a column the file does not carry. */
+/** PIN P-FILE1 (CAT-3, QR-VITEST-RED (a)): the indexes of the two CAT-3 screen columns (Notes, Labels) - never a file column (labels are
+ *  computed on read; a note rides the file only where a row carries one), so the file comparison leaves them out. */
+function cat3Columns(host: HTMLElement): number[] {
+  const out: number[] = [];
+  Array.from(host.querySelectorAll("thead tr th")).forEach((th, i) => {
+    const t = (th.textContent ?? "").trim();
+    if ((t === "Notes" || t === "Labels") && !th.querySelector('[data-testid="file-column-id"]')) out.push(i);
+  });
+  return out;
+}
+
 function headerIds(host: HTMLElement): string[] {
+  const skip = new Set(cat3Columns(host));
   return Array.from(host.querySelectorAll("thead tr th"))
+    .filter((_th, i) => !skip.has(i))
     .map((th) => th.querySelector('[data-testid="file-column-id"]')?.textContent ?? "");
 }
 
 function bodyRows(host: HTMLElement): string[][] {
+  const skip = new Set(cat3Columns(host));
   return Array.from(host.querySelectorAll("tbody tr"))
     .filter((tr) => tr.getAttribute("data-testid") !== "formula-row")
-    .map((tr) => Array.from(tr.querySelectorAll("td")).map((td) => td.textContent ?? ""));
+    .map((tr) => Array.from(tr.querySelectorAll("td")).filter((_td, i) => !skip.has(i)).map((td) => td.textContent ?? ""));
 }
 
 /** The file's header KEY: a rate header carries its label in brackets (`list_price [List price]`). */
@@ -128,7 +142,18 @@ describe("ELR-1 AC4: the Data Viewer equals the download, cell for cell (Electri
       const { host, cleanup } = render(asset, config);
       try {
         const ids = headerIds(host);
+        // PIN P-FILE1: exactly the two CAT-3 columns on a SKU grid, none on a Pricing Inputs grid
+        const c3 = cat3Columns(host);
+        expect(c3.length, `${cid} CAT-3 columns`).toBe(cid.endsWith("_pricing_inputs") ? 0 : 2);
         for (const [fmt, table] of [["csv", fc.csv], ["xlsx", fc.xlsx]] as const) {
+          // PIN P-FILE1 (ANSWER 10): their exact place - Notes then Labels, adjacent, right after the last rate column and before
+          // the screen-only tail (the formula columns); the comparison below proves nothing else was added
+          if (c3.length) {
+            const ths = Array.from(host.querySelectorAll("thead tr th")).map((th) => (th.textContent ?? "").trim());
+            expect([c3[1] - c3[0], ths[c3[0]], ths[c3[1]]], `${cid} Notes then Labels, adjacent`).toEqual([1, "Notes", "Labels"]);
+            expect(headerKey(String(table.headers[c3[0]])), `${cid} ${fmt}: the tail starts right after the two`).toBe("supply_formula");
+            expect(/ \[[^\]]*\]$/.test(String(table.headers[c3[0] - 1])), `${cid} ${fmt}: a rate column right before the two`).toBe(true);
+          }
           // (1) the headers -- every column the screen shows is a file column, in the file's order
           expect(ids, `${cid} ${fmt} headers`).toEqual(table.headers.map(headerKey));
           // (2) the rows
@@ -202,6 +227,13 @@ function renderPlain(asset: Asset, config: RateCategoryConfig): string {
     root.render(<StrictMode><RateMasterDataViewer items={items} config={config} disciplineLabel={asset.discipline}
       categoryLabel={config.category_id} isAdmin={false} /></StrictMode>);
   });
+  // PIN P-FILE2 (CAT-3, QR-VITEST-RED (a)): the hash is of the grid with the two CAT-3 columns removed, so it still proves nothing
+  // else on these grids moved.
+  const skip = cat3Columns(host);
+  for (const tr of Array.from(host.querySelectorAll("tr"))) {
+    const cells = Array.from(tr.children);
+    for (const i of [...skip].reverse()) cells[i]?.remove();
+  }
   const html = host.innerHTML.replace(/:r[0-9a-z]+:/g, ":r:");
   act(() => root.unmount());
   host.remove();

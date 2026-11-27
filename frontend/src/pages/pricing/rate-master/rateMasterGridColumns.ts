@@ -42,6 +42,8 @@ export interface GridColumnInputs {
   attrCols: ReadonlyArray<{ id: string }>;
   /** Rate columns, in order. */
   rateCols: ReadonlyArray<string>;
+  /** CAT-3 (owner 2026-11-26 01:14, the mockup): the Notes and Labels columns, right after the rate columns, on a SKU grid. */
+  notesLabels?: boolean;
   /**
    * ADP-4b (owner D7 / AC3): a spec-driven grid shows EXACTLY the download's columns by default; this toggle ("Show
    * spec details", off by default) adds the spec verdict, the "read from spec" columns, the source sheet and row.
@@ -75,6 +77,9 @@ export const COL_FORMULA_INSTALL = "formula:install";
 export const COL_ITEM_UID = "file:item_uid";
 export const COL_DISCIPLINE = "file:discipline";
 export const COL_CATEGORY = "file:category";
+/** CAT-3: the row's note (Admin edits) and its generated labels (read-only chips) -- screen columns. */
+export const COL_NOTES = "cat3:notes";
+export const COL_LABELS = "cat3:labels";
 
 export const attrColKey = (id: string): GridColumnKey => `attr:${id}`;
 
@@ -123,6 +128,7 @@ export function gridColumnKeys(o: GridColumnInputs): GridColumnKey[] {
     keys.push(COL_BRAND, COL_UNIT);
     for (const d of o.attrCols) keys.push(attrColKey(d.id));
     for (const k of o.rateCols) keys.push(rateColKey(k));
+    if (o.notesLabels) keys.push(COL_NOTES, COL_LABELS);
     keys.push(COL_FORMULA_SUPPLY, COL_FORMULA_INSTALL);
     return keys;
   }
@@ -143,6 +149,7 @@ export function gridColumnKeys(o: GridColumnInputs): GridColumnKey[] {
       for (const d of o.attrCols) keys.push(attrColKey(d.id));
     }
     for (const k of o.rateCols) keys.push(rateColKey(k));
+    if (o.notesLabels) keys.push(COL_NOTES, COL_LABELS);
     if (o.showSpecDetails) keys.push(COL_SOURCE_SHEET, COL_SOURCE_ROW);
     keys.push(COL_FORMULA_SUPPLY, COL_FORMULA_INSTALL);
     return keys;
@@ -163,6 +170,7 @@ export function gridColumnKeys(o: GridColumnInputs): GridColumnKey[] {
     keys.push(COL_PI_USED_BY);
     if (o.showImpactCol) keys.push(COL_PI_ITEMS);
   } else {
+    if (o.notesLabels) keys.push(COL_NOTES, COL_LABELS);
     keys.push(COL_SOURCE_SHEET);
     keys.push(COL_SOURCE_ROW);
     keys.push(COL_FORMULA_SUPPLY);
@@ -183,6 +191,7 @@ export function gridColumnsSharedWithFile(keys: ReadonlyArray<GridColumnKey>): G
   const screenOnly = new Set<GridColumnKey>([
     COL_ACTIONS, COL_SPEC, COL_PI_SHARED_BY, COL_PI_USED_BY, COL_PI_ITEMS,
     COL_SOURCE_SHEET, COL_SOURCE_ROW, COL_FORMULA_SUPPLY, COL_FORMULA_INSTALL, COL_PI_NAME,
+    COL_NOTES, COL_LABELS,   // CAT-3: screen columns (a note rides the file only where a row carries one)
   ]);
   return keys.filter((k) => !screenOnly.has(k));
 }

@@ -121,6 +121,12 @@ export interface UploadTarget {
   from_page: boolean;
 }
 
+/** CAT-3 (R6): the preview's "Values no row will carry after this upload" (read-only, from the same plan). */
+export interface ValuesNoRowWillCarry {
+  values: Array<[string, unknown]>;
+  will_stop: Array<{ config: string; path: string; message: string; line?: string }>;
+}
+
 export interface UploadPlan {
   discipline: string;
   mode: "category" | "all";
@@ -136,6 +142,8 @@ export interface UploadPlan {
   errors: UploadError[];
   changes: UploadChange[];
   digest: string;
+  /** CAT-3 (R6): absent on a reply from before CAT-3. */
+  values_no_row_will_carry?: ValuesNoRowWillCarry;
 }
 
 export interface UploadResult {

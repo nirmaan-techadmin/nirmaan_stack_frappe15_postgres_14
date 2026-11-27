@@ -47,6 +47,7 @@ import {
   type RateFileFormat, type TwinDecision, type UploadPlan, type UploadResult,
 } from "./rateMasterUpload";
 import type { GetConfigResponse, GetItemsResponse } from "./rateMasterTypes";
+import type { ItemUsage } from "./ItemUsageBox";
 import {
   applyCsvPayload, createItemPayload, saveItemPayload,
   type CreateItemPayload, type SaveItemPatch, type SpecConfirmationReply, type SpecDecision,
@@ -61,6 +62,9 @@ const CONFIG_METHOD = "nirmaan_stack.api.boq.rate_master.get_rate_category_confi
 const UPDATE_ITEM_METHOD = "nirmaan_stack.api.boq.rate_master.update_rate_master_item";
 const CREATE_ITEM_METHOD = "nirmaan_stack.api.boq.rate_master.create_rate_master_item";
 const DEACTIVATE_ITEM_METHOD = "nirmaan_stack.api.boq.rate_master.deactivate_rate_master_item";
+// CAT-3 (R5 / R6): the Admin note edit and the "what stops working" list
+const SAVE_NOTE_METHOD = "nirmaan_stack.api.boq.rate_master.save_rate_master_item_note";
+const ITEM_USAGE_METHOD = "nirmaan_stack.api.boq.rate_master.rate_master_item_usage";
 // SLICE 5: the two download surfaces. Both are ADMIN-gated server-side (_require_rate_admin) --
 // hiding the buttons is UX; the endpoints are the boundary.
 const EXPORT_CSV_METHOD = "nirmaan_stack.api.boq.rate_master.export_rate_master_csv";
@@ -219,6 +223,8 @@ export function RateMasterPage() {
   const { call: callSaveItem } = useFrappePostCall(UPDATE_ITEM_METHOD);
   const { call: callCreateItem } = useFrappePostCall(CREATE_ITEM_METHOD);
   const { call: callDeactivateItem } = useFrappePostCall(DEACTIVATE_ITEM_METHOD);
+  const { call: callSaveNote } = useFrappePostCall(SAVE_NOTE_METHOD);
+  const { call: callItemUsage } = useFrappePostCall(ITEM_USAGE_METHOD);
   const { call: callExportCsv } = useFrappePostCall(EXPORT_CSV_METHOD);
   const { call: callExportAsset } = useFrappePostCall(EXPORT_ASSET_METHOD);
   const { call: callPreviewCsv } = useFrappePostCall(PREVIEW_CSV_METHOD);
@@ -287,6 +293,23 @@ export function RateMasterPage() {
       await mutateItems();
     },
     [callDeactivateItem, mutateItems]
+  );
+
+  // CAT-3 (R5): an Admin saves a row's note in place; the items refetch so the Notes column shows it
+  const onSaveNote = useCallback(
+    async (name: string, text: string) => {
+      await callSaveNote({ name, item_notes: text });
+      await mutateItems();
+    },
+    [callSaveNote, mutateItems]
+  );
+  // CAT-3 (R6): what stops working if a row goes (no `proposed`) or changes -- read-only, Admin-gated server-side
+  const onItemUsage = useCallback(
+    async (name: string, proposed?: Record<string, unknown>) => {
+      const res = await callItemUsage({ name, ...(proposed ? { proposed_values: JSON.stringify(proposed) } : {}) });
+      return (res as { message: ItemUsage }).message;
+    },
+    [callItemUsage]
   );
 
   // SLICE 5 -- the downloads. Both endpoints return the base64-in-JSON triple that
@@ -533,6 +556,9 @@ export function RateMasterPage() {
                   onSaveItem={onSaveItem}
                   onCreateItem={onCreateItem}
                   onDeactivateItem={onDeactivateItem}
+                  itemValues={configData?.message?.item_values}
+                  onSaveNote={isAdmin ? onSaveNote : undefined}
+                  onItemUsage={isAdmin ? onItemUsage : undefined}
                   inputReach={inputReach}
                   snapSizesFor={(id) => extrasSnapSizes(allConfigs as never, items, id)}
                   derivedUsedBy={derivedUsedBy}

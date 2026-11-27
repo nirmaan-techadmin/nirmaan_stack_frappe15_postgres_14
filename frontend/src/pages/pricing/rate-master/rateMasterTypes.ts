@@ -102,6 +102,12 @@ export interface RateMasterItem {
   source_sheet?: string;
   source_row?: number;
   import_batch?: string;
+  /** CAT-3 (owner 2026-11-26 00:18): a fact about this row (Admin edits; everyone reads). */
+  item_notes?: string | null;
+  /** CAT-3 (owner 2026-11-26 00:11): served labels, made by the server's rule from the row's own values. */
+  labels?: Record<string, string>;
+  /** CAT-3: the labels the rule could not make for this row (the amber "could not label" chip); saved and priced as before. */
+  label_flags?: Array<{ label: string; value?: unknown; reason?: string }>;
 }
 
 // ---- Pipeline step vocabulary (discriminated by `step`) ----
@@ -893,6 +899,8 @@ export interface GetConfigResponse {
   config: RateCategoryConfig | null;
   source_workbook?: string;
   import_batch?: string;
+  /** CAT-3 (QR-C-P2 (a)): beside the config, never inside it -- every value the category's active items carry, per attribute. */
+  item_values?: Record<string, unknown[]>;
 }
 
 // ---- Interpreter trace shapes ----

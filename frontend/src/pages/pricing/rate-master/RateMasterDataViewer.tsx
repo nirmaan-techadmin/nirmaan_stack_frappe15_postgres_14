@@ -25,13 +25,16 @@ import { pricingInputReading } from "@/pages/boq-wizard/rate-helper/helperWordin
 import { parseFiniteInput } from "./rateMasterEdit";
 import { DOWNLOAD_COPY, downloadErrorMessage } from "./rateMasterDownload";
 import { RateMasterUploadDialog } from "./RateMasterUploadDialog";
+import { ItemLabelsCell, ItemNoteCell } from "./ItemNoteCell";
+import { ItemUsageBox, usageWarns, type ItemUsage } from "./ItemUsageBox";
+import { flaggedCount } from "./catalogueLabelChips";
 import { FREEZE_BLOCKED_MESSAGE } from "./rateMasterFreeze";
 import {
   gridColumnKeys, attrColKey, rateColKey,
   COL_ACTIONS, COL_KIND, COL_SPEC, COL_PI_NAME, COL_BRAND, COL_UNIT,
   COL_PI_SHARED_BY, COL_PI_USED_BY, COL_PI_ITEMS, COL_PI_REMARKS, followsFileLayout,
   COL_SOURCE_SHEET, COL_SOURCE_ROW, COL_FORMULA_SUPPLY, COL_FORMULA_INSTALL,
-  COL_ITEM_UID, COL_DISCIPLINE, COL_CATEGORY, fileColumnId, plainFileColumnLabel,
+  COL_ITEM_UID, COL_DISCIPLINE, COL_CATEGORY, fileColumnId, plainFileColumnLabel, COL_NOTES, COL_LABELS,
 } from "./rateMasterGridColumns";
 import {
   DEFAULT_RATE_FILE_FORMAT, FORMAT_COPY, RATE_FILE_FORMATS, TWIN_COPY, twinNumbers,
@@ -156,6 +159,12 @@ interface Props {
     twinDecisions?: Record<number, TwinDecision>, twinFingerprints?: Record<number, string>,
   ) => Promise<UploadResult>;
   onUploadApplied?: () => void;
+  /** CAT-3 (QR-C-P2 (a)): {attr: every value the category's active items carry}, served beside the config; the Add-row lists read it. */
+  itemValues?: Record<string, unknown[]>;
+  /** CAT-3 (R5): save a row's note (Admin; the server gates it first). Absent => no pencil. */
+  onSaveNote?: (name: string, text: string) => Promise<void>;
+  /** CAT-3 (R6): what stops working if the row goes (`proposed` absent) or changes to `proposed`. Absent => no warning. */
+  onItemUsage?: (name: string, proposed?: Record<string, unknown>) => Promise<ItemUsage>;
 }
 
 type KindFilter = "all" | string;
@@ -214,9 +223,16 @@ export function displayedRateValue(
   return it.rates?.[k];
 }
 
+/** The row's name as the Deactivate dialog has always worded it (CAT-3 reuses it for the note editor and the usage box). */
+function rowLabelOf(it: RateMasterItem, specMode: boolean): string {
+  return specMode
+    ? `${cellText(it.attributes?.item_name)} ${cellText(it.attributes?.item_detail)}`.trim()
+    : `${it.kind} ${cellText(it.attributes?.material)}`;
+}
+
 export function RateMasterDataViewer({
   items, config, disciplineLabel, categoryLabel, isAdmin, frozen, onSaveItem, onCreateItem,
-  onDeactivateItem, onDownloadCsv, onDownloadAsset, onPreviewCsv, onApplyCsv, onUploadApplied,
+  onDeactivateItem, onDownloadCsv, onDownloadAsset, onPreviewCsv, onApplyCsv, onUploadApplied, itemValues, onSaveNote, onItemUsage,
   // SLICE 12b(B): the ITEMS column. The reach map is computed by the PAGE (it needs every category's
   // config, which this component does not have), so the viewer only RENDERS it. Both absent => no
   // column at all, which is what keeps every other category's grid byte-identical.
@@ -243,6 +259,7 @@ export function RateMasterDataViewer({
   const [kind, setKind] = useState<KindFilter>("all");
   const [search, setSearch] = useState("");
   const canEdit = !!isAdmin && !!onSaveItem;
+  const rowLabel = (it: RateMasterItem) => rowLabelOf(it, specMode);
   // RMF-1: DELIBERATELY NOT folded into `canEdit`. canEdit decides whether the actions COLUMN
   // exists at all; folding the freeze in would make the column vanish and the table change shape,
   // which is a hidden control, not a disabled one. The freeze disables the BUTTONS and leaves the
@@ -261,6 +278,12 @@ export function RateMasterDataViewer({
   // sends nothing at all.
   const [rowTwinAsk, setRowTwinAsk] = useState<{ name: string; patch: SaveItemPatch; twin: UploadTwin } | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<{ name: string; label: string } | null>(null);
+  // CAT-3 (R6): the "what stops working" list for the open Deactivate dialog and for the row being edited; never blocks
+  const [deactivateUsage, setDeactivateUsage] = useState<ItemUsage | null>(null);
+  const [deactivateUsageLoading, setDeactivateUsageLoading] = useState(false);
+  const [editUsage, setEditUsage] = useState<ItemUsage | null>(null);
+  // CAT-3: the Admin line above the grid filters to the rows the label rule could not label
+  const [onlyFlagged, setOnlyFlagged] = useState(false);
   // SLICE 12b(A), owner ruling 2026-09-28 -- THE SCREEN MUST NOT LIE ABOUT A REFUSAL.
   // `doDeactivate` was try/finally with NO catch, so a server refusal was swallowed: the dialog
   // closed, the row stayed, and nothing said why. That is indistinguishable from "it worked but the
@@ -415,6 +438,7 @@ export function RateMasterDataViewer({
    */
   const gridCols = useMemo(() => gridColumnKeys({
     canEdit, showKindCol, piMode, specMode, showImpactCol, textCols, attrCols, rateCols, showSpecDetails, fileMode,
+    notesLabels: !piMode,   // CAT-3: the Notes and Labels columns on every SKU grid
   }), [canEdit, showKindCol, piMode, specMode, showImpactCol, textCols, attrCols, rateCols, showSpecDetails, fileMode]);
   // ADP-4b (owner D7 / AC3): on a spec-driven grid each file column's header carries the file's own column id beneath
   // its plain label. The file carries the text pair, never a "read from spec" column.
@@ -603,6 +627,7 @@ export function RateMasterDataViewer({
     const filterEntries = Object.entries(columnFilters);
     return rows.filter((r) => {
       if (kind !== "all" && r.it.kind !== kind) return false;
+      if (onlyFlagged && !((r.it as { label_flags?: unknown[] }).label_flags ?? []).length) return false;   // CAT-3
       if (search && !r.haystack.includes(search)) return false; // CASE-SENSITIVE
       // per-column facets: a row passes iff its cell value is in EVERY active column's selected set (AND
       // across columns, OR within a column). A stale filter key whose column no longer exists (e.g. the
@@ -614,7 +639,20 @@ export function RateMasterDataViewer({
       }
       return true;
     });
-  }, [rows, kind, search, columnFilters, getForColumn]);
+  }, [rows, kind, search, columnFilters, getForColumn, onlyFlagged]);
+  const flaggedRows = useMemo(() => flaggedCount(scopedItems as never), [scopedItems]);   // CAT-3
+
+  // CAT-3 (R6): open the Deactivate dialog -> ask the server what stops working (Admin endpoint; never blocks)
+  useEffect(() => {
+    setDeactivateUsage(null);
+    if (!confirmDeactivate || !onItemUsage) return;
+    let live = true;
+    setDeactivateUsageLoading(true);
+    onItemUsage(confirmDeactivate.name).then((u) => { if (live) setDeactivateUsage(u); })
+      .catch(() => { if (live) setDeactivateUsage(null); })
+      .finally(() => { if (live) setDeactivateUsageLoading(false); });
+    return () => { live = false; };
+  }, [confirmDeactivate, onItemUsage]);
 
   // Proxy scrollbar metrics: live-measure the real scroller (+ its table for content-width changes)
   // via a ResizeObserver. clientWidth (excludes the V-bar -> no end clamp) = proxy visible width;
@@ -674,6 +712,25 @@ export function RateMasterDataViewer({
     setDraftRates(rr);
     setEditingRow(it.name ?? null);
   };
+  // CAT-3 (CAT-D1 review caveat 1): while a row is edited, the changed values are checked (debounced) against the catalogue
+  useEffect(() => {
+    setEditUsage(null);
+    if (!editingRow || !onItemUsage) return;
+    const it = scopedItems.find((x) => x.name === editingRow);
+    if (!it) return;
+    const proposed: Record<string, unknown> = {};
+    for (const d of editableAttrCols) {
+      const raw = draftAttrs[d.id] ?? "";
+      if (raw !== cellText(it.attributes?.[d.id])) proposed[d.id] = specMode ? raw : coerceAttributeForStorage(d, raw);
+    }
+    if (!Object.keys(proposed).length) return;
+    let live = true;
+    const t = setTimeout(() => {
+      onItemUsage(editingRow, proposed).then((u) => { if (live) setEditUsage(u); }).catch(() => { if (live) setEditUsage(null); });
+    }, 400);
+    return () => { live = false; clearTimeout(t); };
+  }, [editingRow, draftAttrs, onItemUsage]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   const cancelEdit = () => {
     setEditingRow(null);
     setRowErr(null);
@@ -976,6 +1033,14 @@ export function RateMasterDataViewer({
             <X className="mr-1 h-3.5 w-3.5" /> Clear filters ({activeColumnFilterCount})
           </Button>
         )}
+        {/* CAT-3 (the mockup): one Admin line when the label rule could not label some rows -- it filters to them; absent at 0 */}
+        {isAdmin && flaggedRows > 0 && (
+          <Button size="sm" variant="outline" data-testid="flagged-rows-filter"
+            className="border-amber-500/60 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+            onClick={() => setOnlyFlagged((v) => !v)}>
+            {flaggedRows} row{flaggedRows === 1 ? "" : "s"} could not be labelled - {onlyFlagged ? "show all rows" : "see the amber chips"}
+          </Button>
+        )}
         {/* RM-4a: admin-only Add control (HIDDEN for non-admins). */}
         {isAdmin && onCreateItem && (
           <Button
@@ -1153,6 +1218,9 @@ export function RateMasterDataViewer({
                      (`tray_supply` is 1 site / 450 SKUs; `conduit` is 10 sites / 8 SKUs). */
                   return <TableHead key={key} className={cn("sticky top-0 z-20 bg-background text-right", piHead)}>items</TableHead>;
                 }
+                if (key === COL_NOTES || key === COL_LABELS) {   // CAT-3
+                  return <TableHead key={key} className={cn("sticky top-0 z-20 bg-background", piHead)}>{key === COL_NOTES ? "Notes" : "Labels"}</TableHead>;
+                }
                 if (key === COL_SOURCE_SHEET) {
                   return <TableHead key={key} className={cn("sticky top-0 z-20 bg-background", piHead)}>{hdr("source_sheet", "source sheet")}</TableHead>;
                 }
@@ -1258,13 +1326,22 @@ export function RateMasterDataViewer({
                       <div className="flex flex-col items-end gap-1">
                         <div className="flex items-center justify-end gap-1">
                           {rowErr && <span className="text-[10px] text-destructive">{rowErr}</span>}
-                          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={rowSaving || !!rowTwinAsk} aria-label="Save row" onClick={() => void saveEdit(r.it)}>
-                            <Check className="h-4 w-4 text-emerald-600" />
-                          </Button>
+                          {usageWarns(editUsage) ? (
+                            <Button size="sm" variant="outline" className="h-7" disabled={rowSaving || !!rowTwinAsk} aria-label="Save row" onClick={() => void saveEdit(r.it)}>
+                              Save anyway
+                            </Button>
+                          ) : (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" disabled={rowSaving || !!rowTwinAsk} aria-label="Save row" onClick={() => void saveEdit(r.it)}>
+                              <Check className="h-4 w-4 text-emerald-600" />
+                            </Button>
+                          )}
                           <Button size="icon" variant="ghost" className="h-7 w-7" disabled={rowSaving} aria-label="Cancel edit" onClick={cancelEdit}>
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
+                        {usageWarns(editUsage) ? (
+                          <div className="max-w-md text-left"><ItemUsageBox usage={editUsage} label={rowLabel(r.it)} isAdmin={!!isAdmin} testId="edit-usage-box" /></div>
+                        ) : null}
                         {rowTwinAsk && rowTwinAsk.name === r.it.name ? (
                           // SLICE 1f (owner Y-e): the edit would make this item mean the same as another one.
                           <TwinQuestion twin={rowTwinAsk.twin} busy={rowSaving} onAnswer={(d) => void answerRowTwin(d)} testId="row-twin-question" />
@@ -1287,9 +1364,7 @@ export function RateMasterDataViewer({
                             title={writeBlocked ? FREEZE_BLOCKED_MESSAGE : undefined}
                             onClick={() => setConfirmDeactivate({
                               name: r.it.name ?? "",
-                              label: specMode
-                                ? `${cellText(r.it.attributes?.item_name)} ${cellText(r.it.attributes?.item_detail)}`.trim()
-                                : `${r.it.kind} ${cellText(r.it.attributes?.material)}`,
+                              label: rowLabel(r.it),
                             })}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1514,6 +1589,15 @@ export function RateMasterDataViewer({
                       </TableCell>
               );
 
+              // CAT-3: the row's note (everyone reads; Admin edits) and its labels in the row's own words
+              cells[COL_NOTES] = (
+                <TableCell key={COL_NOTES} className="min-w-[10rem] max-w-[18rem] align-top">
+                  <ItemNoteCell note={(r.it as { item_notes?: string | null }).item_notes} label={rowLabel(r.it)}
+                    canEdit={!!isAdmin && !!onSaveNote} disabled={writeBlocked}
+                    onSave={onSaveNote && r.it.name ? (text) => onSaveNote(r.it.name as string, text) : undefined} />
+                </TableCell>
+              );
+              cells[COL_LABELS] = <TableCell key={COL_LABELS} className="min-w-[10rem] align-top"><ItemLabelsCell item={r.it as never} /></TableCell>;
               cells[COL_SOURCE_SHEET] = <TableCell key={COL_SOURCE_SHEET}>{r.it.source_sheet}</TableCell>;
               cells[COL_SOURCE_ROW] = <TableCell key={COL_SOURCE_ROW} className="text-right tabular-nums">{r.it.source_row}</TableCell>;
               {/* SLICE 12a (owner I-6): the two READ-ONLY formula columns, on every row of every
@@ -1572,9 +1656,13 @@ export function RateMasterDataViewer({
               deleted). New suggestions stop using it.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* CAT-3 (R6, the mockup): what stops working -- never blocks; the button then reads "Deactivate anyway" */}
+          {onItemUsage ? (
+            <ItemUsageBox usage={deactivateUsage} loading={deactivateUsageLoading} label={confirmDeactivate?.label ?? ""} isAdmin={!!isAdmin} testId="deactivate-usage-box" />
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void doDeactivate()}>Deactivate</AlertDialogAction>
+            <AlertDialogAction onClick={() => void doDeactivate()}>{usageWarns(deactivateUsage) ? "Deactivate anyway" : "Deactivate"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1592,6 +1680,7 @@ export function RateMasterDataViewer({
           specMode={specMode}
           textDefs={textCols}
           onCreate={onCreateItem}
+          itemValues={itemValues}
         />
       )}
     </div>
@@ -1623,7 +1712,7 @@ function TwinQuestion({ twin, busy, onAnswer, testId }: {
 }
 
 function AddItemDialog({
-  open, onOpenChange, config, rateCols, kinds, specMode, textDefs, onCreate,
+  open, onOpenChange, config, rateCols, kinds, specMode, textDefs, onCreate, itemValues,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -1636,11 +1725,19 @@ function AddItemDialog({
   specMode?: boolean;
   textDefs?: AttributeDefinition[];
   onCreate: (payload: CreateItemPayload) => Promise<SpecConfirmationReply | undefined | void>;
+  /** CAT-3 (QR-C-P2 (a)): every value the category's items carry, per attribute (brand from the rows) */
+  itemValues?: Record<string, unknown[]>;
 }) {
   const attrDefs = useMemo(() => config.attribute_definitions.filter((d) => d.id !== "brand"), [config]);
   const brandDef = useMemo(() => config.attribute_definitions.find((d) => d.id === "brand"), [config]);
+  // CAT-3: the list = the definition's values, then every value the items carry that it does not name
+  const listFor = (d: AttributeDefinition): unknown[] => {
+    const own = d.values ?? [];
+    const carried = (itemValues?.[d.id] ?? []).filter((v) => !own.some((o) => String(o) === String(v)));
+    return [...own, ...carried];
+  };
   const [kind, setKind] = useState(kinds[0] ?? "cable");
-  const [brand, setBrand] = useState(String(brandDef?.values?.[0] ?? ""));
+  const [brand, setBrand] = useState(String(brandDef?.values?.[0] ?? itemValues?.brand?.[0] ?? ""));
   const [unit, setUnit] = useState("");
   const [attrs, setAttrs] = useState<Record<string, string>>({});
   const [rates, setRates] = useState<Record<string, string>>({});
@@ -1774,11 +1871,11 @@ function AddItemDialog({
               {/* a DROPDOWN type with a static list gets a Select; a number_choice whose domain is
                   values_from carries no static list here (the Data tab does not resolve it) and so
                   falls through to the numeric input below -- byte-identical for choice/number. */}
-              {isDropdownAttributeType(d.type) && d.values?.length ? (
+              {isDropdownAttributeType(d.type) && listFor(d).length ? (
                 <Select value={attrs[d.id] ?? ""} onValueChange={(v) => setAttrs((p) => ({ ...p, [d.id]: v }))}>
                   <SelectTrigger className="h-8"><SelectValue placeholder={`Select ${d.label}`} /></SelectTrigger>
                   <SelectContent>
-                    {d.values.map((v) => (
+                    {listFor(d).map((v) => (
                       <SelectItem key={String(v)} value={String(v)}>{String(v)}</SelectItem>
                     ))}
                   </SelectContent>

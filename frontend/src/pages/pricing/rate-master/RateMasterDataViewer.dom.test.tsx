@@ -181,6 +181,8 @@ function expectedColumnKeys(items: RateMasterItem[], config: RateCategoryConfig)
     textCols,
     attrCols,
     rateCols: fileOrder.rates,
+    // CAT-3 PIN P-GRID (owner 2026-11-26 01:14, the mockup): the Notes and Labels columns after the rates on every SKU grid
+    notesLabels: !isPricingInputConfig(config),
   });
 }
 
@@ -382,7 +384,8 @@ describe("RateMasterDataViewer -- ADP: the default grid is the download's column
     const { config, items } = adpSubject();
     const { host, cleanup } = render(items, config, "HVAC", { categoryLabel: "ADP (Air Distribution Products)" });
     try {
-      expect(fileIdsShown(host)).toEqual(FILE);
+      // CAT-3 PIN P-GRID: the two screen columns (Notes, Labels) sit after the rates and carry no file id (BEFORE: exactly FILE)
+      expect(fileIdsShown(host)).toEqual([...FILE.slice(0, 11), null, null, ...FILE.slice(11)]);
       const heads = headerTexts(host);
       expect(heads[0]).toBe("Item IDitem_uid");
       expect(heads[7]).toBe("Install costcost_install");

@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { FREEZE_BLOCKED_MESSAGE } from "./rateMasterFreeze";
 import { cn } from "@/lib/utils";
 import { downloadErrorMessage } from "./rateMasterDownload";
+import { UploadValuesLost } from "./ItemUsageBox";
 import {
   SPEC_CONFIRM_COPY, acceptedFingerprints, rowsWithSuggestion, specLine, specQuestion, type SpecDecision,
 } from "./rateMasterSpec";
@@ -391,6 +392,9 @@ export function RateMasterUploadDialog({ frozen, onPreview, onApply, onApplied, 
                   </Badge>
                 ))}
               </div>
+
+              {/* CAT-3 (R6, the mockup): values no row will carry after this upload -- listed, never blocking the apply */}
+              <UploadValuesLost lost={plan.values_no_row_will_carry} />
 
               {plan.errors.length > 0 && (
                 <div className="space-y-1 rounded border border-destructive/40 bg-destructive/5 p-2">
