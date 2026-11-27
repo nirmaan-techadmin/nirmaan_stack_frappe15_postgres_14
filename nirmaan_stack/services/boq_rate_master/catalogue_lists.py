@@ -94,6 +94,10 @@ def compute_stamp(items, configs):
     return hashlib.sha256((ip + cp).encode("utf-8")).hexdigest()[:16]
 
 
+from nirmaan_stack.services.boq_rate_master.catalogue_values import (  # noqa: E402,F401  (CAT-3; split for S1)
+    category_item_values, rate_master_kinds,
+)
+
 # ── the rule (PURE) ─────────────────────────────────────────────────────────────────────────────────────────────────
 def _attrs(i):
     a = dict(i.get("attributes") or {})
@@ -217,13 +221,15 @@ def classify_and_rebuild(cfg, by_kind):
 
 def build(items, configs, stamp=None):
     """The built store for one discipline: {stamp, lists {category_id: {qid: rebuilt}}, names {item_uid: name}, values
-    {attr: [values carried]}}. `configs` = the discipline's active config dicts."""
+    {attr: [values carried]}, item_values {category_id: {attr: [values its grid's items carry]}}}. `configs` = the
+    discipline's active config dicts."""
     by_kind = index_items(items)
-    lists = {}
+    lists, item_values = {}, {}
     for cfg in configs:
         cid = cfg.get("category_id")
         if cid:
             lists[cid] = classify_and_rebuild(cfg, by_kind)
+            item_values[cid] = category_item_values(cfg, by_kind)
     names, values = {}, {}
     for i in items:
         if not i.get("active", 1):
@@ -236,7 +242,8 @@ def build(items, configs, stamp=None):
             if isinstance(v, (str, int, float)) and not isinstance(v, bool) and v not in ("", None):
                 values.setdefault(k, set()).add(v)
     return {"stamp": stamp or compute_stamp(items, configs), "lists": lists, "names": names,
-            "values": {k: sorted(v, key=lambda x: (str(type(x)), str(x))) for k, v in values.items()}}
+            "values": {k: sorted(v, key=lambda x: (str(type(x)), str(x))) for k, v in values.items()},
+            "item_values": item_values}
 
 
 # ── the merge + the fill (PURE) ─────────────────────────────────────────────────────────────────────────────────────
@@ -408,7 +415,8 @@ def current(discipline, fresh=True):
     items, configs = _read(discipline)
     stamp = compute_stamp(items, configs)
     cached = frappe.cache().get_value(cache_key(discipline))
-    if isinstance(cached, dict) and cached.get("stamp") == stamp:
+    # CAT-3: a store cached before `item_values` existed is rebuilt once (same stamp, one more key)
+    if isinstance(cached, dict) and cached.get("stamp") == stamp and "item_values" in cached:
         built = cached
     else:
         built = build(items, configs, stamp)
@@ -444,6 +452,14 @@ def serve_config(discipline, cfg, fresh=False):
     if discipline not in LINKED_DISCIPLINES and not has_placeholder(cfg):
         return cfg
     return merge_config(cfg, current(discipline, fresh=fresh), discipline)
+
+
+def served_item_values(discipline, category_id, fresh=False):
+    """CAT-3 (R7, QR-C-P2 (a)): the `item_values` served beside one category's config -- from the same cached store the
+    config merge reads (stamp checked at most once a minute per worker). {} when the category is unknown."""
+    if not discipline or not category_id:
+        return {}
+    return ((current(discipline, fresh=fresh).get("item_values") or {}).get(category_id)) or {}
 
 
 def serve_configs(configs, fresh=True):

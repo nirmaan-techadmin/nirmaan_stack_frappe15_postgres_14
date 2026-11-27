@@ -148,6 +148,7 @@ def get_rate_master_items(discipline=None, kind=None):
     for (uid, rate_key), val in computed.items():
         computed_rates.setdefault(uid, {})[rate_key] = val
 
+    rows = _serve_items(rows)   # CAT-3: the LAST step on the served items (a role filter, e.g. BCS's, runs before it)
     return {
         "discipline": discipline,
         "kind": kind,
@@ -192,7 +193,20 @@ def _serve_category_config(row):
     from nirmaan_stack.services.boq_rate_master import catalogue_lists
 
     row["config"] = catalogue_lists.serve_config(row.get("discipline"), row.get("config"), fresh=False)
+    # CAT-3 (owner 2026-11-26 00:06, R7; QR-C-P2 (a)): BESIDE the config, never inside it -- every value the category's active
+    # items carry, per attribute (brand read from the row), for the Rate Master Add-row lists. Adds no other key.
+    row["item_values"] = catalogue_lists.served_item_values(row.get("discipline"), row.get("category_id"), fresh=False)
     return row
+
+
+def _serve_items(rows):
+    """CAT-3 (owner 2026-11-26 00:11 / 01:16, R1 / R3): THE SERVED ITEMS' LAST STEP -- each item gains `labels` and
+    `label_flags`, computed from its own kind and attributes by the ONE label rule (`catalogue_labels.attach`); nothing is
+    stored. It works on the rows it is handed and adds no other key, so a role-based filter that runs BEFORE it (the BCS
+    lane's cost withholding) needs no change and nothing it removed comes back."""
+    from nirmaan_stack.services.boq_rate_master import catalogue_labels
+
+    return catalogue_labels.attach(rows)
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════

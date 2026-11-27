@@ -1,0 +1,93 @@
+{
+ "_about": "CAT-3: the catalogue labels as the SERVER's rule makes them (catalogue_labels.py), per catalogue value, over the newest rate files. Test readers of RAW rate files label items with it (labelsOverlay.harness.ts); test_catalogue_labels proves it equals the rule. Regenerate after a rate-file mint.",
+ "files": [
+  "rate_master_hvac_all_v91.json",
+  "rate_master_electrical_all_v72.json"
+ ],
+ "label_values": {
+  "conductor": [
+   "al",
+   "cu"
+  ],
+  "armour": [
+   "armoured",
+   "unarmoured"
+  ],
+  "poles": [
+   "1",
+   "1+N",
+   "2",
+   "3",
+   "3+N",
+   "4"
+  ],
+  "cloth_cladding": [
+   "cloth",
+   "cloth_on_aluminium"
+  ]
+ },
+ "rules": {
+  "conductor": {
+   "from_attr": "material",
+   "scope_kinds": [
+    "cable",
+    "termination"
+   ],
+   "total": true,
+   "values": {
+    "ALUMINIUM": "al",
+    "COPPER": "cu"
+   }
+  },
+  "armour": {
+   "from_attr": "insulation",
+   "scope_kinds": [
+    "cable",
+    "termination"
+   ],
+   "total": true,
+   "values": {
+    "ARMOURED": "armoured",
+    "UNARMOURED": "unarmoured"
+   }
+  },
+  "poles": {
+   "from_attr": "pole",
+   "scope_kinds": [
+    "db_switchgear_item"
+   ],
+   "total": true,
+   "values": {
+    "DP": "2",
+    "FP": "4",
+    "SP": "1",
+    "TP": "3"
+   }
+  },
+  "cloth_cladding": {
+   "from_attr": "cladding",
+   "scope_kinds": [
+    "hvac_insulation_item"
+   ],
+   "total": false,
+   "values": {
+    "24G Aluminium with Glass Cloth": "cloth_on_aluminium",
+    "26G Aluminium with Glass Cloth": "cloth_on_aluminium",
+    "Glass Cloth with paint": "cloth"
+   }
+  },
+  "cladding_gauge": {
+   "from_attr": "cladding",
+   "scope_kinds": [
+    "hvac_insulation_item"
+   ],
+   "total": false,
+   "values": {
+    "24G Aluminium": "24",
+    "24G Aluminium with Glass Cloth": "24",
+    "26G Aluminium": "26",
+    "26G Aluminium with Glass Cloth": "26"
+   }
+  }
+ }
+}

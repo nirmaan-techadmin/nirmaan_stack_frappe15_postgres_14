@@ -1,41 +1,4 @@
 {
-  "frontend/src/pages/boq-wizard/rate-helper/itemListPricing.ts": {
-    "24G Aluminium with Glass Cloth": {
-      "count": 1,
-      "reason": "cladding values typed in code: 'Glass Cloth with paint', '24G/26G Aluminium with Glass Cloth', 'GI Framework with perforated Al sheet'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "26G Aluminium with Glass Cloth": {
-      "count": 1,
-      "reason": "cladding values typed in code: 'Glass Cloth with paint', '24G/26G Aluminium with Glass Cloth', 'GI Framework with perforated Al sheet'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "ALUMINIUM": {
-      "count": 1,
-      "reason": "conductor / armour words: readCableKindWords writes ALUMINIUM / COPPER / ARMOURED / UNARMOURED",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "ARMOURED": {
-      "count": 1,
-      "reason": "conductor / armour words: readCableKindWords writes ALUMINIUM / COPPER / ARMOURED / UNARMOURED",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "COPPER": {
-      "count": 1,
-      "reason": "conductor / armour words: readCableKindWords writes ALUMINIUM / COPPER / ARMOURED / UNARMOURED",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "Glass Cloth with paint": {
-      "count": 1,
-      "reason": "cladding values typed in code: 'Glass Cloth with paint', '24G/26G Aluminium with Glass Cloth', 'GI Framework with perforated Al sheet'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "UNARMOURED": {
-      "count": 1,
-      "reason": "conductor / armour words: readCableKindWords writes ALUMINIUM / COPPER / ARMOURED / UNARMOURED",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    }
-  },
   "frontend/src/pages/pricing/electricalRuleCases.ts": {
     "10A SP MCB C CURVE": {
       "count": 1,
@@ -101,11 +64,6 @@
       "reason": "rules-page prose example naming '26G'",
       "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
     },
-    "ARMOURED": {
-      "count": 1,
-      "reason": "rules-page line gated on the def carrying ARMOURED + UNARMOURED",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
     "Bus bar": {
       "count": 1,
       "reason": "rules-page line gated on the def carrying 'Bus bar'",
@@ -114,11 +72,6 @@
     "Switch": {
       "count": 1,
       "reason": "rules-page heading word 'Switch'",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "UNARMOURED": {
-      "count": 1,
-      "reason": "rules-page line gated on the def carrying ARMOURED + UNARMOURED",
       "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
     }
   },
@@ -262,49 +215,9 @@
     }
   },
   "nirmaan_stack/services/boq_rate_master/extraction.py": {
-    "ALUMINIUM": {
-      "count": 1,
-      "reason": "display-only regex corroborator `_MATERIAL_RE` / `_INSULATION_RE` writes COPPER / ALUMINIUM / ARMOURED / UNARMOURED",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "ARMOURED": {
-      "count": 1,
-      "reason": "display-only regex corroborator `_MATERIAL_RE` / `_INSULATION_RE` writes COPPER / ALUMINIUM / ARMOURED / UNARMOURED",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "COPPER": {
-      "count": 1,
-      "reason": "display-only regex corroborator `_MATERIAL_RE` / `_INSULATION_RE` writes COPPER / ALUMINIUM / ARMOURED / UNARMOURED",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
     "DB": {
       "count": 1,
       "reason": "board words matched against BoQ text (`_BOARD_WORDS_AFTER_DEVICE`); not a catalogue reference",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "DP": {
-      "count": 1,
-      "reason": "pole_plus_neutral_families: stated / counted pole values TP FP SP DP typed in code",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "FP": {
-      "count": 1,
-      "reason": "pole_plus_neutral_families: stated / counted pole values TP FP SP DP typed in code",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "SP": {
-      "count": 1,
-      "reason": "pole_plus_neutral_families: stated / counted pole values TP FP SP DP typed in code",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "TP": {
-      "count": 1,
-      "reason": "pole_plus_neutral_families: stated / counted pole values TP FP SP DP typed in code",
-      "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
-    },
-    "UNARMOURED": {
-      "count": 1,
-      "reason": "display-only regex corroborator `_MATERIAL_RE` / `_INSULATION_RE` writes COPPER / ALUMINIUM / ARMOURED / UNARMOURED",
       "ruling": "owner 2026-11-26 01:16 'yes proceed' (R8: CAT-2 HVAC code words, CAT-3a Electrical code words); frozen at CAT-1, count only goes down"
     }
   },

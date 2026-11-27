@@ -30,7 +30,7 @@ import json
 
 import frappe
 
-from nirmaan_stack.services.boq_rate_master import catalogue_lists, config_validation, retirement
+from nirmaan_stack.services.boq_rate_master import catalogue_labels, catalogue_lists, config_validation, retirement
 
 ITEM_DOCTYPE = "BoQ Rate Master Item"
 CONFIG_DOCTYPE = "BoQ Rate Category Config"
@@ -100,6 +100,13 @@ def _validate_items(items):
             frappe.throw("items[%d] is missing a 'rates' object." % idx)
         if not isinstance(it.get("source"), dict):
             frappe.throw("items[%d] is missing a 'source' object." % idx)
+    # CAT-3 G-LABEL (CAT-D1 E3 / E9): labels are DERIVED from each row's own values. A file that carries `labels` must
+    # carry exactly what the rule makes; a hand-edited label is refused before the first write. A file without labels
+    # (every rate file before CAT-3) loads -- there is nothing to verify, and the served read labels it anyway.
+    bad = catalogue_labels.label_problems(items)
+    if bad:
+        frappe.throw("<br>".join(catalogue_labels.format_label_problem(p) for p in bad[:10]),
+                     title="Rate master import refused: labels differ from the label rule")
 
 
 def _validate_one_config(cfg, label):

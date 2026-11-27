@@ -128,9 +128,10 @@ describe("VRF-6 pure readers", () => {
     expect(readStatedSplit("24 HP", reader, { times: true })).toBeNull();
   });
   it("readCableKindWords (F11): 'AL' / 'Alu' = aluminium only with `abbrev`; 'aluminium' always", () => {
-    expect(readCableKindWords("power cable (FRLS, XLPE, AL Armoured)", { abbrev: true })).toEqual({ armour: "ARMOURED", conductor: "ALUMINIUM" });
-    expect(readCableKindWords("power cable (FRLS, XLPE, AL Armoured)")).toEqual({ armour: "ARMOURED" });
-    expect(readCableKindWords("aluminium cable")).toEqual({ conductor: "ALUMINIUM" });
+    // CAT-3 PIN P-KINDWORDS (QR-READER, owner 2026-11-26 00:53): label values (was ARMOURED / ALUMINIUM); the F11 case below is unchanged
+    expect(readCableKindWords("power cable (FRLS, XLPE, AL Armoured)", { abbrev: true })).toEqual({ armour: "armoured", conductor: "al" });
+    expect(readCableKindWords("power cable (FRLS, XLPE, AL Armoured)")).toEqual({ armour: "armoured" });
+    expect(readCableKindWords("aluminium cable")).toEqual({ conductor: "al" });
   });
   it("ownRowQuotes (F4) category first: the category's rows count; a same-category row by its item; words only for an uncategorised row", () => {
     const rule = { words: ["\\bcopper\\b[^|]*\\bpip"], categories: ["hvac_piping"], category_not_families: { hvac_piping: ["CPVC"] } };

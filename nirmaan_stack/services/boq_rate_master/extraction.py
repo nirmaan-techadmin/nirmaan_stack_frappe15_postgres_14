@@ -44,6 +44,7 @@ from collections import OrderedDict
 import frappe
 
 from nirmaan_stack.services.boq_category import persist
+from nirmaan_stack.services.boq_rate_master import catalogue_labels
 from nirmaan_stack.services.boq_category.ai_voter import _extract_json_array
 from nirmaan_stack.services.boq_category.context_builder import build_sheet_context
 
@@ -2613,15 +2614,25 @@ def spn_family_tokens():
 
 def pole_plus_neutral_families():
     """The two poles-plus-neutral families the ladder walks, TPN FIRST (today's behaviour, kept
-    byte-identical) then SPN. Each names the pole the model STATES for the family (TP / SP), the
-    pole the ladder COUNTS the neutral into (FP / DP), and the literal `pole` value rung 1 looks
-    for on a catalogue row (TPN / SPN)."""
+    byte-identical) then SPN. Each names, as a `poles` LABEL VALUE (CAT-3, owner 2026-11-26 00:53: catalogue values in
+    code rules move to generated labels), the pole the model STATES for the family (3 / 1), the pole the ladder COUNTS
+    the neutral into (4 / 2), and the pole rung 1 looks for on a catalogue row (3+N / 1+N, dormant: no SKU carries it
+    yet). A row's pole is read through `_pole_label` -- `catalogue_labels`' rule over the row's own `pole` value -- so a
+    new pole spelling is recognised by the rule, never by a word typed here. `family` and `tokens` are BoQ wording and
+    stay (QR-C-1)."""
+    lv = catalogue_labels.lv
     return [
         {"family": "TPN", "tokens": four_pole_tokens(),
-         "stated_pole": "TP", "counted_pole": "FP", "named_pole": "TPN"},
+         "stated_pole": lv("poles", "3"), "counted_pole": lv("poles", "4"), "named_pole": lv("poles", "3+N")},
         {"family": "SPN", "tokens": spn_family_tokens(),
-         "stated_pole": "SP", "counted_pole": "DP", "named_pole": "SPN"},
+         "stated_pole": lv("poles", "1"), "counted_pole": lv("poles", "2"), "named_pole": lv("poles", "1+N")},
     ]
+
+
+def _pole_label(attrs):
+    """CAT-3: the `poles` label of one catalogue row's attributes (None when the row has no pole or the rule cannot read
+    it -- such a row is never a ladder candidate, exactly as an unknown spelling never matched a typed pole)."""
+    return catalogue_labels.label_of_value("poles", (attrs or {}).get("pole"))
 
 
 def four_pole_tokens():
@@ -2776,7 +2787,7 @@ def _rung1_rows(attrs, fam, pole_catalog):
     """RUNG 1 candidates: rows whose STRUCTURED `pole` is literally the family's named pole
     (SPN / TPN) at the same device, EXACT amp and same curve. Never the item NAME."""
     return [name for name, a in _same_device_and_curve(attrs, pole_catalog)
-            if a.get("pole") == fam["named_pole"] and a.get("amp_a") == attrs.get("amp_a")]
+            if _pole_label(a) == fam["named_pole"] and a.get("amp_a") == attrs.get("amp_a")]
 
 
 def _ladder_target(attrs, fam, pole_catalog):
@@ -2803,7 +2814,7 @@ def _ladder_target(attrs, fam, pole_catalog):
     if len(rung1) > 1:
         return "__ambiguous__", {"reason": "ambiguous_named_pole", "candidates": len(rung1), "rung": 1}
     above = [(a.get("amp_a"), name) for name, a in same
-             if a.get("pole") == fam["counted_pole"] and a.get("amp_a") >= amp]
+             if _pole_label(a) == fam["counted_pole"] and a.get("amp_a") >= amp]
     if not above:
         return None, {"reason": "no_rating_at_or_above", "rung": 3}
     best = min(x for x, _n in above)
@@ -2870,9 +2881,9 @@ def apply_pole_plus_neutral_ladder(row_out, row, pole_catalog, tokens=None):
             # pick, and today's code emits nothing for them; entering rung 2 there would find the
             # three mA variants ambiguous and stamp a marker on rows that never had one. From the
             # NAMED pole (a rung-1 row already picked) never: that is the idempotent case.
-            if pole == fam["stated_pole"]:
+            if _pole_label(attrs) == fam["stated_pole"]:
                 pass
-            elif pole == fam["counted_pole"]:
+            elif _pole_label(attrs) == fam["counted_pole"]:
                 if not _rung1_rows(attrs, fam, pole_catalog):
                     continue
             else:
@@ -2910,7 +2921,7 @@ def apply_pole_plus_neutral_ladder(row_out, row, pole_catalog, tokens=None):
         for _aid in row_out:
             _v = (row_out.get(_aid) or {}).get("value")
             _a = pole_catalog.get(_v) if isinstance(_v, str) else None
-            if _a and _a.get("pole") in family_poles and _a.get("device")                     and _a.get("amp_a") in named.get(str(_a.get("device")).upper(), set()):
+            if _a and _pole_label(_a) in family_poles and _a.get("device")                     and _a.get("amp_a") in named.get(str(_a.get("device")).upper(), set()):
                 named_hit = True
                 break
         if named_hit:
@@ -3558,14 +3569,18 @@ def _extract_with_ceiling_split(call_batch, batch, depth=0):
 
 
 # ── regex corroborator (display-only) ──────────────────────────────────────────────
+# CAT-3 (owner 2026-11-26 00:53): the BoQ words stay here; what each recognises is a LABEL (`catalogue_labels`), and the
+# AI's value is compared through the same rule (`_corroborate`), so no catalogue spelling is typed in this reader.
 _MATERIAL_RE = [
-    (re.compile(r"\b(COPPER|CU)\b", re.I), "COPPER"),
-    (re.compile(r"\b(ALUMINI?UM|AL)\b", re.I), "ALUMINIUM"),
+    (re.compile(r"\b(COPPER|CU)\b", re.I), catalogue_labels.lv("conductor", "cu")),
+    (re.compile(r"\b(ALUMINI?UM|AL)\b", re.I), catalogue_labels.lv("conductor", "al")),
 ]
 _INSULATION_RE = [
-    (re.compile(r"\bUN[\s-]?ARMOU?RED\b", re.I), "UNARMOURED"),
-    (re.compile(r"\bARMOU?RED\b", re.I), "ARMOURED"),
+    (re.compile(r"\bUN[\s-]?ARMOU?RED\b", re.I), catalogue_labels.lv("armour", "unarmoured")),
+    (re.compile(r"\bARMOU?RED\b", re.I), catalogue_labels.lv("armour", "armoured")),
 ]
+# the label each regex attribute is read as (the attribute ids are the wiring config's own, unchanged)
+_CORROBORATED_LABEL = {"material": "conductor", "insulation": "armour"}
 # "3C x 2.5", "3Cx2.5", "3 core 2.5 sqmm", "2 core 4 sq mm", "4c x 16 sqmm"
 _CORE_SIZE_RE = re.compile(
     r"(\d+(?:\.\d+)?)\s*(?:c|core|cores)\b\s*(?:x|X|\*)?\s*(\d+(?:\.\d+)?)?\s*(?:sq\.?\s*mm|sqmm|mm)?",
@@ -3612,8 +3627,13 @@ def _corroborate(row, row_attrs):
     regex = _regex_attributes(text)
     for aid, cell in row_attrs.items():
         rx_val = regex.get(aid)
+        ai_val = cell.get("value")
+        lab = _CORROBORATED_LABEL.get(aid)
+        if lab is not None and ai_val is not None:
+            # CAT-3: the text's word is a label; the AI's catalogue value agrees when the rule gives it that label
+            ai_val = catalogue_labels.label_of_value(lab, str(ai_val))
         cell["corroborated"] = bool(
-            rx_val is not None and cell.get("value") is not None and str(rx_val) == str(cell["value"])
+            rx_val is not None and ai_val is not None and str(rx_val) == str(ai_val)
         )
     return row_attrs
 

@@ -46,7 +46,7 @@ import json
 
 import frappe
 
-from nirmaan_stack.services.boq_rate_master import retirement
+from nirmaan_stack.services.boq_rate_master import catalogue_labels, retirement
 
 ITEM_DOCTYPE = "BoQ Rate Master Item"
 CONFIG_DOCTYPE = "BoQ Rate Category Config"
@@ -76,6 +76,9 @@ def _item_payload(row):
         # `col` is deliberately absent -- owner-ruled archaeology, and the DB never stored it.
         "source": {"sheet": row["source_sheet"], "row": row["source_row"]},
         "item_uid": row["item_uid"],
+        # CAT-3 (CAT-D1 E3 L3): DERIVED, emitted for the reader -- made from this row's own kind and attributes by the
+        # label rule. Never stored; the loader recomputes it and REFUSES a file whose labels differ (G-LABEL).
+        "labels": catalogue_labels.labels_for(row["kind"], _parsed(row["attributes"], {}))[0],
     }
 
 

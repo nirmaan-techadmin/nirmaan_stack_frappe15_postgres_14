@@ -100,8 +100,10 @@ describe("VRF-5 pure readers", () => {
     expect(readLengthRange("armoured copper conductor cabling")).toBeNull();
   });
   it("readCableKindWords: armoured / unarmoured / aluminium / copper; nothing stated -> nothing", () => {
-    expect(readCableKindWords("armoured copper conductor cabling")).toEqual({ armour: "ARMOURED", conductor: "COPPER" });
-    expect(readCableKindWords("unarmoured aluminium cable")).toEqual({ armour: "UNARMOURED", conductor: "ALUMINIUM" });
+    // CAT-3 PIN P-KINDWORDS (QR-READER, owner 2026-11-26 00:53): the reader returns catalogue LABEL values (was ARMOURED / COPPER /
+    // UNARMOURED / ALUMINIUM); the cable SKUs' own spelling is read from their labels by the caller (the F2 case below is unchanged)
+    expect(readCableKindWords("armoured copper conductor cabling")).toEqual({ armour: "armoured", conductor: "cu" });
+    expect(readCableKindWords("unarmoured aluminium cable")).toEqual({ armour: "unarmoured", conductor: "al" });
     expect(readCableKindWords("multicore cables")).toEqual({});
   });
   it("readQtyWords: the number written; none -> null", () => {

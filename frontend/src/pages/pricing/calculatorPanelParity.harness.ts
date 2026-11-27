@@ -40,7 +40,8 @@
  * `.harness.ts` so `vitest.config.ts`'s `src/**\/*.test.{ts,tsx}` include never collects it.
  */
 import { readFileSync } from "node:fs";
-import { fillAssetForTests } from "@/pages/boq-wizard/rate-helper/catalogueFill.harness";
+import { fillAssetForTests, isRateAsset } from "@/pages/boq-wizard/rate-helper/catalogueFill.harness";
+import { withLabels } from "@/pages/boq-wizard/rate-helper/labelsOverlay.harness";
 import { RATE_MASTER_DISCIPLINES } from "./rate-master/rateMasterRegistry";
 import type { AttributeDefinition, RateCategoryConfig, RateMasterItem } from "./rate-master/rateMasterTypes";
 import { calculatorConfigMap, calculatorCtx } from "./PricingCalculator";
@@ -890,7 +891,11 @@ export function panelQuotesTextWithNoBox(r: HelperResult): boolean {
  * other fixture, and every file without a placeholder (all files before HVAC v90), comes back exactly as parsed.
  */
 export function readJsonFixture<T>(url: URL): T {
-  return fillAssetForTests(JSON.parse(readFileSync(url, "utf-8")) as T);
+  // CAT-3 PIN P-LABELS: a rate file read raw carries no served `labels`; attach them as the server serves them (the label rule's own
+  // output, `labelsOverlay.harness.ts`) so a test sees the served shape. An item that already carries labels keeps its own.
+  const parsed = JSON.parse(readFileSync(url, "utf-8")) as T;
+  if (isRateAsset(parsed)) parsed.items = withLabels(parsed.items);
+  return fillAssetForTests(parsed);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════

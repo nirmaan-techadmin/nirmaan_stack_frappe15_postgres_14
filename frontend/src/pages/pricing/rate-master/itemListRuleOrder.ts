@@ -302,6 +302,7 @@ export const DERIVATION_RULINGS: Readonly<Record<string, Readonly<Record<string,
 import { plainSentence, pricingInputLabel } from "./plainEnglish";
 import { percentOf } from "@/pages/boq-wizard/rate-helper/helperWording";
 import { inputFactor } from "@/pages/boq-wizard/rate-helper/scopeRule";
+import { itemLabel, labelValue } from "@/pages/boq-wizard/rate-helper/catalogueLabels";
 import { PIECE_LENGTH_MIN_MM, codeTarget, familyDisplayName, itemListPricingSpec, oneSizeMessage, plainBoxSurface, plainItemListWording, stockedUnitsWords, waysLabel,
          type AccessorySpec, type CapacityUnits, type CountedSpec, type DefaultSpec, type ItemListPricingSpec, type MaterialText } from "../../boq-wizard/rate-helper/itemListPricing";
 export { plainSentence };
@@ -319,7 +320,9 @@ export { plainSentence };
  * read the Derivation tab already holds); with no items the id is written as plain words, so no internal
  * name reaches the screen on either path.
  */
-export type RuleOrderItem = { kind?: string; unit?: string | null; attributes?: Record<string, unknown>; rates?: Record<string, unknown> };
+export type RuleOrderItem = { kind?: string; unit?: string | null; attributes?: Record<string, unknown>; rates?: Record<string, unknown>;
+  /** CAT-3: the served catalogue labels (made by the server's label rule from the row's own values) */
+  labels?: Record<string, string> | null };
 
 /**
  * SLICE 12d-5 (owner P1, finding F-C5a): whether the Derivation tab draws the "Rules" card -- the EXTRACTION
@@ -2166,9 +2169,12 @@ export function attributeRuleOrder(config: unknown, items: ReadonlyArray<RuleOrd
         on.length ? `on ${on.length > 1 ? `${on.slice(0, -1).join(", ")} and ${on[on.length - 1]}` : on[0]}, exactly as the catalogue writes them` : "");
   }
   // ELR-4b (owner P6, WC-b): the base prompt's insulation rule, which applies to a category whose insulation
-  // definition offers ARMOURED / UNARMOURED (boq_rate_attr_extraction_prompt.md) -- the definition is the marker
+  // definition offers armoured AND unarmoured (boq_rate_attr_extraction_prompt.md) -- the definition is the marker.
+  // CAT-3 (owner 2026-11-26 00:53): "offers" is read through the catalogue's armour LABELS -- a value the definition lists
+  // that a SKU carrying that label spells the same way -- so no catalogue spelling is typed here.
   const ins = c.attribute_definitions?.find((d) => d.id === "insulation") as { values?: unknown[] } | undefined;
-  if (["ARMOURED", "UNARMOURED"].every((v) => (ins?.values ?? []).includes(v))) {
+  const offersArmour = (want: string) => (ins?.values ?? []).some((v) => items.some((it) => itemLabel(it, "armour") === want && it.attributes?.insulation === v));
+  if ([labelValue("armour", "armoured"), labelValue("armour", "unarmoured")].every(offersArmour)) {
     add("insulation", `${label("insulation")}: the BoQ's answer`,
         "a flexible cable is unarmoured; where neither armoured nor unarmoured is stated on the row or its headings, unarmoured");
   }

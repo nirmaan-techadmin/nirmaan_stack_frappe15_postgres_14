@@ -209,7 +209,9 @@ describe("12e-6c O3 -- a fixing is not a cladding, before R2's GI map reads the 
 // =====================================================================================================
 describe("12e-6c O4 -- a copied glass / fibre cloth facing with the cladding unanswered prices as the glass-cloth cladding", () => {
   it("the reader: cloth alone -> Glass Cloth with paint; aluminium + cloth -> 26G (no gauge) or its gauge; an unlisted gauge refuses", () => {
-    const g = (w: string) => clothFacingCladding(SPEC, "cladding", item({ cladding_as_written: w }));
+    // CAT-3 PIN P-CLOTH (QR-READER): the reader reads the cladding from the insulation SKUs' served labels, so it is handed them;
+    // every expectation below is UNCHANGED (the same catalogue spelling, the same refusal)
+    const g = (w: string) => clothFacingCladding(SPEC, "cladding", item({ cladding_as_written: w }), ITEMS.filter((it) => it.kind === "hvac_insulation_item"));
     expect(g("factory laminated fire resistant fibre cloth fabric")).toEqual({ to: "Glass Cloth with paint", line: "BoQ says factory laminated fire resistant fibre cloth fabric -> priced as Glass Cloth with paint" });
     expect(g("reinforced glass cloth")).toMatchObject({ to: "Glass Cloth with paint" });
     expect(g("FR fabric facing")).toMatchObject({ to: "Glass Cloth with paint" });

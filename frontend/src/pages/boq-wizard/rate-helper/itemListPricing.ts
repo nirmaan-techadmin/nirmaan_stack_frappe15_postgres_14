@@ -41,6 +41,7 @@ import type {
   RateMasterItem,
 } from "../../pricing/rate-master/rateMasterTypes";
 import { resolveSize, composeSize, coveringSets, nearestRung, type SizeMatchSpec, type ComposeSpec } from "./ladderResolution";
+import { labelValue, valueCarrying } from "./catalogueLabels";
 import { noSkuSentence, type PlainFact } from "../../pricing/rate-master/plainEnglish";
 
 // ---------------------------------------------------------------------------------------------------------
@@ -1556,16 +1557,17 @@ export function readLengthRange(text: string): { value: string; range?: [string,
 }
 
 /** VRF-5 (F2, brief B1: "a stated armour / conductor word sets that attribute"). PURE. The armour and conductor words a cable
- * text states, as Electrical's own values: "armoured" -> ARMOURED ("unarmoured" -> UNARMOURED), "aluminium" -> ALUMINIUM,
- * "copper" -> COPPER. Nothing stated -> absent. Whether Electrical stocks the result is Electrical's rule. */
+ * text states, as catalogue LABEL values (CAT-3, owner 2026-11-26 00:53: the BoQ words stay, the catalogue spelling is read
+ * from the SKUs labels by `valueCarrying`): "armoured" -> armoured ("unarmoured" -> unarmoured), "aluminium" / "AL" -> al,
+ * "copper" -> cu. Nothing stated -> absent. Whether Electrical stocks the result is Electrical's rule. */
 export function readCableKindWords(text: string, opts?: { abbrev?: boolean }): { armour?: string; conductor?: string } {
   const t = String(text ?? "");
   const out: { armour?: string; conductor?: string } = {};
-  if (/\bun-?armou?red\b/i.test(t)) out.armour = "UNARMOURED";
-  else if (/\barmou?red\b/i.test(t)) out.armour = "ARMOURED";
+  if (/\bun-?armou?red\b/i.test(t)) out.armour = labelValue("armour", "unarmoured");
+  else if (/\barmou?red\b/i.test(t)) out.armour = labelValue("armour", "armoured");
   // VRF-6 (F11, 00093 r25 "FRLS, XLPE, AL Armoured"): with `abbrev` (a v62 config) "AL" / "Alu" is the aluminium conductor too
-  if (/\balumin(?:i)?um\b/i.test(t) || (opts?.abbrev === true && /\bal\b|\balu\b/i.test(t))) out.conductor = "ALUMINIUM";
-  else if (/\bcopper\b|\bcu\b/i.test(t)) out.conductor = "COPPER";
+  if (/\balumin(?:i)?um\b/i.test(t) || (opts?.abbrev === true && /\bal\b|\balu\b/i.test(t))) out.conductor = labelValue("conductor", "al");
+  else if (/\bcopper\b|\bcu\b/i.test(t)) out.conductor = labelValue("conductor", "cu");
   return out;
 }
 
@@ -4726,9 +4728,10 @@ const CLOTH_FACING_RE = /(^|[^a-z0-9])(?:(?:glass|fib(?:re|er)|fib(?:re|er)\s*gl
 /** ... and aluminium named beside it: then the cloth is on aluminium sheet, by its gauge. */
 const ALUMINIUM_RE = /(^|[^a-z0-9])(?:alumin(?:i)?um|alu|al\.?)(?![a-z0-9])/i;
 const GAUGE_RE = /(\d{2})\s*(?:g|swg|gauge)(?![a-z0-9])/i;
-/** The cladding options the backstop prices, by the catalogue's own spelling. */
-const CLOTH_CLADDING = "Glass Cloth with paint";
-const CLOTH_ON_ALUMINIUM: Record<string, string> = { "24": "24G Aluminium with Glass Cloth", "26": "26G Aluminium with Glass Cloth" };
+/** CAT-3 (owner 2026-11-26 00:53): the cladding options the backstop prices are read from the insulation SKUs' LABELS --
+ * the glass-cloth cladding (`cloth_cladding = cloth`) and, by gauge, the cloth on aluminium (`cloth_on_aluminium` +
+ * `cladding_gauge`) -- in the catalogue's own spelling (`valueCarrying`); no spelling is typed here. */
+const CLOTH_DEFAULT_GAUGE = "26";
 
 /**
  * SLICE 12e-6c (owner O4, 2026-10-18: "ok" -- "aluminium + cloth with no gauge -> 26G Aluminium with Glass Cloth;
@@ -4743,18 +4746,21 @@ const CLOTH_ON_ALUMINIUM: Record<string, string> = { "24": "24G Aluminium with G
  */
 export function clothFacingCladding(
   spec: ItemListPricingSpec, attr: string, item: ExtractedListItem,
+  /** CAT-3: the category's SKUs (served, with `labels`); the cladding spelling is read from them */
+  skus: ReadonlyArray<{ kind?: string; labels?: Record<string, string> | null; attributes?: Record<string, unknown> | null }> = [],
 ): { to: string; line: string } | { refuse: string } | null {
   for (const e of spec.choice_text ?? []) {
     if (e.attr !== attr) continue;
     const raw = rawValue(item, e.from_attr);
     const said = raw !== null && raw !== "None" ? String(raw).trim() : "";
     if (said === "" || !CLOTH_FACING_RE.test(said)) continue;
-    let to: string | undefined = CLOTH_CLADDING;
+    let to: string | undefined = valueCarrying(skus, { cloth_cladding: labelValue("cloth_cladding", "cloth") }, attr);
     if (ALUMINIUM_RE.test(said)) {
       const g = said.match(GAUGE_RE);
-      to = CLOTH_ON_ALUMINIUM[g ? g[1] : "26"];
+      to = valueCarrying(skus, { cloth_cladding: labelValue("cloth_cladding", "cloth_on_aluminium"), cladding_gauge: g ? g[1] : CLOTH_DEFAULT_GAUGE }, attr);
       if (!to) return { refuse: e.unlisted_line.replace("{from}", said) };
     }
+    if (!to) return null; // no SKU carries the glass-cloth cladding: nothing to price it as (CAT-3; today one SKU group does)
     // a family that stocks no such cladding refuses at the SKU match, naming it, exactly as a picked one would
     return { to, line: e.line.replace("{from}", said).replace("{to}", to) };
   }
@@ -5615,7 +5621,7 @@ function priceOneItem(
     if (v === null || v === "None") {
       // SLICE 12e-6c (owner O4): ... and, where R2's map takes nothing, a copied glass / fibre cloth facing
       // ADP-1 (owner F3): ... and FIRST, the GI framework with perforated aluminium sheet, in the copy or the row's text
-      const ct = giFrameworkCladding(spec, attr, item, rowText) ?? choiceTextFor(spec, attr, item) ?? clothFacingCladding(spec, attr, item);
+      const ct = giFrameworkCladding(spec, attr, item, rowText) ?? choiceTextFor(spec, attr, item) ?? clothFacingCladding(spec, attr, item, projected.filter((it) => kindIn(spec, it.kind)));
       if (ct && "refuse" in ct) { unreadable[attr] = ct.refuse; continue; }
       if (ct) {
         read[attr] = ct.to;

@@ -62,6 +62,7 @@ import type {
 } from "@/pages/pricing/rate-master/rateMasterTypes";
 import { CHAIN_ROW_NOTE_PLACE, CHAIN_ROW_PLACE, POLE_WORDS, attrDisplayValue, sortAttrNotes } from "./rateHelperTypes";
 import { applyConductorFloor, conductorFloorGroups, CONDUCTOR_FLOOR_NOTE } from "./conductorFloor";
+import { valueCarrying } from "./catalogueLabels";
 import { USED_INPUT_MARK, attributeWorkingLine, moneyValue, usedAssemblyInputs } from "./attributeWorkingLines";
 // SLICE 6 (owner S1-S5, 2026-09-24): the item-list mode prices a LIST of items per row through the pure module;
 // the helper only assembles the list (the model's items overlaid with the panel's session edits) and shapes the
@@ -5334,8 +5335,11 @@ function withExtras(
       // VRF-4 B2: Electrical's own attribute ids come from the config (`cable.conductor_attr` / `armour_attr`)
       const M = x.cable.conductor_attr ?? "material";
       const A = x.cable.armour_attr ?? "insulation";
-      const mp = wordsOnly || kindAlways ? seeded("conductor", kindWords.conductor ?? x.cable.attrs[M], kindWords.conductor ? "boq" : "default") : seeded("conductor", x.cable.attrs[M]);
-      const ap0 = wordsOnly || kindAlways ? seeded("armour", kindWords.armour ?? x.cable.attrs[A], kindWords.armour ? "boq" : "default") : seeded("armour", x.cable.attrs[A]);
+      // CAT-3 (owner 2026-11-26 00:53): the words are read as LABELS; the cable SKUs' own spelling of each comes from their labels
+      const conductorSaid = kindWords.conductor !== undefined ? valueCarrying(cableSkus, { conductor: kindWords.conductor }, M) : undefined;
+      const armourSaid = kindWords.armour !== undefined ? valueCarrying(cableSkus, { armour: kindWords.armour }, A) : undefined;
+      const mp = wordsOnly || kindAlways ? seeded("conductor", conductorSaid ?? x.cable.attrs[M], conductorSaid ? "boq" : "default") : seeded("conductor", x.cable.attrs[M]);
+      const ap0 = wordsOnly || kindAlways ? seeded("armour", armourSaid ?? x.cable.attrs[A], armourSaid ? "boq" : "default") : seeded("armour", x.cable.attrs[A]);
       // VRF-7 (A2, owner 01:3x "armoured only when specifically mentioned. else default unarmoured"): the model's armoured Yes for
       // THIS cable (the safety net sets it from the chain's words) -> armoured, from the BoQ; a typed value still wins
       const armQ = perItem && (id === "power" || id === "comm") ? x.from_model?.armoured?.[id] : undefined;

@@ -887,10 +887,12 @@ class TestSpnFamilyVocabulary(FrappeTestCase):
         for."""
         fams = extraction.pole_plus_neutral_families()
         self.assertEqual([f["family"] for f in fams], ["TPN", "SPN"])
+        # CAT-3 PIN P-POLES (QR-READER, owner 2026-11-26 00:53): the families name `poles` LABEL values (was TP / FP / TPN and
+        # SP / DP / SPN); the catalogue spellings each label stands for are read by the label rule (test_catalogue_labels).
         self.assertEqual((fams[0]["stated_pole"], fams[0]["counted_pole"], fams[0]["named_pole"]),
-                         ("TP", "FP", "TPN"))
+                         ("3", "4", "3+N"))
         self.assertEqual((fams[1]["stated_pole"], fams[1]["counted_pole"], fams[1]["named_pole"]),
-                         ("SP", "DP", "SPN"))
+                         ("1", "2", "1+N"))
 
     def test_the_legacy_name_is_the_ladder(self):
         """`correct_four_pole_mcb_picks` is kept as the call-site and test name; it IS the
