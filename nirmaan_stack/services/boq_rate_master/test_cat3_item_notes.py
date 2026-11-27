@@ -265,3 +265,35 @@ class TestCsvRoundTrip(_Scratch):
         self.assertTrue(out["values_no_row_will_carry"]["will_stop"])
         same = rate_master.preview_rate_master_csv(discipline="HVAC", csv_text=text, category_id="hvac_valve_package")
         self.assertEqual(same["values_no_row_will_carry"], {"values": [], "will_stop": []})
+
+
+class TestLoaderGateCarriesNotes(FrappeTestCase):
+    """K3b (QR-LOAD-V92 (a), ANSWER 5): the gate the LOADER runs (`config_validation.validate_catalogue_references`, both loader paths)
+    resolves a `{{note:<item_uid>}}` against the row's note in the payload -- the route the product uses, not only the gate directly.
+    Read-only: it validates an in-memory payload built from today's export."""
+
+    def _payload(self, note):
+        a = exporter.build_asset("HVAC")
+        vent = next(i for i in a["items"] if "air vent" in str(i["attributes"].get("item_name", "")).lower())
+        if note is not None:
+            vent["item_notes"] = note
+        else:
+            vent.pop("item_notes", None)
+        cfg = next(c for c in a["category_configs"] if c["category_id"] == "hvac_valve_package")
+        cfg["list_spec"]["pricing"]["text_notes"][0]["line"] = "{{note:%s}}" % vent["item_uid"]
+        configs = [dict(c, discipline="HVAC") for c in a["category_configs"]]
+        return configs, a["items"]
+
+    def test_a_carried_note_passes_the_loader_gate(self):
+        from nirmaan_stack.services.boq_rate_master import config_validation
+        configs, items = self._payload("one price for any size")
+        config_validation.validate_catalogue_references(configs, items, "HVAC")   # no refusal
+
+    def test_an_empty_or_missing_note_is_refused_by_the_loader_gate(self):
+        from nirmaan_stack.services.boq_rate_master import config_validation
+        for note in ("", None):
+            with self.subTest(note=note):
+                configs, items = self._payload(note)
+                with self.assertRaises(frappe.ValidationError) as cm:
+                    config_validation.validate_catalogue_references(configs, items, "HVAC")
+                self.assertIn("note", str(cm.exception))

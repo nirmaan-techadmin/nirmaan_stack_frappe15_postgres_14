@@ -572,14 +572,16 @@ def validate_catalogue_references(configs, items, discipline, label="Rate master
     for it in items or []:
         if isinstance(it, dict):
             payload_items.append({"kind": (it.get("kind") or "").strip(), "brand": it.get("brand"), "unit": it.get("unit"),
-                                  "item_uid": it.get("item_uid"), "attributes": it.get("attributes") or {}, "active": 1})
+                                  "item_uid": it.get("item_uid"), "attributes": it.get("attributes") or {}, "active": 1,
+                                  # CAT-3 K3b: a {{note:<item_uid>}} reference resolves against the row's note -- carry it
+                                  "item_notes": it.get("item_notes")})
     payload_kinds = {i["kind"] for i in payload_items} | set(retired_kinds or ())
     payload_cats = {(c.get("category_id") or "").strip() for c in configs if isinstance(c, dict)} | set(retired_category_ids or ())
     standing_items = payload_items + [
-        {"kind": r.kind, "brand": r.brand, "unit": r.unit, "item_uid": r.item_uid, "active": 1,
+        {"kind": r.kind, "brand": r.brand, "unit": r.unit, "item_uid": r.item_uid, "active": 1, "item_notes": r.item_notes,
          "attributes": (frappe.parse_json(r.attributes) if isinstance(r.attributes, str) else r.attributes) or {}}
         for r in frappe.get_all("BoQ Rate Master Item", filters={"discipline": discipline, "active": 1},
-                                fields=["kind", "brand", "unit", "item_uid", "attributes"])
+                                fields=["kind", "brand", "unit", "item_uid", "attributes", "item_notes"])
         if (r.kind or "").strip() not in payload_kinds]
     standing_configs = [c for c in configs if isinstance(c, dict)] + _active_section_configs(discipline, payload_cats)
     problems = catalogue_gate.reference_problems(standing_configs, standing_items, discipline=discipline)
