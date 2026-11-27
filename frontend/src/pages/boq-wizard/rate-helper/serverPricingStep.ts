@@ -76,6 +76,8 @@ interface WorkingAttrSeen { id: string; value?: unknown; disabled?: boolean; def
 interface ResultSeen {
   kind?: string; reason?: unknown; error?: string; values?: Dict | null; basis?: unknown; derivation?: unknown;
   itemList?: ListViewSeen; workingsAttrs?: Array<{ id: string; value?: unknown; computed?: unknown; note?: unknown }>;
+  /** BCS-3: the cost side `compute` returns (`bcsSideFor`); `values.supply_rate` = the primary block's BCS supply. */
+  bcs?: { values?: Dict | null };
   workings?: { attributes?: WorkingAttrSeen[]; derivation?: string[]; matchedRows?: unknown; sections?: Array<{ label?: unknown; derivation?: unknown; figures?: unknown; matchedRows?: unknown }> };
 }
 interface RecorderGlobal { __pricingStepRecording?: boolean; __pl?: PipelineSeen[]; __il?: Array<{ items?: ListItemSeen[] }> }
@@ -233,6 +235,12 @@ export function priceRowsForMatching(input: PricingStepInput): { rows: PricingSt
     rec.signature = rec.priced ? JSON.stringify({ scope: rec.scope, lines: rec.lines, qty_fields: qtyFields, ...((rec.lines as unknown[]).length ? {} : { no_sku_figures: res.values }) }) : null;
     rec.finals = finals;
     rec.blanks = blanks;
+    // BCS-FX (owner R-BCS-182, 28 Nov "Rate at the run" / "the suggested BCS same as it is now for BoQ"; QR-SRS-BCS (a)): THE
+    // SUGGESTED BCS SUPPLY, from the SAME compute at the SAME moment as the values above -- exactly the figure the panel draws as
+    // the suggested BCS supply (`RateHelperPanel`: `result.bcs.values.supply_rate`). null = the helper gives none (a category
+    // with no cost calculation, or a cost the answers do not reach). Not part of the signature, the values or the scope.
+    const bcsSupply = res.bcs?.values?.supply_rate;
+    rec.bcs_supply = typeof bcsSupply === "number" && Number.isFinite(bcsSupply) ? bcsSupply : null;
     if (FULL) {
       const w = res.workings ?? {};
       rec.full = {

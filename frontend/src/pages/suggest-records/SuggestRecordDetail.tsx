@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 
 import {
-  BCS_TEXT,
+  bcsSupplyText,
   NO_FIGURE,
   TONE_CLASS,
   batchTokensText,
@@ -121,7 +121,7 @@ export function SuggestRecordDetail({ record: r }: Props) {
               <TableCell data-testid="detail-supply">{rateText(r.rates.supply_rate)}</TableCell>
               <TableCell data-testid="detail-install">{rateText(r.rates.install_rate)}</TableCell>
               <TableCell data-testid="detail-combined">{rateText(r.rates.combined_rate)}</TableCell>
-              <TableCell className="text-xs text-muted-foreground">{r.rates.bcs_supply_rate || BCS_TEXT}</TableCell>
+              <TableCell data-testid="detail-bcs-supply">{bcsSupplyText(r.rates.bcs_supply_rate)}</TableCell>
               <TableCell>
                 <Badge variant="outline" className={cn("whitespace-normal", TONE_CLASS[tone])}>{r.rates.rates_status ?? "pending"}</Badge>
               </TableCell>

@@ -8,7 +8,8 @@
   FINAL VALUES (R6): ONE text column when the rows span more than one category; ONE COLUMN PER VALUE (the category's
         attribute order) when they are one category.
   RATES (R8): a figure only where `records.shown_rates` gives one (priced, and a kind the pricer priced); otherwise the
-        cell is empty and "Rates status" says why. The BCS supply figure is the text `records.BCS_TEXT` (ANSWER 1).
+        cell is empty and "Rates status" says why. The BCS supply (BCS-FX): the suggested BCS supply recorded at the run,
+        "-" when none, "not recorded (run before BCS)" for a record made before the BCS merge (`records.shown_bcs`).
   OVER THE CAP: a clear refusal, nothing partial. A row's own input or reply over 30,000 characters is FLAGGED in its cell
         (owner D-3 choice: never cut silently) and listed on "Read me".
 
@@ -157,7 +158,7 @@ def workbook(rows, f, kind):
             "BoQ": r["boq"], "Committed version": r.get("committed_version"), "Sheet": r["sheet_name"],
             "Excel row": r["excel_row"], "Row identifier (BoQ node)": r.get("boq_node"), "Description": r.get("description"),
             "Discipline": r.get("discipline"), "Category": r.get("category_id"),
-            "BCS supply rate": records.BCS_TEXT, "Rates status": r.get("rates_status"),
+            "Rates status": r.get("rates_status"),
             "Catalogue stamp": r.get("catalogue_stamp"), "Model": r.get("model"), "Rows in AI call": r.get("batch_rows"),
         }
         for t, v in vals.items():
@@ -165,6 +166,8 @@ def workbook(rows, f, kind):
         for t, k in (("Supply rate", "supply_rate"), ("Install rate", "install_rate"), ("Combined rate", "combined_rate")):
             if rates[k] is not None:
                 _put(ws, i, col[t], rates[k], MONEY)
+        bcs = records.shown_bcs(r)   # BCS-FX: a figure (money), or the text "-" / "not recorded (run before BCS)"
+        _put(ws, i, col["BCS supply rate"], bcs, *((MONEY,) if isinstance(bcs, float) else ()))
         if one:
             for label, value, _ in records.final_pairs(r.get("final_attributes"), order):
                 _put(ws, i, col[label], value)
@@ -225,7 +228,9 @@ def _readme(wb, f, kind, n, one, categories, cut):
         ("Final values: one column per attribute (every row is category %s)." % categories[0]) if one else
         "Final values: one text column (the rows span more than one category).",
         "Rates are shown only where the rates status is 'priced'; otherwise the cell is empty and the status says why. "
-        "The BCS supply rate is %s." % records.BCS_TEXT,
+        "The BCS supply rate is the suggested BCS supply worked out at the run, as the rate helper gives it; '%s' when "
+        "the helper gave none; '%s' for a record made before the BCS merge (an Admin reprice re-prices the whole record)." % (records.NO_FIGURE,
+                                                                                                     records.BCS_NOT_RECORDED),
     ]
     if kind == FULL:
         lines.append("Each row's own AI input and reply are in the last two columns; the AI question it shared is on the "

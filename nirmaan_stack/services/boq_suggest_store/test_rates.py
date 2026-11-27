@@ -4,7 +4,8 @@ Suggest worker (api/boq/rate_master._suggest_worker).
   T1 rates     + a pass's records priced = the server pricing step's OWN figures for the same row records (a fake bundle,
                  and once the REAL bundle on this bench); + "not priced: <reason>" when the helper prices nothing;
                  + "rates not computed: <reason>" when the step cannot run (no bundle / an error / no current sheet), with
-                 ONE Error Log and nothing raised; - `bcs_supply_rate` never written; + a re-read row is reset (by the store)
+                 ONE Error Log and nothing raised; + `bcs_supply_rate` holds the step's SUGGESTED BCS supply, never an old
+                 value (BCS-FX, moved check K1-1); + a re-read row is reset (by the store)
                  and re-priced by its own pass, never overwritten by an older pass's job; + a partly priced row shows only
                  the kinds the pricer priced; - a 0 is never a price.
   T2 trigger   + a pass with rows written queues ONE rates job, after the run's commit and the store's finish; - a pass with
@@ -208,17 +209,24 @@ class TestRates(_Base):
         step.assert_not_called()
         self.assertEqual(self._rows(boq)[2].rates_status, "rates not computed: the sheet has no current committed version")
 
-    def test_t1_bcs_supply_rate_is_never_written(self):
+    def test_t1_bcs_supply_rate_is_the_suggested_one_never_the_old_value(self):
+        # BCS-FX moved check K1-1 (R-BCS-182, released TABLE 1): INVERTED from "never written". The column now holds the step's
+        # SUGGESTED BCS supply; an old value put in it is never left standing - on success (FAKE gives none: 0, detail None) and
+        # on the failure path (detail None, column 0, shown "-").
         self._bundle()
         boq = fixture_boq("bc")
         rr, _ = self._pass(boq, {3: "priced"})
         frappe.db.sql('update "tabBoQ AI Suggest Row Record" set bcs_supply_rate = 7 where boq = %s', (boq,))
         frappe.db.commit()
         self._price(rr)
-        self.assertEqual(self._rows(boq)[3].bcs_supply_rate, 7)
+        r = self._rows(boq)[3]
+        detail = json.loads(r.rates_detail) if isinstance(r.rates_detail, str) else r.rates_detail
+        self.assertEqual((r.bcs_supply_rate, detail["bcs"]), (0, {"supply_rate": None}), "the old 7 never stands")
         with mock.patch.object(pricing_step, "price_rows", side_effect=RuntimeError("x")):
             self._price(rr)
-        self.assertEqual(self._rows(boq)[3].bcs_supply_rate, 7, "the failure path never writes it either")
+        r = self._rows(boq)[3]
+        detail = json.loads(r.rates_detail) if isinstance(r.rates_detail, str) else r.rates_detail
+        self.assertEqual((r.bcs_supply_rate, detail["bcs"]), (0, {"supply_rate": None}), "the failure path records none")
 
     def test_t1_a_re_read_row_is_reset_by_the_store_and_re_priced_by_its_own_pass_only(self):
         self._bundle()
@@ -279,6 +287,127 @@ class TestRates(_Base):
         self.assertEqual((r.supply_rate, r.install_rate, r.combined_rate),
                          tuple(float(rec["values"][k]) for k in rates.KINDS))
         self.assertEqual(r.pricing_stamp, rates.stamp_text(own["stamp"]))
+
+
+# ── BCS-FX K1 (owner R-BCS-182; QR-SRS-BCS (a)): the suggested BCS supply, stored at the run from the SAME step call ──────────
+# A fake bundle that also gives the helper's suggested BCS supply (`rec.bcs_supply`) for rows asking "bcs", none for the rest.
+FAKE_BCS = FAKE.replace(
+    "rec.seen = {",
+    "rec.bcs_supply = (r.attributes || {}).bcs === undefined ? null : r.attributes.bcs; rec.seen = {")
+
+
+def _fa_bcs(excel_row, want="priced", bcs=None):
+    attrs = {"want": want}
+    if bcs is not None:
+        attrs["bcs"] = bcs
+    return json.dumps({"excel_row": excel_row, "description": "row %d" % excel_row, "category_id": CAT, "attributes": attrs})
+
+
+class TestBcsSupplyAtTheRun(_Base):
+    """BCS-FX K1: (+) a new record stores the step's suggested BCS supply (column + rates_detail.bcs); (+) no suggestion = None
+    in rates_detail.bcs (the column keeps Currency's 0, never read alone), shown "-"; (+) a BoQ side "not priced" still records
+    the helper's BCS supply; (+) a failed step records None; (-) the row's SAVED BCS figure is never read."""
+
+    def _bcs_pass(self, boq, spec):
+        rr = raw_run(boq, run_id="rid-bcs")
+        for er, (want, bcs) in spec.items():
+            raw_row(boq, er, committed_version=1, sheet_name=SHEET, run_record=rr, run_id="rid-bcs", category_id=CAT,
+                    discipline="Electrical", final_attributes=_fa_bcs(er, want, bcs), supply_rate=0, install_rate=0,
+                    combined_rate=0, bcs_supply_rate=0, rates_status=store.RATES_PENDING)
+        frappe.db.commit()
+        return rr
+
+    @staticmethod
+    def _detail(r):
+        return json.loads(r.rates_detail) if isinstance(r.rates_detail, str) else r.rates_detail
+
+    def test_k1_a_new_record_stores_the_steps_suggested_bcs_supply(self):
+        from nirmaan_stack.services.boq_suggest_store import records
+        self._bundle(FAKE_BCS)
+        boq = fixture_boq("k1a")
+        rr = self._bcs_pass(boq, {3: ("priced", 1234.5), 4: ("priced", None), 5: ("none", 77)})
+        self._price(rr)
+        rows = self._rows(boq)
+        # the step's own output for the same row records
+        _, inputs, _ = self._inputs(boq, SHEET, 1, list(rows.values()))
+        own = pricing_step.price_rows({f"{boq}|{SHEET}": []}, [rates.step_row(r, inputs) for r in rows.values()],
+                                      asset=ASSET, build_dir=self.dir)
+        self.assertEqual(own["rows"][f"{boq}|{SHEET}|3"]["rec"]["bcs_supply"], 1234.5)
+        self.assertEqual((rows[3].bcs_supply_rate, self._detail(rows[3])["bcs"]), (1234.5, {"supply_rate": 1234.5}))
+        self.assertEqual(records.shown_bcs(rows[3]), 1234.5)
+        # no suggestion: None in the detail, the column keeps 0 -- and the reader shows "-", never 0
+        self.assertEqual((rows[4].bcs_supply_rate, self._detail(rows[4])["bcs"]), (0, {"supply_rate": None}))
+        self.assertEqual(records.shown_bcs(rows[4]), records.NO_FIGURE)
+        # the BoQ side priced nothing, the helper still gave a BCS supply: it is recorded
+        self.assertTrue(rows[5].rates_status.startswith("not priced: "))
+        self.assertEqual(self._detail(rows[5])["bcs"], {"supply_rate": 77.0})
+        self.assertEqual(records.shown_bcs(rows[5]), 77.0)
+
+    def test_k1_a_failed_step_records_none_never_a_figure(self):
+        from nirmaan_stack.services.boq_suggest_store import records
+        self._bundle(FAKE_BCS)
+        boq = fixture_boq("k1f")
+        rr = self._bcs_pass(boq, {3: ("priced", 500)})
+        with mock.patch.object(pricing_step, "price_rows", side_effect=RuntimeError("boom")):
+            self._price(rr)
+        r = self._rows(boq)[3]
+        self.assertTrue(r.rates_status.startswith("rates not computed: "))
+        self.assertEqual((r.bcs_supply_rate, self._detail(r)["bcs"]), (0, {"supply_rate": None}))
+        self.assertEqual(records.shown_bcs(r), records.NO_FIGURE)
+
+    def test_k1_the_rows_saved_bcs_figure_is_never_read(self):
+        self._bundle(FAKE_BCS)
+        boq = fixture_boq("k1s")
+        rr = self._bcs_pass(boq, {3: ("priced", 900)})
+        # a different figure already in the column (as a saved figure would be) is replaced by the suggested one ...
+        frappe.db.sql('update "tabBoQ AI Suggest Row Record" set bcs_supply_rate = 7 where boq = %s', (boq,))
+        frappe.db.commit()
+        real_sql, real_all = frappe.db.sql, frappe.get_all
+
+        def no_bcs_sql(query, *a, **kw):
+            if "BoQ Row BCS Rate" in str(query):
+                raise AssertionError("the rates job read a saved BCS figure: %s" % str(query)[:120])
+            return real_sql(query, *a, **kw)
+
+        def no_bcs_all(doctype, *a, **kw):
+            if doctype == "BoQ Row BCS Rate":
+                raise AssertionError("the rates job read a saved BCS figure (get_all)")
+            return real_all(doctype, *a, **kw)
+
+        # ... and the job never reads the BCS cost records (BoQ Row BCS Rate) at all
+        with mock.patch.object(frappe.db, "sql", side_effect=no_bcs_sql), mock.patch.object(frappe, "get_all", side_effect=no_bcs_all):
+            out = self._price(rr)
+        self.assertEqual(out["counts"], {rates.PRICED: 1})
+        self.assertEqual(self._rows(boq)[3].bcs_supply_rate, 900)
+
+
+class TestBcsOutcome(FrappeTestCase):
+    """The BCS rule alone (pure)."""
+
+    def test_the_steps_figure_or_none(self):
+        self.assertIsNone(rates.bcs_outcome(None))
+        self.assertIsNone(rates.bcs_outcome({"rec": {"kind": "suggestion"}}))
+        self.assertIsNone(rates.bcs_outcome({"rec": {"kind": "suggestion", "bcs_supply": None}}))
+        self.assertIsNone(rates.bcs_outcome({"rec": {"kind": "error", "bcs_supply": 5}}), "a failed row records none")
+        self.assertIsNone(rates.bcs_outcome({"rec": {"kind": "suggestion", "bcs_supply": True}}))
+        self.assertEqual(rates.bcs_outcome({"rec": {"kind": "suggestion", "bcs_supply": 0}}), 0.0)
+        self.assertEqual(rates.bcs_outcome({"rec": {"kind": "no_match", "bcs_supply": 12}}), 12.0)
+
+
+class TestShownBcs(FrappeTestCase):
+    """BCS-FX K1 (+ / -): the readers' one rule -- rates_detail.bcs first, never the column alone."""
+
+    def test_old_pending_none_and_figure(self):
+        from nirmaan_stack.services.boq_suggest_store import records
+        old = {"rates_status": "priced", "rates_detail": json.dumps({"scope": ["supply_rate"]}), "bcs_supply_rate": 0}
+        self.assertEqual(records.shown_bcs(old), "not recorded (run before BCS)")
+        self.assertEqual(records.shown_bcs({**old, "rates_detail": None, "rates_status": "rates not computed: x"}),
+                         records.BCS_NOT_RECORDED)
+        self.assertEqual(records.shown_bcs({"rates_status": store.RATES_PENDING, "rates_detail": None}), "-")
+        none = {"rates_status": "priced", "rates_detail": {"bcs": {"supply_rate": None}}, "bcs_supply_rate": 0}
+        self.assertEqual(records.shown_bcs(none), "-", "a null with the column at 0 shows '-', never 0")
+        fig = {"rates_status": "not priced: x", "rates_detail": {"bcs": {"supply_rate": 410.0}}, "bcs_supply_rate": 999}
+        self.assertEqual(records.shown_bcs(fig), 410.0, "the detail decides, not the column")
 
 
 class TestRowOutcome(FrappeTestCase):

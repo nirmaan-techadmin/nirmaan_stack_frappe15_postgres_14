@@ -5,7 +5,8 @@
     "Used by rows" COUNTIF counts the records that used it;
   + one category -> one column per attribute (the category's attribute order); mixed categories -> one text column;
   + a pending row's 0 shows blank, with its status; a kind outside the pricer's scope is blank; the BCS supply figure is
-    the text "not yet - added when the BCS branch merges", never a number;
+    the suggested figure recorded at the run (money), "-" while pending or when none, "not recorded (run before BCS)" for
+    an old record (BCS-FX, moved check K1-5);
   + a question over 30,000 characters is SPLIT into parts (nothing lost); a row's own input over 30,000 characters is
     FLAGGED in its cell and listed on "Read me" (never cut silently);
   - a description that starts with "=" is written as text, never as a formula.
@@ -100,7 +101,8 @@ class TestExport(FrappeTestCase):
 
     def test_t4_rates_only_where_priced_and_in_scope_bcs_is_text(self):
         rows = [_row(1), _row(2, status="pending", supply_rate=0, install_rate=0, combined_rate=0),
-                _row(3, scope=("supply_rate",)), _row(4, status="rates not computed: pricing step bundle missing")]
+                _row(3, scope=("supply_rate",)), _row(4, status="rates not computed: pricing step bundle missing"),
+                _row(5, rates_detail={"scope": ["supply_rate"], "bcs": {"supply_rate": 410.0}})]
         wb, _ = _book(rows, export.SUMMARY)
         ws = wb["AI Suggest Records"]
         s, i, c = (_col(ws, t) for t in ("Supply rate", "Install rate", "Combined rate"))
@@ -109,9 +111,22 @@ class TestExport(FrappeTestCase):
         self.assertEqual(got, [(100, 20, 120, "priced"), (None, None, None, "pending"), (100, None, None, "priced"),
                                (None, None, None, "rates not computed: pricing step bundle missing")])
         self.assertEqual(ws.cell(row=2, column=s).number_format, "#,##0")
-        for r in range(2, 6):
-            self.assertEqual(ws.cell(row=r, column=_col(ws, "BCS supply rate")).value,
-                             "not yet - added when the BCS branch merges")
+        # BCS-FX moved check K1-4: old rows (no `bcs` entry) "not recorded (run before BCS)", pending "-", a recorded figure as money
+        bcs = [ws.cell(row=r, column=_col(ws, "BCS supply rate")) for r in range(2, 7)]
+        self.assertEqual([c.value for c in bcs], ["not recorded (run before BCS)", "-", "not recorded (run before BCS)",
+                                                  "not recorded (run before BCS)", 410])
+        self.assertEqual(bcs[4].number_format, "#,##0")
+
+    def test_k1_the_full_download_carries_the_same_bcs_supply(self):
+        """BCS-FX K1 (R-BCS-182): the FULL download's "BCS supply rate" = the Summary's rule - a recorded figure as money,
+        "-" for none, "not recorded (run before BCS)" for an old record."""
+        rows = [_row(1, rates_detail={"scope": ["supply_rate"], "bcs": {"supply_rate": 3778.0}}),
+                _row(2, rates_detail={"scope": ["supply_rate"], "bcs": {"supply_rate": None}}), _row(3)]
+        wb, _ = _book(rows, export.FULL)
+        ws = wb["AI Suggest Records"]
+        cells = [ws.cell(row=r, column=_col(ws, "BCS supply rate")) for r in range(2, 5)]
+        self.assertEqual([c.value for c in cells], [3778, "-", "not recorded (run before BCS)"])
+        self.assertEqual(cells[0].number_format, "#,##0")
 
     def test_t4_full_fingerprints_link_to_their_question_row_and_used_by_rows_counts(self):
         q1, q2 = self._q("question one " * 10), self._q("question two")

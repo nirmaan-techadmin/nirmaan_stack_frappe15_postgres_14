@@ -10,7 +10,17 @@ THE STATUS (owner QR-C3, 27 Nov 15:03: `rates_status` is the ONLY truth for "pri
   * "not priced: <reason>"          - the step ran and the helper priced nothing for this row (e.g. no SKU);
   * "rates not computed: <reason>"  - the step could not run (no bundle, a timeout, an error, a re-committed sheet).
 A kind the helper did not price (outside `scope`) stays 0 in the column (Currency is NOT NULL on Postgres) and is never
-shown. `bcs_supply_rate` is NEVER written here (R9: the BCS lane fills it after its merge).
+shown.
+
+THE SUGGESTED BCS SUPPLY (BCS-FX; owner R-BCS-182, 28 Nov "Rate at the run" / "the bCS should be the suggested BCS same as it
+is now for BoQ"; QR-SRS-BCS (a)): the SAME step call, at the SAME moment, also gives the BCS supply the rate helper suggests
+for the row (`rec.bcs_supply`, the panel's `result.bcs.values.supply_rate`) - NEVER the BCS figure saved on the row. Every
+write of this job records it in `rates_detail.bcs = {"supply_rate": <figure or null>}` (null = the helper gives none, or the
+step could not run), and a figure also goes in `bcs_supply_rate` (whose 0 is never read alone: Currency is NOT NULL). A row
+priced "not priced" on the BoQ side still records a BCS supply when the helper gave one. Records written before BCS-FX have
+no `bcs` key: the readers show them as "not recorded (run before BCS)" (`records.shown_bcs`), never recomputed by the readers;
+SRS-2's Admin reprice (`api/boq/suggest_records.reprice_run_record`, no button) re-prices the whole record, BCS included
+(ruled BCSFX-19 Q9.1 (a)).
 
 THE ROW RECORDS the step reads (QR-INPUTS): `attributes` / `items` / `description` / `category_id` come from the STORE
 (`final_attributes` is the run's own result row, never re-derived). The step also needs what the store does not hold -
@@ -87,6 +97,18 @@ def row_outcome(priced_row):
         return PRICED, {k: float(values[k]) for k in scope}, detail
     reason = rec.get("reason") or "; ".join(str(b) for b in (rec.get("blanks") or [])[:3]) or "the helper priced nothing"
     return _clip(NOT_PRICED + str(reason), STATUS_MAX), {}, detail
+
+
+def bcs_outcome(priced_row):
+    """The suggested BCS supply for ONE row of `price_rows(...)["rows"]`, or None (the helper gives none, the row failed, or
+    the step returned nothing). Pure. It reads only the step's own output (`rec.bcs_supply`), never a saved BCS figure."""
+    if not priced_row:
+        return None
+    rec = priced_row.get("rec") or {}
+    if rec.get("kind") == "error":
+        return None
+    v = rec.get("bcs_supply")
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
 def stamp_text(stamp):
@@ -196,12 +218,16 @@ def step_row(record, inputs):
 
 def _write(record, status, figures, detail, stamp):
     """Write ONE row's rates - only while the row still holds the read that was priced. -> rows updated (0 or 1)."""
+    # BCS-FX: every write of this job records the suggested BCS supply (or None) in `rates_detail.bcs`
+    bcs = figures.get("bcs_supply_rate")
+    detail = {**detail, "bcs": {"supply_rate": bcs}}
     frappe.db.sql(
         """update "tabBoQ AI Suggest Row Record"
-           set supply_rate = %s, install_rate = %s, combined_rate = %s, rates_status = %s, rates_detail = %s,
-               pricing_stamp = %s
+           set supply_rate = %s, install_rate = %s, combined_rate = %s, bcs_supply_rate = %s, rates_status = %s,
+               rates_detail = %s, pricing_stamp = %s
            where name = %s and run_record = %s and run_date = %s""",
-        (figures.get("supply_rate", 0), figures.get("install_rate", 0), figures.get("combined_rate", 0), status,
+        (figures.get("supply_rate", 0), figures.get("install_rate", 0), figures.get("combined_rate", 0),
+         bcs if bcs is not None else 0, status,
          json.dumps(detail, default=str), stamp_text(stamp), record["name"], record["run_record"], record["run_date"]))
     return 1
 
@@ -250,7 +276,11 @@ def price_run_record(run_record, *, build_dir=None, timeout=None):
                         failed = failed or res.get("reason")
                         outcomes.append((r, not_computed(res.get("reason")), {}, {"inputs": used}, None))
                         continue
-                    status, figures, detail = row_outcome(res["rows"].get(f"{boq}|{sheet_name}|{sr['excel_row']}"))
+                    priced_row = res["rows"].get(f"{boq}|{sheet_name}|{sr['excel_row']}")
+                    status, figures, detail = row_outcome(priced_row)
+                    bcs = bcs_outcome(priced_row)   # BCS-FX: the same call's suggested BCS supply
+                    if bcs is not None:
+                        figures = {**figures, "bcs_supply_rate": bcs}
                     detail["inputs"] = used
                     detail["stamp"] = res.get("stamp")
                     outcomes.append((r, status, figures, detail, res.get("stamp")))

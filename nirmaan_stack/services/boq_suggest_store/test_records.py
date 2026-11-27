@@ -7,7 +7,8 @@
     paging (50 a page), the sort (newest run first);
   + the caps refuse cleanly (nothing partial);
   + the display rules: a pending / not-computed row shows no figure (never a 0), a kind outside the pricer's scope shows
-    none, the BCS supply figure is always the text "not yet - added when the BCS branch merges".
+    none; the BCS supply (BCS-FX, moved check K1-5) is the suggested figure recorded at the run, "-" while pending, and
+    "not recorded (run before BCS)" for a record with no `bcs` entry (every fixture row here).
 
 Nothing here commits: the fixture rows and people roll back with the class (the reprice call is mocked for that reason);
 the purge helpers run after as the safety net.
@@ -163,15 +164,15 @@ class TestRecords(FrappeTestCase):
         self.assertEqual(self._names(boq=self.boq, project="PROJ-NOT-THERE"), [])
 
     # ── display rules ───────────────────────────────────────────────────────────────────────────────────────────────
-    def test_t5_server_rows_never_show_a_0_as_a_price_and_carry_the_bcs_text(self):
+    def test_t5_server_rows_never_show_a_0_as_a_price_and_show_not_recorded_for_old_rows(self):
         rows = {r["excel_row"]: r for r in api.list_records(json.dumps({"boq": self.boq}), 1)["rows"]}
         priced, pending, not_priced, not_computed = rows[100], rows[101], rows[102], rows[103]
         self.assertEqual((priced["supply_rate"], priced["install_rate"], priced["combined_rate"]), (11, None, 33),
                          "install is outside the pricer's scope: no figure")
         for r in (pending, not_priced, not_computed):
             self.assertEqual((r["supply_rate"], r["install_rate"], r["combined_rate"]), (None, None, None), r["rates_status"])
-        for r in rows.values():
-            self.assertEqual(r["bcs_supply_rate"], "not yet - added when the BCS branch merges")
+        for r in rows.values():   # BCS-FX moved check K1-2: no `bcs` entry -> "not recorded (run before BCS)"; pending -> "-"
+            self.assertEqual(r["bcs_supply_rate"], "-" if r["rates_status"] == "pending" else "not recorded (run before BCS)")
         self.assertEqual(priced["first_values"], "alpha = a100; beta = 100; gamma = None")
 
     def test_t3_get_record_brings_its_question_run_and_batch(self):
@@ -183,7 +184,7 @@ class TestRecords(FrappeTestCase):
         self.assertEqual((d["run"]["run_by"], d["run"]["model"]), ("user-a@example.com", "m-a"))
         self.assertEqual(d["batch"]["calls"], [{"input_tokens": 9}])
         self.assertEqual([a["attribute"] for a in d["final_attributes"]], ["alpha", "beta", "gamma", "delta"])
-        self.assertEqual(d["rates"]["bcs_supply_rate"], records.BCS_TEXT)
+        self.assertEqual(d["rates"]["bcs_supply_rate"], records.BCS_NOT_RECORDED)   # BCS-FX moved check K1-3
         self.assertEqual((d["rates"]["supply_rate"], d["rates"]["install_rate"]), (11, None))
         with self.assertRaises(frappe.DoesNotExistError):
             api.get_record("no-such-record")

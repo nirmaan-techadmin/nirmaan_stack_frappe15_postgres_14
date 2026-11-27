@@ -4,8 +4,9 @@
  *
  * THE RATES RULE (owner R8, QR-C3 27 Nov 15:03): `rates_status` is the ONLY truth for "priced". The server sends a
  * figure only for a priced row and a kind the pricer priced (`services/boq_suggest_store/records.shown_rates`); every
- * other figure arrives as null and is shown as "-", never as 0. The BCS supply figure is never a figure: the server sends
- * the text "not yet - added when the BCS branch merges" (ANSWER 1, 27 Nov 17:32).
+ * other figure arrives as null and is shown as "-", never as 0. THE BCS SUPPLY (BCS-FX, owner R-BCS-182): the suggested BCS
+ * supply worked out at the run (`records.shown_bcs`) -- the server sends a figure, or the text "-" (none) or "not recorded (run
+ * before BCS)" (a record made before the BCS merge); `bcsSupplyText` shows it.
  */
 import { format } from "date-fns";
 
@@ -20,7 +21,9 @@ export const EXPORT_METHOD = `${API}.export_records`;
 
 export const PAGE_SIZE = 50;
 export const DEFAULT_DAYS = 30;
-export const BCS_TEXT = "not yet - added when the BCS branch merges";
+/** BCS-FX (owner R-BCS-182): a record made before the BCS merge -- never recomputed by the readers (SRS-2's Admin reprice, no
+ *  button, re-prices the whole record, BCS included). */
+export const BCS_NOT_RECORDED = "not recorded (run before BCS)";
 export const CAPS_LINE =
   "Summary: up to 50,000 rows. Full: up to 5,000 rows; narrow the filters for more. The questions go on a second sheet.";
 export const EMPTY_TEXT = "No records yet.";
@@ -54,7 +57,8 @@ export interface SuggestListRow {
   supply_rate: number | null;
   install_rate: number | null;
   combined_rate: number | null;
-  bcs_supply_rate: string;
+  /** BCS-FX: the suggested BCS supply at the run -- a figure, "-" or "not recorded (run before BCS)" (`bcsSupplyText`). */
+  bcs_supply_rate: number | string | null;
   rates_status: string | null;
 }
 
@@ -99,7 +103,8 @@ export interface SuggestRecordDetail {
     supply_rate: number | null;
     install_rate: number | null;
     combined_rate: number | null;
-    bcs_supply_rate: string;
+    /** BCS-FX: the suggested BCS supply at the run -- a figure, "-" or "not recorded (run before BCS)" (`bcsSupplyText`). */
+    bcs_supply_rate: number | string | null;
     rates_status: string | null;
     pricing_stamp: string | null;
   };
@@ -133,6 +138,12 @@ export function filtersPayload(f: SuggestFilters): string {
 /** A rate as shown: a figure only when the server sent one; "-" otherwise -- never a 0 for "not priced". */
 export function rateText(v: number | null | undefined): string {
   return typeof v === "number" ? formatToRoundedIndianRupee(v) : NO_FIGURE;
+}
+
+/** BCS-FX (owner R-BCS-182): the BCS supply as shown -- a figure in the rates' own style, the server's text as sent, "-" for none. */
+export function bcsSupplyText(v: number | string | null | undefined): string {
+  if (typeof v === "number") return rateText(v);
+  return typeof v === "string" && v.trim() !== "" ? v : NO_FIGURE;
 }
 
 export type StatusTone = "priced" | "not_priced" | "not_computed" | "pending";

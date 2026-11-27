@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseJson } from "@/lib/parseJson";
 
 import { SuggestRecordsPage } from "./SuggestRecordsPage";
+import { rateText } from "./suggestRecordsModel";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -35,7 +36,7 @@ const ROW = (name: string, excel_row: number, status: string, rates: [number | n
   name, run_date: "2026-11-27 15:45:39", project_name: "Test Project", boq: "BOQ-26-00375", sheet_name: "ELE Lowside",
   excel_row, description: `row ${excel_row}`, category_id: "conduit_piping", first_values: "conduit_type = PVC; size_mm = 25",
   supply_rate: rates[0], install_rate: rates[1], combined_rate: rates[2],
-  bcs_supply_rate: "not yet - added when the BCS branch merges", rates_status: status,
+  bcs_supply_rate: "not recorded (run before BCS)", rates_status: status, // BCS-FX moved check K1-6: the server's new shape
 });
 
 const DETAIL = {
@@ -46,7 +47,7 @@ const DETAIL = {
   batch: { calls: [{ usage: { input_tokens: 1516, output_tokens: 69, cache_read_input_tokens: 0 } }] },
   catalogue_stamp: "8c3f78be1315ef61", ai_input: '{"id": 43}', raw_reply: '{"id": 43, "attributes": {}}',
   final_attributes: [{ attribute: "conduit_type", value: "PVC", confidence: 0.97 }],
-  rates: { supply_rate: null, install_rate: null, combined_rate: null, bcs_supply_rate: "not yet - added when the BCS branch merges",
+  rates: { supply_rate: null, install_rate: null, combined_rate: null, bcs_supply_rate: 4717, // BCS-FX K1-6: a suggested BCS supply
     rates_status: "pending", pricing_stamp: null },
   question: { name: "0342c0450319325d9c9c", text: "THE SHARED QUESTION TEXT", bytes: 3024, category_id: "conduit_piping" },
   run: { pass_kind: "selected_rows", run_by: "Administrator", model: "m", suggestion_run: "shgapetnb1" },
@@ -129,7 +130,7 @@ describe("SRS-2 AI Suggest Records page", () => {
     expect(text('[data-testid="detail-supply"]')).toEqual(["-"]);
     expect(text('[data-testid="detail-install"]')).toEqual(["-"]);
     expect(text('[data-testid="detail-combined"]')).toEqual(["-"]);
-    expect(detail?.textContent).toContain("not yet - added when the BCS branch merges");
+    expect(text('[data-testid="detail-bcs-supply"]')).toEqual([rateText(4717)]); // BCS-FX moved check K1-6
     expect(detail?.textContent).toContain("tokens in 1516 / out 69");
     expect(detail?.textContent).not.toContain("tokens in 0 / out 0");
     expect(detail?.textContent).toContain("THE SHARED QUESTION TEXT"); // present, folded

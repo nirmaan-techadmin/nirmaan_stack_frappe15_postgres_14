@@ -7,7 +7,11 @@ ADMIN ONLY. This module does not check who is asking: the ONE gate is in the end
 THE DISPLAY RULES (one place):
   * rates (owner R8 / QR-C3): a figure is shown ONLY when `rates_status` is "priced" AND the kind is in the pricer's
     `scope` (`rates_detail.scope`); otherwise None - never a 0 (`shown_rates`);
-  * the BCS supply figure (ANSWER 1, 27 Nov 17:32): never a figure - the text `BCS_TEXT` in its place;
+  * the BCS supply figure (BCS-FX, owner R-BCS-182): the SUGGESTED BCS supply the rates job recorded at the run
+    (`rates_detail.bcs`), never the column `bcs_supply_rate` alone (its 0 is Currency's NOT NULL default) - a figure, or
+    `NO_FIGURE` ("-") when the helper gave none or the row is still pending, or `BCS_NOT_RECORDED` for a record written
+    before the BCS merge (no `bcs` key; never recomputed by the readers - SRS-2's Admin reprice, no button, re-prices the
+    whole record, BCS included) - `shown_bcs`;
   * final values (owner R6): "attr = value; ..." in the category's attribute order (`final_pairs` / `final_text`).
 """
 
@@ -20,7 +24,8 @@ from nirmaan_stack.services.boq_suggest_store import store as suggest_store
 
 PAGE_SIZE = 50
 DEFAULT_DAYS = 30
-BCS_TEXT = "not yet - added when the BCS branch merges"
+BCS_NOT_RECORDED = "not recorded (run before BCS)"
+NO_FIGURE = "-"
 STATUS_GROUPS = ("priced", "not priced", "rates not computed", "pending")
 FILTER_KEYS = ("date_from", "date_to", "project", "boq", "sheet_name", "discipline", "category_id", "rates_status",
                "run_by", "search")
@@ -42,6 +47,20 @@ def shown_rates(row):
     detail = _j(row.get("rates_detail")) or {}
     scope = set(detail.get("scope") or []) if row.get("rates_status") == suggest_rates.PRICED else set()
     return {k: (float(row.get(k) or 0) if k in scope else None) for k in suggest_rates.KINDS}
+
+
+def shown_bcs(row):
+    """The BCS supply as the readers show it (BCS-FX, owner R-BCS-182): a figure, "-" or "not recorded (run before BCS)".
+
+    Read from `rates_detail.bcs` FIRST - a None there is "-", never the column's 0. A row still "pending" (read, not yet
+    priced) shows "-"; a row with no `bcs` key was priced before BCS-FX and is never recomputed from today's rules."""
+    if row.get("rates_status") == suggest_store.RATES_PENDING:
+        return NO_FIGURE
+    detail = _j(row.get("rates_detail")) or {}
+    if not isinstance(detail, dict) or "bcs" not in detail:
+        return BCS_NOT_RECORDED
+    v = (detail.get("bcs") or {}).get("supply_rate")
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else NO_FIGURE
 
 
 def _value(v):
@@ -179,7 +198,7 @@ def list_row(r, order=()):
         "discipline": r.get("discipline"), "category_id": r.get("category_id"),
         "first_values": final_text(r.get("final_attributes"), order, limit=FIRST_VALUES),
         "supply_rate": rates["supply_rate"], "install_rate": rates["install_rate"], "combined_rate": rates["combined_rate"],
-        "bcs_supply_rate": BCS_TEXT, "rates_status": r.get("rates_status"), "run_by": r.get("run_by"),
+        "bcs_supply_rate": shown_bcs(r), "rates_status": r.get("rates_status"), "run_by": r.get("run_by"),
         "model": r.get("model"),
     }
 
@@ -250,7 +269,7 @@ def get_record(name):
         "final_attributes": [{"attribute": k, "value": v, "confidence": c}
                              for k, v, c in final_pairs(r.get("final_attributes"), order)],
         "coercion_trail": _j(r.get("coercion_trail")), "earlier_replies": _j(r.get("earlier_replies")),
-        "rates": {**rates, "bcs_supply_rate": BCS_TEXT, "rates_status": r.get("rates_status"),
+        "rates": {**rates, "bcs_supply_rate": shown_bcs(r), "rates_status": r.get("rates_status"),
                   "pricing_stamp": r.get("pricing_stamp"), "detail": _j(r.get("rates_detail"))},
         "question": ({"name": q["name"], "text": q["question_text"], "category_id": q.get("category_id"),
                       "discipline": q.get("discipline"), "bytes": q.get("bytes"),
