@@ -22,8 +22,8 @@ figure (area x the live Rs per sq ft + floor cutting at our cost, both parts edi
 in the new `BoQ Summary Inputs` and carried to a revision; plus one line on a ticked sheet's own Summary (rules:
 `.claude/context/domain/boq-pricing-editor.md` § "The BoQ summary on the BoQ's main page"). Left for the BCS phase:
 slice 6b ("Previously priced" with BCS, the BoQ summary's band layout, the Electrical Spreadsheet removal), then the final fix
-slice (the full test sets). Open owner point from BCS-6a: point 4's rule (1) "a rate but no quantity" also lists the rows the
-parser marked rate-only; whether those stay listed waits on the owner's check of the rule-1 sheet list.
+slice (the full test sets). Open from BCS-6a: point 4 still lists rows whose quantity reads 0 although the uploaded file shows
+a number (BOQ-26-00012 'HVAC - Low side' row 48 is one); why the quantity is lost is the owner's read-only investigation N9.
 
 The session that starts the next slice replaces this section with: the slice's name, what it must
 deliver, and what is left.

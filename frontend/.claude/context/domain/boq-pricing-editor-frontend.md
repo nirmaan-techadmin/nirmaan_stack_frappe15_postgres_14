@@ -913,7 +913,8 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
   `installAboveSupply`, the ratio `reconcile.SUSPECT_INSTALL_TO_SUPPLY_RATIO`), and `SummaryPanel` computes the lists ALWAYS: with
   the BCS input it is the note's 4th `li` (`data-exception="suspect"`); without it (BCS off, or a viewer without cost access) it is
   its own block `data-note="rates-appear-incorrect"`, an `<ol start={4}>`, the sentence and `RowRangeList` only. Points 1-3 keep
-  the BCS-input gate.
+  the BCS-input gate. `rateWithoutQuantity` skips a rate-only item (K2e): `row.is_rate_only === 1`, or
+  `reconcile.isRateOnlyQtyText(row.qty_cell_text)` (`PricedRow.qty_cell_text`, from `get_priced_rows`).
 
 ## Where the full component contracts live
 

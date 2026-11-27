@@ -198,6 +198,11 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   in the app counts): (1) a rate is present but the quantity is missing or 0; or (2) the install rate is more than
   `SUSPECT_INSTALL_TO_SUPPLY_RATIO` (1.5, `reconcile.ts`) times the supply rate, both > 0 - no lower limit. Never a comparison
   with the uploaded file's amount. A row drops out once the user picks a value on one of its amount cells, or enters a quantity
-  or rate that clears the condition. Rule (1) also lists the rows the parser marked rate-only (`is_rate_only`); whether they
-  should stay listed is the owner's open check.
+  or rate that clears the condition. Rule (1) never lists a RATE-ONLY item (owner ANSWER 16 / 18): a row the parser marked
+  rate-only (`is_rate_only`), or one whose uploaded quantity cell reads a rate-only text in any variation (`RATE_ONLY_QTY_TEXTS`
+  in `reconcile.ts`, compared after `normaliseQtyText`: RO, R.O., R/O, Rate Only, Qro, UR, R0 ...). Still listed: a number in
+  the file's quantity cell that the row reads as 0, and a blank or 0 quantity with no mark; "LS", units and a dash are not marks.
+  `get_priced_rows` carries both facts, read only: each row's `is_rate_only` (the committed node's stored mark) and
+  `qty_cell_text` (the file's own text in the row's quantity column(s), from the committed grid, one query per sheet; null for
+  a number, a blank or no grid).
 
