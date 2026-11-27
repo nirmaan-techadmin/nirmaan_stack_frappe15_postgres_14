@@ -1,0 +1,42 @@
+{
+ "_about": "CAT-3 HVAC v92: the two one-item facts moved to their items' notes (QR-NOTE (a), QR-NOTE-2 (a)) and the labels emitted. `from` = v91's string, `to` = the placeholder, `item_notes` = the words the served fill gave on v91.",
+ "items": {
+  "rmi-317efcac46be": {
+   "item_notes": "One price for an automatic air vent of any size - the sheet has a single air-vent price"
+  },
+  "rmi-22a6ddc183f9": {
+   "item_notes": "A pressure gauge's own syphon, gauge cock or needle valve are part of it, with a note"
+  }
+ },
+ "configs": [
+  {
+   "c": "hvac_valve_package",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    3,
+    "line"
+   ],
+   "from": "One price for an {{cat:item_name=Automatic Air Vent|lower}} of any size - the sheet has a single air-vent price",
+   "to": "{{note:rmi-317efcac46be}}"
+  },
+  {
+   "c": "hvac_misc",
+   "p": [
+    "list_spec",
+    "pricing",
+    "text_notes",
+    1,
+    "rule_line"
+   ],
+   "from": "A {{cat:item=Pressure Gauge|lower}}'s own syphon, gauge cock or needle valve are part of it, with a note",
+   "to": "{{note:rmi-22a6ddc183f9}}"
+  }
+ ],
+ "labels": "every item: catalogue_labels.labels_for(kind, attributes)[0]",
+ "counts": {
+  "items_noted": 2,
+  "configs": 2
+ }
+}

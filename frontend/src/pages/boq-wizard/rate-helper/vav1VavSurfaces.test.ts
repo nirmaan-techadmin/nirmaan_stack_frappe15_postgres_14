@@ -179,6 +179,9 @@ describe(`VAV-1 T5 built categories on ${LATEST} vs v75`, () => {
     const m76 = ITEMS.filter((i) => i.kind === "hvac_misc_item");
     expect([m75.length, m76.length]).toEqual([22, 24]);
     const byUid = new Map(m76.map((i) => [i.item_uid, i]));
-    for (const i of m75) expect(JSON.stringify({ ...byUid.get(String(i.item_uid)) })).toBe(JSON.stringify({ ...i, discipline: "HVAC" }));
+    // PIN P-H92 (CAT-3, QR-VITEST-RED (a)): the newest asset (v92) gives the Pressure Gauge `item_notes` (the moved fact, CAT-3's field
+    // alone); every other key of the 22 stays byte-identical to v75.
+    const lessNotes = (o: Record<string, unknown>) => { const { item_notes: _n, ...rest } = o; return rest; };
+    for (const i of m75) expect(JSON.stringify(lessNotes({ ...byUid.get(String(i.item_uid)) } as Record<string, unknown>))).toBe(JSON.stringify({ ...i, discipline: "HVAC" }));
   });
 });

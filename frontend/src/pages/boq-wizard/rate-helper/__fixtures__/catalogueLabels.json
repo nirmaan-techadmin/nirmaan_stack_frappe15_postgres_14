@@ -1,7 +1,7 @@
 {
  "_about": "CAT-3: the catalogue labels as the SERVER's rule makes them (catalogue_labels.py), per catalogue value, over the newest rate files. Test readers of RAW rate files label items with it (labelsOverlay.harness.ts); test_catalogue_labels proves it equals the rule. Regenerate after a rate-file mint.",
  "files": [
-  "rate_master_hvac_all_v91.json",
+  "rate_master_hvac_all_v92.json",
   "rate_master_electrical_all_v72.json"
  ],
  "label_values": {

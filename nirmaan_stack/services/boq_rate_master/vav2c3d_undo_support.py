@@ -15,6 +15,7 @@ from nirmaan_stack.services.boq_rate_master.vavfix_undo_support import as_v87 as
 from nirmaan_stack.services.boq_rate_master.cat1_undo_support import as_v88 as _as_v88
 from nirmaan_stack.services.boq_rate_master.cat1b_undo_support import as_v89 as _as_v89
 from nirmaan_stack.services.boq_rate_master.cat2_undo_support import as_v90 as _as_v90
+from nirmaan_stack.services.boq_rate_master.cat3_undo_support import as_v91 as _as_v91
 
 _FIX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "frontend", "src", "pages", "boq-wizard", "rate-helper", "__fixtures__",
                     "vav2c3dEdits.json")
@@ -50,6 +51,7 @@ def _holds(cfg, path, value):
 def as_v86(cfg, category_id=None):
     """`cfg` (one live category config) with v87's edits undone; v86's and older shapes come back as they are. Raises otherwise."""
     cid = category_id or cfg["category_id"]
+    cfg = _as_v91(cfg, cid)  # CAT-3 (PIN P-B92): v92's two {{note:}} strings back to v91's first, so a v92 config reads as v91, then v90 below
     cfg = _as_v90(cfg, cid)  # CAT-2 (PIN P-B91): v91's added code_targets removed first, so a v91 config reads as v90, then v89 below
     cfg = _as_v89(cfg, cid)  # CAT-1b (PIN P-B90): v90's wording edits undone first, so a v90 config reads as v89, then v88 below
     cfg = _as_v88(cfg, cid)  # CAT-1 (PIN CAT1 P-B): v89's edits undone first, so a v89 config reads as v88, then v87 below

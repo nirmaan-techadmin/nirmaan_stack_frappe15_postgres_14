@@ -2669,6 +2669,12 @@
     "tabWorkflow"
    ]
   },
+  "nirmaan_stack.services.boq_rate_master.test_cat3_v92": {
+   "seconds": 12.3,
+   "series": [],
+   "writes": [],
+   "reads": []
+  },
   "nirmaan_stack.services.boq_rate_master.test_catalogue_gate": {
    "seconds": 13.3,
    "series": [],
