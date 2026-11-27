@@ -41,6 +41,11 @@ for it in frappe.db.sql('select name, discipline, kind, brand, unit, attributes,
     for k in ('attributes', 'rates'):
         if isinstance(it[k], str): it[k] = json.loads(it[k])
     items.append(it)
+# CAT-3 (ANSWER 8, QR-REPLAY-LABELS (a)): each item as the panel reads it -- with the labels the ONE rule makes
+# (`catalogue_labels.attach`, the step `rate_master._serve_items` runs on every read). Raw rows carry no labels, and a pricing
+# reader handed raw rows loses every label group (cloth claddings, cable kinds, poles). BEFORE: the raw rows.
+from nirmaan_stack.services.boq_rate_master import catalogue_labels
+catalogue_labels.attach(items)
 json.dump(configs, open(os.path.join(OUT, 'ac5_configs.json'), 'w'))
 json.dump(items, open(os.path.join(OUT, 'ac5_items.json'), 'w'), default=str)
 
