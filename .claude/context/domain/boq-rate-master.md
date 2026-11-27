@@ -28,6 +28,14 @@ the full corrections-owed list.
 _Moved verbatim from root `CLAUDE.md` when it was cut down to material every task needs (CLAUDE.md restructure, pass 2). CLAUDE.md now carries a one-line pointer here._ Where a rule below differs from an older copy further down this file, **this section
 is current**: it is the text root `CLAUDE.md` carried until the move, after pass 1 pruned it.
 
+**EVERY ROW AN AI SUGGEST PASS READS IS KEPT, ADMIN ONLY, ONE YEAR (SRS-1, 2026-11-27).** Owner R-BCS-138 / 139 (25 Nov 23:30 -
+23:35), R5 (27 Nov 13:30, AI Suggest only). The Suggest run store keeps, per (boq, sheet_name, committed_version, excel_row), what
+was sent, what came back and the final values; a re-read replaces the record, a carried row is never written, a new committed
+version gets its own records. It is written from the ONE runner (`run_extraction(store_cb=...)`), never fails or slows a run,
+is readable only by Administrator or the Admin profile, and is purged daily after 365 days. **`rates_status` is the ONLY truth
+for "priced"**: the four rate fields read 0 until it says priced (Frappe Currency is NOT NULL DEFAULT 0), so no screen, report
+or download may show a 0 as a price. Details: § BoQ Rate Suggestion (RM-3) -> The Suggest run store.
+
 **THE CATALOGUE DECIDES WHAT EVERY SCREEN AND THE AI OFFER; NOTHING TYPES A CATALOGUE NAME (CAT-1 / CAT-1b / CAT-2, 2026-11-26/27).** The owner's
 words, verbatim: 2026-11-24 18:42 - 19:38 (the mechanism: lists rebuilt from the catalogue, linked by reference); 2026-11-26 00:06 /
 00:10 (full coverage); 00:14 "also we need to put guards that future builds cant bypass these again" / "and the build follows this
@@ -5272,6 +5280,60 @@ invariants:
 - **CLASSIFICATION-VOCABULARY GAP (standing):** `popup_boxes` + `lighting_mgmt_system` are rate-master
   categories the Electrical CLASSIFIER does not emit yet, so ZERO production rows resolve to them; the
   helper is ready but they need a classifier vocabulary update first.
+
+### The Suggest run store (SRS-1, 2026-11-27)
+
+Owner R-BCS-138 / 139 (25 Nov 23:30 - 23:35), R5 (27 Nov 13:30), the SRS-D0 review (accepted 13:53). For every row an AI Suggest
+pass READS, the database keeps what was sent, what came back and the final values, with the identifiers; Admin only; one year.
+Code: `services/boq_suggest_store/` (`split.py`, `store.py`, `permissions.py`, `purge.py`).
+
+- **What is kept.** `BoQ AI Suggest Row Record`: one per (boq, sheet_name, committed_version, excel_row) - the UNIQUE overwrite
+  key (`boq_ai_suggest_row_record_key_unique`, declared in the doctype's `on_doctype_update`); `boq_node`, project, description,
+  discipline / category, `run_record`, `run_id`, `run_date` (the purge key, indexed), `question` (sha256), `ai_input` (the row's
+  own payload element exactly as the request serialised it), `raw_reply` (the row's own reply element, its exact characters),
+  `reply_status`, `final_attributes` (the run's own result row, the same JSON text as the run doc), `coercion_trail`,
+  `earlier_replies` (`{"replies": [...]}`: a re-ask's first reply, a second-opinion verdict), `catalogue_stamp`, and the SRS-2
+  rate fields. `BoQ AI Suggest Question`: each distinct FILLED question text once (name = sha256 of the request before its
+  `ROWS:` block). `BoQ AI Suggest Run Record`: one per pass (whole_sheet / selected_rows / resume) with `catalogue_stamps`
+  {discipline: stamp}, `batches` (per call: rows, question sha, attempt, usage, failures, what could not be split, write ms) and
+  rows read / written. AI Suggest ONLY: no `source` field; historical matching gets its own store later (R5).
+- **`rates_status` is the ONLY truth for "priced" (QR-C3, ruled 2026-11-27 15:03).** Frappe makes Currency columns NOT NULL
+  DEFAULT 0 on Postgres, so every read writes the four rates as 0 with `rates_status = "pending"`; SRS-2 fills them and sets
+  priced / not priced: <reason> / not computed: <reason>. A screen, report or Excel download shows a rate ONLY when the status
+  says priced - never a 0 as a price. The doctype's field descriptions say the same.
+- **The write point: the one runner.** `extraction._extract_batch` OBSERVES each call beside its capture write
+  (`_store_observe`, only when the runner put a `store_obs` list in the capture context; the capture line is unchanged);
+  `run_extraction(store_cb=...)` hands each sub-batch's observations, its result rows (built as the checkpoint's) and its OWN
+  attempted rows to the callback right after `checkpoint_cb`; `_suggest_worker` opens the pass (`store.SuggestPass.open`),
+  passes `store_cb=store.on_batch`, and calls `store.finish` after the run's own commit. Every Suggest path (whole sheet,
+  selected rows, resume) and every category, present and future, passes through it. Absent `store_cb` every other caller is
+  byte-identical.
+- **Only rows the AI read are written (QR-C2).** A row a selected-rows pass only CARRIES never reaches the callback: its record
+  and its date stay. A re-read row's record is REPLACED (same name; everything else the new read's, rates back to 0 +
+  "pending"). A new committed version gets its own records. No backfill (QR-BACKFILL).
+- **The split** reads replies with the product's own `_extract_json_array` / `_reply_row_id`; a duplicate id keeps the LAST
+  element (as the run does); text outside the array, an element with no usable id, an id not in the batch and an unparseable
+  reply go to the Run Record's batch entry, never a row; an omitted row keeps its input with "no reply element"; a re-ask's
+  reply wins and the first goes to `earlier_replies`. A second opinion's own request / reply text is not observed (only its
+  verdict is, from the batch's drops); it is OFF on every config.
+- **Never fails or slows a run.** Each store step runs in its own savepoint and try / except: on error it rolls back only its
+  own write (the checkpoint before it is already committed), writes ONE Error Log per pass ("BoQ suggest store write failed")
+  and returns. Raw SQL upserts on purpose: the three doctypes have no doc_events and nothing derived. Measured on the SRS-1
+  paid pass: 54.4 ms and 4.8 ms per batch against 18.8 s and 1.7 s of model time.
+- **OFF under `bench run-tests`** (`store.store_enabled`), as the capture log is: older tests drive the real worker against
+  the live database and clean up only what they know. The store's own tests switch it on; one proves it is ON outside tests.
+- **Admin only.** DocPerm System Manager read / report / export only (no create / write / delete), AND `hooks.py`
+  `has_permission` + `permission_query_conditions` for the three doctypes (`permissions.py`, reusing `pricing._is_nirmaan_admin`):
+  System Manager also rides on the Estimates, PMO and HR profiles. Estimates users' runs ARE stored; they cannot read them.
+- **The purge** (`purge.run_daily`, cron "30 1 * * *"): Row Records whose run_date is more than 365 days old, 1,000 at a time,
+  a commit each, at most 200 batches a night; then Run Records older than a year that nothing points to; then Questions no
+  record references. No other table. Its Scheduled Job Type is created un-stopped by the migrate.
+- **Making a DocType in this app:** Frappe here has no `bench new-doctype`; the store's doctypes were made by a DocType insert
+  in developer mode (which creates the table at once, before any migrate). Frappe's field-named `search_index` silently made no
+  index where the name (`project`, `run_id`) already existed on another table (Postgres index names are schema-wide), so those
+  two are named in `on_doctype_update`; and EVERY index a new DocType declares (each `search_index` field and each
+  `add_index` / `add_unique` call) gets its entry in `services/index_manifest.py` in the SAME slice - `test_index_manifest`
+  fails otherwise, and `ensure_indexes()` builds the table-unique twin after the next migrate (SRS-1 K3b).
 
 ---
 

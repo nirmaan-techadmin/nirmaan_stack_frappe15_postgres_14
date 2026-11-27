@@ -28,9 +28,23 @@ Load-bearing invariants, "THE CATALOGUE DECIDES ...".
   sees changes (replay 0 / 0, 21 AI requests byte-identical). The owner pushes after the review.
 - **Left:** CAT-3a / CAT-3b (Electrical, incl. its 53 placeholders, the Electrical lists, the labels;
   and the four Electrical rules-page words CAT-2 left: ARMOURED / UNARMOURED, Switch, Bus bar), CAT-4
-  (item notes, the deactivate warning, Rate Master screens), the Suggest run store. Still a candidate:
+  (item notes, the deactivate warning, Rate Master screens). Still a candidate:
   the raw readers (CSV export `category_display`, the load validators) filling, so the 15 whole-value
   texts can become references.
+
+**The Suggest run store (SRS).** Every AI Suggest pass keeps, per row it reads, what was sent, what came
+back and the final values; Admin only; purged after a year. The rules are in
+`.claude/context/domain/boq-rate-master.md` § Load-bearing invariants, "EVERY ROW AN AI SUGGEST PASS READS
+IS KEPT ...", and § The Suggest run store.
+
+- **SRS-D0, the design:** accepted 2026-11-27 (three slices).
+- **SRS-1 (store + write + purge), built, awaiting review (not pushed):** three DocTypes (Question, Run
+  Record, Row Record) with the Admin-only hooks; the write from the one runner (carried rows untouched,
+  never fails a run); the daily one-year purge. Main dev is migrated for it. One paid test pass (3 rows)
+  matched the capture log byte for byte. Nothing a pricer sees changes. Abhishek is told of the hooks.py
+  lines and the new DocTypes before the pull request.
+- **Left:** SRS-2 (the suggested rates, through the server pricing step; `rates_status` is the only truth
+  for "priced"), SRS-3 (the "AI Suggest Records" page and the Excel downloads).
 
 Before CAT: **DU-3**, the fix slice from the DU-2 review of the Ducting rows (the last `## Slice DU-3`
 section of `boq-upload-plan.md`).
