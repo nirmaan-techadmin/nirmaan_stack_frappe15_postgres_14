@@ -9,6 +9,7 @@ import { parseJson } from "@/lib/parseJson";
 
 import {
   NO_FIGURE,
+  batchTokensText,
   defaultFilters,
   filtersPayload,
   lastPage,
@@ -26,6 +27,17 @@ describe("SRS-2 the rates rule", () => {
   });
   it("NEGATIVE: a pending / not-priced / not-computed row shows no figure, never 0", () => {
     for (const v of [null, undefined]) expect(rateText(v)).toBe(NO_FIGURE);
+  });
+});
+
+describe("SRS-2 the batch's token line (cert D2)", () => {
+  it("reads each call's usage, as the store keeps it", () => {
+    expect(batchTokensText({ calls: [{ usage: { input_tokens: 3097, output_tokens: 506 } }, { usage: { input_tokens: 3, output_tokens: 4 } }] }))
+      .toBe("tokens in 3100 / out 510");
+  });
+  it("NEGATIVE: no recorded usage says so - never 0 for a count that was not recorded", () => {
+    expect(batchTokensText(null)).toBe("tokens not recorded");
+    expect(batchTokensText({ calls: [{ usage: null }, {}] })).toBe("tokens not recorded");
   });
 });
 

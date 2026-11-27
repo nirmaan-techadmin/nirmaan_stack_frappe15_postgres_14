@@ -13,6 +13,7 @@ import {
   BCS_TEXT,
   NO_FIGURE,
   TONE_CLASS,
+  batchTokensText,
   rateText,
   runDateText,
   statusTone,
@@ -45,8 +46,6 @@ const pre = "max-h-96 overflow-auto whitespace-pre-wrap break-all rounded bg-mut
 
 /** The row detail. */
 export function SuggestRecordDetail({ record: r }: Props) {
-  const tokens = (r.batch?.calls ?? []).reduce(
-    (acc, c) => ({ inp: acc.inp + (c.input_tokens ?? 0), out: acc.out + (c.output_tokens ?? 0) }), { inp: 0, out: 0 });
   const tone = statusTone(r.rates.rates_status);
   return (
     <div className="space-y-3" data-testid="suggest-record-detail">
@@ -62,7 +61,7 @@ export function SuggestRecordDetail({ record: r }: Props) {
         <Field label="Run date / run" value={`${runDateText(r.run_date)} / ${r.run?.suggestion_run ?? NO_FIGURE} (${r.run?.pass_kind ?? "?"})`} />
         <Field label="Run by" value={r.run?.run_by ?? NO_FIGURE} />
         <Field label="Model" value={r.run?.model ?? NO_FIGURE} />
-        <Field label="Batch" value={`${r.batch_rows ?? "?"} rows in one AI call; tokens in ${tokens.inp} / out ${tokens.out}`} />
+        <Field label="Batch" value={`${r.batch_rows ?? "?"} rows in one AI call; ${batchTokensText(r.batch)}`} />
         <Field label="Catalogue stamp" value={r.catalogue_stamp ?? NO_FIGURE} />
       </div>
 

@@ -41,7 +41,9 @@ const ROW = (name: string, excel_row: number, status: string, rates: [number | n
 const DETAIL = {
   name: "r1", project_name: "Test Project", boq: "BOQ-26-00375", committed_version: 1, sheet_name: "ELE Lowside",
   excel_row: 43, boq_node: "BOQN-26-153620", description: "row 43", discipline: "Electrical", category_id: "conduit_piping",
-  run_date: "2026-11-27 15:45:41", run_id: "rid", batch_rows: 2, batch: { calls: [{ input_tokens: 900, output_tokens: 80 }] },
+  // the REAL stored shape: each call's tokens under `usage` (services/boq_suggest_store/split.py) - cert D2
+  run_date: "2026-11-27 15:45:41", run_id: "rid", batch_rows: 2,
+  batch: { calls: [{ usage: { input_tokens: 1516, output_tokens: 69, cache_read_input_tokens: 0 } }] },
   catalogue_stamp: "8c3f78be1315ef61", ai_input: '{"id": 43}', raw_reply: '{"id": 43, "attributes": {}}',
   final_attributes: [{ attribute: "conduit_type", value: "PVC", confidence: 0.97 }],
   rates: { supply_rate: null, install_rate: null, combined_rate: null, bcs_supply_rate: "not yet - added when the BCS branch merges",
@@ -128,7 +130,8 @@ describe("SRS-2 AI Suggest Records page", () => {
     expect(text('[data-testid="detail-install"]')).toEqual(["-"]);
     expect(text('[data-testid="detail-combined"]')).toEqual(["-"]);
     expect(detail?.textContent).toContain("not yet - added when the BCS branch merges");
-    expect(detail?.textContent).toContain("tokens in 900 / out 80");
+    expect(detail?.textContent).toContain("tokens in 1516 / out 69");
+    expect(detail?.textContent).not.toContain("tokens in 0 / out 0");
     expect(detail?.textContent).toContain("THE SHARED QUESTION TEXT"); // present, folded
   });
 

@@ -90,7 +90,7 @@ export interface SuggestRecordDetail {
   run_date: string | null;
   run_id: string | null;
   batch_rows: number | null;
-  batch: { calls?: { input_tokens?: number; output_tokens?: number }[] } | null;
+  batch: { calls?: { usage?: { input_tokens?: number; output_tokens?: number } | null }[] } | null;
   catalogue_stamp: string | null;
   ai_input: string | null;
   raw_reply: string | null;
@@ -158,6 +158,18 @@ export function runDateText(v: string | null | undefined): string {
   if (!v) return NO_FIGURE;
   const d = new Date(v.replace(" ", "T"));
   return Number.isNaN(d.getTime()) ? v : format(d, "dd-MMM-yyyy HH:mm");
+}
+
+/**
+ * The batch's token line. The store keeps each AI call's usage under `usage` (services/boq_suggest_store/split.py), so the
+ * counts are read from there; a batch with no recorded usage says so - never "0" for a count that was not recorded.
+ */
+export function batchTokensText(batch: SuggestRecordDetail["batch"]): string {
+  const calls = (batch?.calls ?? []).filter((c) => typeof c.usage?.input_tokens === "number" || typeof c.usage?.output_tokens === "number");
+  if (calls.length === 0) return "tokens not recorded";
+  const inp = calls.reduce((n, c) => n + (c.usage?.input_tokens ?? 0), 0);
+  const out = calls.reduce((n, c) => n + (c.usage?.output_tokens ?? 0), 0);
+  return `tokens in ${inp} / out ${out}`;
 }
 
 /** "Showing 51 - 100 of 153 records." */

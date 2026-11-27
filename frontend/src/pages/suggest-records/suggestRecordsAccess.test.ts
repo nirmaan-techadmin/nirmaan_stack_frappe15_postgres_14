@@ -50,6 +50,18 @@ describe("SRS-2 the sidebar item", () => {
     expect(between).not.toContain("]"); // the same array
     expect(side.slice(side.lastIndexOf("...(", rm), rm)).toContain("isNirmaanAdmin(role, user_id)");
   });
+  it("is a FLAT nav button: its label is in the flat-nav label set (else it renders as an empty group - cert D1)", () => {
+    const start = side.indexOf('{new Set(["Dashboard"');
+    const end = side.indexOf("]).has(item?.label)", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const flat = side.slice(start, end);
+    expect(flat).toContain('"Rate Master",');
+    expect(flat).toContain('"AI Suggest Records",');
+    // NEGATIVE: the label sits in exactly one place of that set (no stray copy)
+    expect(flat.match(/"AI Suggest Records"/g)?.length).toBe(1);
+  });
+
   it("has its open key and its active-highlight entry", () => {
     expect(side).toContain('"suggest-records",');
     expect(side).toContain('"/suggest-records": ["suggest-records"]');

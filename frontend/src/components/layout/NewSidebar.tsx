@@ -1152,6 +1152,8 @@ export function NewSidebar() {
                     ...PRICING_WORKBOOKS.map((w) => w.label),
                     // Rate Master (RM-2): flat nav button.
                     "Rate Master",
+                    // AI Suggest Records (SRS-2): flat nav button - leave this label out and it renders as an empty group.
+                    "AI Suggest Records",
                     // Bulk Import Transactions (S3): flat nav button. OMITTING THIS LABEL would
                     // drop the item into the collapsible-group branch below and render it wrong.
                     // ⚠️ IT IS MATCHED BY LABEL, so the B8a rename had to move BOTH this string and
