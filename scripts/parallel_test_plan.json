@@ -3213,6 +3213,19 @@
     "tabServer Script"
    ]
   },
+  "nirmaan_stack.services.boq_suggest_store.test_purge": {
+   "seconds": 11.4,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Question",
+    "tabBoQ AI Suggest Row Record",
+    "tabBoQ AI Suggest Run Record"
+   ],
+   "reads": [
+    "tabBOQs",
+    "tabBoQ Rate Suggestion Run"
+   ]
+  },
   "nirmaan_stack.services.boq_suggest_store.test_split": {
    "seconds": 9.2,
    "series": [],

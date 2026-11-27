@@ -766,6 +766,11 @@ scheduler_events = {
 		],
 		"0 6 7 * *": [
 			"nirmaan_stack.tasks.asset_audit.close_last_month_audits"
+		],
+		# SRS-1 (owner R-BCS-138; daily, 27 Nov walk-through): the AI Suggest run store's one-year purge - records read more
+		# than 365 days ago, 1,000 at a time, at most 200 batches a night; then empty run records and unused questions.
+		"30 1 * * *": [
+			"nirmaan_stack.services.boq_suggest_store.purge.run_daily"
 		]
 	}
 }
