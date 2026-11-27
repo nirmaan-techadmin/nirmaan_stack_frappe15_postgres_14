@@ -210,6 +210,7 @@ from nirmaan_stack.services.boq_rate_master import loader  # noqa: E402  (RM-4a:
 from nirmaan_stack.services.boq_rate_master import freeze  # noqa: E402  (deployment freeze guard)
 from nirmaan_stack.services.boq_rate_master import spec_reader  # noqa: E402  (slice 1c: item text -> attributes)
 from nirmaan_stack.services.boq_rate_master import csv_exporter  # noqa: E402  (12c FINISH: the computed cladding projection)
+from nirmaan_stack.services.boq_suggest_store import store as suggest_store  # noqa: E402  (SRS-1: the Suggest run store)
 from nirmaan_stack.api.boq.wizard import pricing  # noqa: E402  (D8 gate reuse; import UP api->api)
 
 RUN_DOCTYPE = "BoQ Rate Suggestion Run"
@@ -879,12 +880,19 @@ def _suggest_worker(boq=None, sheet_name=None, resume_run_id=None, only_rows=Non
                 scope_pending=(scope - {int(x) for x in attempted_now}) if scope is not None else None,
             )
 
+        # SRS-1: the Suggest run store for this pass -- each row the AI reads is kept (input, raw reply, final values).
+        # It never raises and never touches the run (services/boq_suggest_store/store.py).
+        store = suggest_store.SuggestPass.open(
+            suggestion_run=run_name, run_id=run_id, boq=boq, sheet_name=sheet_name, committed_version=cv,
+            user=user, kind=suggest_store.pass_kind(resume_run_id, scope),
+        )
         env = extraction.run_extraction(
             boq, sheet_name,
             progress_cb=_progress,
             checkpoint_cb=_checkpoint,
             skip_rows=sorted(pending_skip),
             only_rows=sorted(scope) if scope is not None else None,
+            store_cb=store.on_batch,
         )
         cv = env["committed_version"]
         ai_status = env["ai_status"]
@@ -926,6 +934,8 @@ def _suggest_worker(boq=None, sheet_name=None, resume_run_id=None, only_rows=Non
             )
 
         frappe.db.commit()  # the operation reads "finished" only after this commit
+        store.finish(model=env.get("model"), ai_status=ai_status, run_status="complete" if complete else "partial",
+                     halt_reason=env.get("halt_reason"))  # SRS-1: after the run's commit; never raises
         payload = {
             "status": "success" if complete else "partial",
             "boq": boq,

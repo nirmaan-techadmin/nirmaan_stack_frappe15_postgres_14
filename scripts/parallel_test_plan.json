@@ -3187,6 +3187,55 @@
    "writes": [],
    "reads": []
   },
+  "nirmaan_stack.services.boq_suggest_store.test_doctypes": {
+   "seconds": 14.1,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Row Record"
+   ],
+   "reads": [
+    "tabBoQ AI Suggest Run Record"
+   ]
+  },
+  "nirmaan_stack.services.boq_suggest_store.test_permissions": {
+   "seconds": 15.4,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Question",
+    "tabBoQ AI Suggest Row Record",
+    "tabBoQ AI Suggest Run Record",
+    "tabHas Role",
+    "tabNirmaan Users",
+    "tabUser"
+   ],
+   "reads": [
+    "tabBlock Module",
+    "tabServer Script"
+   ]
+  },
+  "nirmaan_stack.services.boq_suggest_store.test_split": {
+   "seconds": 9.2,
+   "series": [],
+   "writes": [],
+   "reads": []
+  },
+  "nirmaan_stack.services.boq_suggest_store.test_store": {
+   "seconds": 15.8,
+   "series": [],
+   "writes": [
+    "tabBoQ AI Suggest Question",
+    "tabBoQ AI Suggest Row Record",
+    "tabBoQ AI Suggest Run Record"
+   ],
+   "reads": [
+    "tabAssignment Rule",
+    "tabBOQs",
+    "tabBlock Module",
+    "tabBoQ Sheet",
+    "tabServer Script",
+    "tabWorkflow"
+   ]
+  },
   "nirmaan_stack.services.test_index_manifest": {
    "seconds": 30.4,
    "series": [],

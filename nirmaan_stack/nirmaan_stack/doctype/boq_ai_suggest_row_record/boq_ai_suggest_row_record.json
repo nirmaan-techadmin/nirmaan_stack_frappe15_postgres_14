@@ -199,24 +199,28 @@
    "label": "Suggested rates (SRS-2)"
   },
   {
+   "description": "Suggested supply rate (SRS-2). NOT a price until rates_status says priced: Frappe stores 0 here until then (Currency is NOT NULL DEFAULT 0 on Postgres). Read it only when rates_status = 'priced'; never show a 0 as a price (SRS-1 QR-C3).",
    "fieldname": "supply_rate",
    "fieldtype": "Currency",
    "label": "Supply rate",
    "read_only": 1
   },
   {
+   "description": "Suggested install rate (SRS-2). NOT a price until rates_status says priced: Frappe stores 0 here until then (Currency is NOT NULL DEFAULT 0 on Postgres). Read it only when rates_status = 'priced'; never show a 0 as a price (SRS-1 QR-C3).",
    "fieldname": "install_rate",
    "fieldtype": "Currency",
    "label": "Install rate",
    "read_only": 1
   },
   {
+   "description": "Suggested combined rate (SRS-2). NOT a price until rates_status says priced: Frappe stores 0 here until then (Currency is NOT NULL DEFAULT 0 on Postgres). Read it only when rates_status = 'priced'; never show a 0 as a price (SRS-1 QR-C3).",
    "fieldname": "combined_rate",
    "fieldtype": "Currency",
    "label": "Combined rate",
    "read_only": 1
   },
   {
+   "description": "The BCS lane's supply figure (filled after its merge). NOT a price until rates_status says priced: Frappe stores 0 here until then (Currency is NOT NULL DEFAULT 0 on Postgres). Read it only when rates_status = 'priced'; never show a 0 as a price (SRS-1 QR-C3).",
    "fieldname": "bcs_supply_rate",
    "fieldtype": "Currency",
    "label": "BCS supply rate",
@@ -227,6 +231,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "description": "The ONLY truth for whether the rates are a price: 'pending' (written by every read; the rates are 0), then SRS-2's 'priced' / 'not priced: &lt;reason&gt;' / 'not computed: &lt;reason&gt;'.",
    "fieldname": "rates_status",
    "fieldtype": "Data",
    "label": "Rates status",
@@ -255,7 +260,7 @@
  "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-27 14:30:18.230893",
+ "modified": "2026-11-27 15:24:40.738338",
  "modified_by": "Administrator",
  "module": "Nirmaan Stack",
  "name": "BoQ AI Suggest Row Record",

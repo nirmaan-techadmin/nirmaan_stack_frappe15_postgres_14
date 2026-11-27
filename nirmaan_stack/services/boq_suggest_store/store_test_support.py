@@ -55,18 +55,31 @@ def raw_question(text, when=None):
     return name
 
 
-def purge_store_fixtures(question_names=()):
-    """Remove every store row a store suite made: rows / runs whose boq starts with the fixture prefix, and the named
-    fixture questions. Rolls back FIRST (a poisoned transaction), deletes each scope in its own try, commits per scope,
+def purge_store_fixtures(question_names=(), error_logs_since=None):
+    """Remove every store row a store suite made: rows / runs whose boq starts with the fixture prefix, the questions only
+    fixture rows referenced (plus any named), and - when `error_logs_since` is given - the store's own Error Log rows
+    written since then. Rolls back FIRST (a poisoned transaction), deletes each scope in its own try, commits per scope,
     and reports a failure instead of swallowing it."""
     frappe.db.rollback()
     problems = []
+    names = set(question_names)
+    try:
+        names |= {q for (q,) in frappe.db.sql(
+            """select distinct w.question from "tabBoQ AI Suggest Row Record" w where w.boq like %s and w.question is not null
+               and not exists (select 1 from "tabBoQ AI Suggest Row Record" o where o.question = w.question and o.boq not like %s)""",
+            (FIXTURE_BOQ_PREFIX + "%", FIXTURE_BOQ_PREFIX + "%"))}
+    except Exception as exc:  # noqa: BLE001 -- reported, never swallowed
+        frappe.db.rollback()
+        problems.append(f"question lookup: {exc}")
     scopes = [
         ('delete from "tabBoQ AI Suggest Row Record" where boq like %s', (FIXTURE_BOQ_PREFIX + "%",)),
         ('delete from "tabBoQ AI Suggest Run Record" where boq like %s', (FIXTURE_BOQ_PREFIX + "%",)),
     ]
-    if question_names:
-        scopes.append(('delete from "tabBoQ AI Suggest Question" where name in %s', (tuple(question_names),)))
+    if names:
+        scopes.append(('delete from "tabBoQ AI Suggest Question" where name in %s', (tuple(names),)))
+    if error_logs_since is not None:
+        scopes.append(('delete from "tabError Log" where method = %s and creation >= %s',
+                       ("BoQ suggest store write failed", error_logs_since)))
     for sql, params in scopes:
         try:
             frappe.db.sql(sql, params)
