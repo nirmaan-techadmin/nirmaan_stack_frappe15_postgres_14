@@ -279,6 +279,9 @@ def get_match_results(boq=None, sheet_name=None):
     out_rows = res.get("rows") or []
     _attach_flags(boq, sheet_name, r["commit_version"], out_rows)
     _attach_texts(out_rows)
+    # BCS-6b (owner R-BCS-152 Q4): the past rows' BCS supply / install / combined, for Admin + Estimates only (absent otherwise)
+    from nirmaan_stack.services.boq_bcs.past_rows import attach_past_row_bcs
+    attach_past_row_bcs(out_rows)
     return {"run": {"name": r["name"], "status": r["status"], "commit_version": r["commit_version"],
                     "suggest_run": r["suggest_run"], "run_at": r["run_at"], "rows": out_rows,
                     "usage": use}}

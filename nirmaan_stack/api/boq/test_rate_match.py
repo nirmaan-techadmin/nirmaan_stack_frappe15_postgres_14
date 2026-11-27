@@ -432,9 +432,14 @@ class TestEndpoints(FrappeTestCase):
             out = RM.get_match_results("B", "S")
         self.assertEqual(ga.call_args.kwargs["filters"], {"boq": "B", "sheet_name": "S", "active": 1})
         cf.assert_called_once_with("B", "S", 4)
-        self.assertEqual([{**r, "matches": [{k: v for k, v in m.items() if k not in ("flag", "description")} for m in r["matches"]]}
+        # BCS-6b moved check K2-1 (R-BCS-152 Q4; Answer 5): a cost caller (this test runs as Administrator) also gets the past
+        # row's three BCS keys on each shown match - None here (frappe.db.sql returns nothing).
+        added = ("flag", "description", "bcs_supply", "bcs_install", "bcs_combined")
+        self.assertEqual([{**r, "matches": [{k: v for k, v in m.items() if k not in added} for m in r["matches"]]}
                           for r in out["run"]["rows"]], rows)
         self.assertEqual({(m["flag"], m["description"]) for r in out["run"]["rows"] for m in r["matches"]}, {(None, None)})
+        self.assertEqual({(m["bcs_supply"], m["bcs_install"], m["bcs_combined"]) for r in out["run"]["rows"] for m in r["matches"]},
+                         {(None, None, None)})
         self.assertEqual(out["run"]["usage"]["judge"]["spent_usd"], 0.1)
         with patch.object(frappe, "get_all", return_value=[]):
             self.assertEqual(RM.get_match_results("B", "S"), {"run": None})

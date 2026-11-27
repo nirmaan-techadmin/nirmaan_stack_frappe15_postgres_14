@@ -127,6 +127,19 @@ function Dot({ colour, size = 10 }: { colour: MatchColour; size?: number }) {
 const fig = (v: number | null | undefined) => (typeof v === "number" && Number.isFinite(v) ? formatRs(v) : "—");
 const day = (s: string | null | undefined) => (s ? String(s).slice(0, 10) : "—");
 
+/** BCS-6b (board 3): the two box headings, the owner's approved words. */
+export const BOQ_QUOTED_HEADING = "BoQ - what we quoted the customer";
+export const BCS_COST_HEADING = "BCS - our cost (Admin and Estimates only)";
+/** BCS-6b: the past row's BCS figures, as `get_match_results` adds them for a caller who may see cost (absent otherwise). */
+export const PAST_ROW_BCS_KEYS = ["bcs_supply", "bcs_install", "bcs_combined"] as const;
+export type PreviousMatchWithBcs = PreviousMatch & Partial<Record<(typeof PAST_ROW_BCS_KEYS)[number], number | null>>;
+/** BCS-6b: true when the server sent the BCS keys for this match (the caller may see cost); a key's null value still counts. */
+export function hasPastRowBcs(m: PreviousMatch): m is PreviousMatchWithBcs {
+  return PAST_ROW_BCS_KEYS.some((k) => k in m);
+}
+/** BCS-6b (board 3): a BCS figure, or "-" where the past row has none; a stored 0 shows as Rs 0. */
+export const bcsFig = (v: number | null | undefined) => (typeof v === "number" && Number.isFinite(v) ? formatRs(v) : "-");
+
 export function PreviouslyPricedCard({ view }: { view: PreviouslyPricedView }) {
   const [open, setOpen] = useState<number | null>(null);
   const range = matchRange(view);
@@ -327,12 +340,28 @@ export function MatchDialog({ view, index, onIndex, onClose }: {
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-3 rounded bg-muted/50 px-3 py-2 text-sm" data-testid="match-rates">
-          <div><div className="text-xs text-muted-foreground">Supply</div><div className="tabular-nums">{fig(m.supply_rate)}</div></div>
-          <div><div className="text-xs text-muted-foreground">Install</div><div className="tabular-nums">{fig(m.install_rate)}</div></div>
-          <div><div className="text-xs text-muted-foreground">Total{m.unit ? ` / ${m.unit}` : ""}</div><div className="font-semibold tabular-nums">{fig(matchTotal(m))}</div></div>
-          <div><div className="text-xs text-muted-foreground">Priced on</div><div>{day(m.priced_at)}</div></div>
+        {/* BCS-6b (owner R-BCS-152 Q4 / Q5 a; board 3, Answer 1 Q1-E): the green box = what we quoted the customer (the four
+            values exactly as before); under it, the blue box = our cost, ONLY when the server sent the past row's BCS keys
+            (it sends them to Admin and Estimates alone - `services/boq_bcs/past_rows.py`); view only, any discipline. */}
+        <div className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm dark:border-emerald-800 dark:bg-emerald-950/40" data-box="boq-quoted">
+          <div className="mb-1 text-xs font-medium text-emerald-900 dark:text-emerald-100">{BOQ_QUOTED_HEADING}</div>
+          <div className="grid grid-cols-4 gap-3" data-testid="match-rates">
+            <div><div className="text-xs text-muted-foreground">Supply</div><div className="tabular-nums">{fig(m.supply_rate)}</div></div>
+            <div><div className="text-xs text-muted-foreground">Install</div><div className="tabular-nums">{fig(m.install_rate)}</div></div>
+            <div><div className="text-xs text-muted-foreground">Total{m.unit ? ` / ${m.unit}` : ""}</div><div className="font-semibold tabular-nums">{fig(matchTotal(m))}</div></div>
+            <div><div className="text-xs text-muted-foreground">Priced on</div><div>{day(m.priced_at)}</div></div>
+          </div>
         </div>
+        {hasPastRowBcs(m) && (
+          <div className="rounded border border-sky-300 bg-sky-50 px-3 py-2 text-sm dark:border-sky-800 dark:bg-sky-950/40" data-box="bcs-cost">
+            <div className="mb-1 text-xs font-medium text-sky-900 dark:text-sky-100">{BCS_COST_HEADING}</div>
+            <div className="grid grid-cols-3 gap-3" data-testid="match-bcs-rates">
+              <div><div className="text-xs text-muted-foreground">BCS supply</div><div className="tabular-nums">{bcsFig(m.bcs_supply)}</div></div>
+              <div><div className="text-xs text-muted-foreground">BCS install</div><div className="tabular-nums">{bcsFig(m.bcs_install)}</div></div>
+              <div><div className="text-xs text-muted-foreground">BCS combined</div><div className="tabular-nums">{bcsFig(m.bcs_combined)}</div></div>
+            </div>
+          </div>
+        )}
         {isOtherUnit(m, view.rowUnit) && (
           <div className="text-xs text-red-700 dark:text-red-400">Priced in another unit ({m.unit}) - left out of the rate range.</div>
         )}
