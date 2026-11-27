@@ -43,11 +43,24 @@ def describe(cfg, path, fill=None):
     m = re.search(r"pricing\.families\.([^.]+)", path)
     if m and path.rstrip(".").endswith(m.group(0)):
         return "%s: the price rule for \"%s\" - its rows will show no SKU and must be priced by hand" % (name, m.group(1))
+    m = re.search(r"attribute_definitions\[([^\]]+)\]\.values", path)
+    if m:
+        return "%s: the choice list for %s offers it" % (name, m.group(1))
+    m = re.search(r"attribute_definitions\[(\d+)\]\.note", path)
+    if m:
+        defs = ((cfg or {}).get("list_spec") or {}).get("attribute_definitions") or (cfg or {}).get("attribute_definitions") or []
+        idx = int(m.group(1))
+        d = defs[idx] if idx < len(defs) and isinstance(defs[idx], dict) else {}
+        return "%s: the note the AI is given for %s" % (name, d.get("label") or d.get("id") or "a question")
     for key, what in (("text_notes", "working note"), ("read_notes", "working note"), ("companion_items", "item it adds")):
         m = re.search(r"(.*\b%s\[\d+\])" % key, path)
         if m:
             entry = _get(cfg, m.group(1)) or {}
-            words = entry.get("line") or entry.get("rule_line") if isinstance(entry, dict) else None
+            if path.endswith(".rule_line"):
+                what, field = "rules-page line", "rule_line"
+            else:
+                field = "line" if isinstance(entry, dict) and entry.get("line") else "rule_line"
+            words = entry.get(field) if isinstance(entry, dict) else None
             if isinstance(words, str) and words and fill is not None:
                 words = fill(words)   # a placeholder in the wording reads as the screen shows it
             return "%s: the %s \"%s\"" % (name, what, words) if isinstance(words, str) and words else "%s: a %s" % (name, what)
@@ -68,10 +81,11 @@ def problems_added(configs, before_items, after_items, discipline):
     built = catalogue_gate.build(before_items, configs)
     fill = lambda t: catalogue_lists.fill_text(t, built)   # noqa: E731
     before = {_key(p) for p in catalogue_gate.reference_problems(configs, before_items, discipline)}
-    stop, also = [], []
+    stop, also, seen = [], [], set()
     for p in catalogue_gate.reference_problems(configs, after_items, discipline):
-        if _key(p) in before:
+        if _key(p) in before or _key(p) in seen:   # one line per place (a text naming it twice is one place)
             continue
+        seen.add(_key(p))
         line = {"config": p["config"], "path": p["path"], "message": p["message"],
                 "line": describe(by_id.get(p["config"]), p["path"] or "", fill)}
         (stop if p["severity"] == catalogue_gate.REFUSE else also).append(line)
@@ -160,9 +174,8 @@ def read_discipline(discipline):
     """frappe read (no write): the discipline's active items (name, item_uid, kind, brand, unit, attributes) and active configs."""
     import frappe
 
-    from nirmaan_stack.services.boq_rate_master import catalogue_lists
     items = frappe.get_all("BoQ Rate Master Item", filters={"discipline": discipline, "active": 1},
-                           fields=["name", "item_uid", "kind", "brand", "unit", "attributes"], order_by="name asc")
+                           fields=["name", "item_uid", "kind", "brand", "unit", "attributes", "item_notes"], order_by="name asc")
     for i in items:
         i["attributes"] = catalogue_lists._parse(i.get("attributes"), {})
         i["active"] = 1

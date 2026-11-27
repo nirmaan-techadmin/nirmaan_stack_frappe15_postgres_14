@@ -57,8 +57,8 @@ class _Scratch(FrappeTestCase):
         frappe.db.rollback()
         super().tearDown()
 
-    def scratch_row(self, **attrs):
-        live = frappe.get_all(ITEM, filters={"discipline": "HVAC", "active": 1, "kind": "hvac_valve_item"},
+    def scratch_row(self, kind="hvac_valve_item", **attrs):
+        live = frappe.get_all(ITEM, filters={"discipline": "HVAC", "active": 1, "kind": kind},
                               fields=["kind", "brand", "unit", "attributes", "rates"], limit=1)[0]
         doc = frappe.get_doc({"doctype": ITEM, "discipline": "HVAC", "kind": live["kind"], "brand": live["brand"],
                               "unit": live["unit"], "item_uid": "rmi-cat3scratch1",
@@ -150,6 +150,17 @@ class TestUsage(FrappeTestCase):
         self.assertIn(["item_name", vent["attributes"]["item_name"]], u["last_carrier_of"])
         self.assertTrue(all(s["config"] and s["path"] and s["message"] for s in u["will_stop"]))
 
+    def test_the_lines_read_the_note_and_name_each_place_once(self):
+        """K3c: the usage read carries the notes (a {{note:}} line quotes the note's words, never "a working note"), and a place that
+        names the row twice is ONE line."""
+        vent = next(i for i in self.items if "air vent" in str(i["attributes"].get("item_name", "")).lower())
+        self.assertTrue(vent.get("item_notes"))
+        u = item_usage.usage(self.configs, self.items, vent, None, "HVAC")
+        keys = [(s["config"], s["path"], s["message"]) for s in u["will_stop"]]
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertTrue(any(vent["item_notes"][:30] in s["line"] for s in u["will_stop"]))
+        self.assertFalse([s for s in u["will_stop"] if s["line"].endswith(": a setting that names it")])
+
     def test_a_row_whose_values_others_carry_lists_nothing(self):
         # a Valve Package row whose every value another active row also carries
         for r in self.items:
@@ -236,23 +247,24 @@ class TestCsvRoundTrip(_Scratch):
 
     def test_the_note_column_round_trips(self):
         from nirmaan_stack.services.boq_rate_master import csv_exporter, csv_importer
-        before, _h, _n = csv_exporter.build_category_csv("HVAC", "hvac_valve_package")
-        self.assertNotIn("item_notes", before.splitlines()[0])            # no row carries a note today: no column
-        doc = self.scratch_row()
+        # a category none of whose rows carries a note (v92 notes two rows of Valve Package / Misc)
+        before, _h, _n = csv_exporter.build_category_csv("HVAC", "hvac_insulation")
+        self.assertNotIn("item_notes", before.splitlines()[0])            # no row carries a note: no column
+        doc = self.scratch_row(kind="hvac_insulation_item")
         frappe.db.set_value(ITEM, doc.name, "item_notes", "sold in pairs", update_modified=False)   # scratch row, rolled back
-        text, headers, _n = csv_exporter.build_category_csv("HVAC", "hvac_valve_package")
+        text, headers, _n = csv_exporter.build_category_csv("HVAC", "hvac_insulation")
         self.assertEqual(headers[-1], "item_notes")
         self.assertIn("sold in pairs", text)
-        plan = csv_importer.build_plan("HVAC", text, category_id="hvac_valve_package")
+        plan = csv_importer.build_plan("HVAC", text, category_id="hvac_insulation")
         self.assertEqual([c for c in plan["changes"]], [])                 # unchanged file: zero changes
         edited = text.replace("sold in pairs", "sold singly")
-        plan = csv_importer.build_plan("HVAC", edited, category_id="hvac_valve_package")
+        plan = csv_importer.build_plan("HVAC", edited, category_id="hvac_insulation")
         ch = [c for c in plan["changes"] if c.get("item_uid") == "rmi-cat3scratch1"]
         self.assertEqual(len(ch), 1)
         self.assertEqual(ch[0]["_payload"]["item_notes"], "sold singly")
         self.assertIn("item_notes", [f["column"] for f in ch[0]["fields"]])
         # a file WITHOUT the column keeps the stored note (absent = unchanged)
-        self.assertEqual(csv_importer.build_plan("HVAC", before, category_id="hvac_valve_package")["changes"], [])
+        self.assertEqual(csv_importer.build_plan("HVAC", before, category_id="hvac_insulation")["changes"], [])
 
     def test_the_preview_lists_values_no_row_will_carry(self):
         from nirmaan_stack.api.boq import rate_master
