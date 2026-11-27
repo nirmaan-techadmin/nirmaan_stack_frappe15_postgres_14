@@ -14,6 +14,7 @@
   "attributes_rates_section",
   "attributes",
   "rates",
+  "item_notes",
   "provenance_section",
   "source_sheet",
   "source_row",
@@ -116,11 +117,17 @@
    "fieldtype": "Data",
    "label": "Item UID",
    "search_index": 1
+  },
+  {
+   "description": "CAT-3 (owner 2026-11-26 00:18): a fact about THIS row, shown on Rate Master and where the row prices. Admin edits it in place (audited; no supersede, no recompute). Left OUT of the catalogue stamp and the pricing step's served-catalogue hash: a note changes no list and no price.",
+   "fieldname": "item_notes",
+   "fieldtype": "Small Text",
+   "label": "Item notes"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-12 17:58:40.709528",
+ "modified": "2026-11-28 00:29:21.099220",
  "modified_by": "Administrator",
  "module": "Nirmaan Stack",
  "name": "BoQ Rate Master Item",

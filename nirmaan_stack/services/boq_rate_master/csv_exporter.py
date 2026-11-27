@@ -286,7 +286,7 @@ def _load_full(discipline):
         ITEM_DOCTYPE,
         filters={"discipline": discipline, "active": 1},
         fields=["item_uid", "kind", "brand", "unit", "attributes", "rates",
-                "source_sheet", "source_row"],
+                "source_sheet", "source_row", NOTES_COLUMN],
         order_by="kind asc, item_uid asc",
     )
     for it in items:
@@ -618,11 +618,12 @@ def build_category_rows(discipline, category_id):
     # construction: they are neither an attribute nor a rate key.
     # SLICE 12b(B): `header_keys` stays the UNLABELLED run, because the formula row aligns by name; the
     # labelled cells go out as `headers`. Positions are identical, so only the rate cells' TEXT differs.
-    header_keys = _lead_headers(with_kind, mode_b=False) + attrs + rates + list(FORMULA_COLUMNS)
+    notes = _notes_tail(rows_in)   # CAT-3
+    header_keys = _lead_headers(with_kind, mode_b=False) + attrs + rates + list(FORMULA_COLUMNS) + notes
     labels = derive_rate_column_labels(_load_configs(discipline), discipline)
     rate_hdr = labelled_rate_headers(labels, rates, sorted(cat_kinds.get(category_id) or []))
     headers = (_lead_headers(with_kind, mode_b=False) + attrs
-               + [rate_hdr[r] for r in rates] + list(FORMULA_COLUMNS))
+               + [rate_hdr[r] for r in rates] + list(FORMULA_COLUMNS) + notes)
     texts, derived_by_key = formula_cells_for(cfg, rows_in)
     derived = config_validation.derived_cells(cfg)
     # SLICE 12c FINISH (owner F4): the cells whose figure the RULES compute. They carry the LIVE
@@ -636,6 +637,7 @@ def build_category_rows(discipline, category_id):
             + [it["attributes"].get(a) for a in attrs]
             + [computed.get((it["item_uid"], r), _rate_cell(it, r, derived)) for r in rates]
             + texts.get(it["item_uid"], [FORMULA_TYPED, FORMULA_TYPED])
+            + ([it.get(NOTES_COLUMN) or ""] if notes else [])
         )
     numeric = _numeric_columns(attrs, rates, attr_types)
     return {"headers": headers, "rows": rows, "n": len(rows),
@@ -683,7 +685,8 @@ def build_all_categories_rows(discipline):
     # owner 2026-09-27: within a CATEGORY, the workbook's own row order. Mode B spans every category,
     # so the category groups the file and the workbook orders each group.
     items = sorted(_source_order(items), key=lambda it: kind_cat.get(it["kind"], ""))
-    header_keys = _lead_headers(with_kind, mode_b=True) + attrs + rates + list(FORMULA_COLUMNS)
+    notes = _notes_tail(items)   # CAT-3
+    header_keys = _lead_headers(with_kind, mode_b=True) + attrs + rates + list(FORMULA_COLUMNS) + notes
     # SLICE 12a: Mode B spans every category, so each ROW's formula text is rendered against ITS OWN
     # category's config, and the formula ROW joins the per-category notes for a shared rate column.
     configs = _load_configs(discipline)
@@ -695,7 +698,7 @@ def build_all_categories_rows(discipline):
     _labels = derive_rate_column_labels(configs, discipline)
     rate_hdr = labelled_rate_headers(_labels, rates, sorted({it["kind"] for it in items}))
     headers = (_lead_headers(with_kind, mode_b=True) + attrs
-               + [rate_hdr[r] for r in rates] + list(FORMULA_COLUMNS))
+               + [rate_hdr[r] for r in rates] + list(FORMULA_COLUMNS) + notes)
     items_by_cat = {}
     for it in items:
         items_by_cat.setdefault(kind_cat.get(it["kind"], ""), []).append(it)
@@ -727,6 +730,7 @@ def build_all_categories_rows(discipline):
                             _rate_cell(it, r, derived_cells_by_cat.get(kind_cat.get(it["kind"], "")) or {}))
                for r in rates]
             + texts.get(it["item_uid"], [FORMULA_TYPED, FORMULA_TYPED])
+            + ([it.get(NOTES_COLUMN) or ""] if notes else [])
         )
     return {"headers": headers, "rows": rows, "n": len(rows),
             # translated through the SAME map as the headers -- see `labelled_rate_headers`
@@ -1160,6 +1164,13 @@ def rate_header_cell(rate_key, label):
 
 
 FORMULA_COLUMNS = ("supply_formula", "install_formula")
+# CAT-3 (owner 2026-11-26 00:18): the row's note, LAST, only in a file where some row carries one (`_notes_tail`)
+NOTES_COLUMN = "item_notes"
+
+
+def _notes_tail(rows_in):
+    """CAT-3: [NOTES_COLUMN] when any row of the file carries a note, else [] -- a file with no notes is byte-identical."""
+    return [NOTES_COLUMN] if any(it.get(NOTES_COLUMN) for it in rows_in) else []
 FORMULA_ROW_MARKER = "(formula row -- not an item; ignored on upload)"
 FORMULA_TYPED = "typed"
 # Owner, 2026-09-27: the word that stands in a DERIVED cost cell, so the cell is never EMPTY --

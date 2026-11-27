@@ -145,6 +145,7 @@ _PI_READONLY = set(csv_exporter.PRICING_INPUT_READONLY_COLUMNS)   # SLICE 12b(A)
 _DERIVED_CELL_TEXT = csv_exporter.DERIVED_CELL_TEXT
 _CATEGORY = csv_exporter.CATEGORY_COLUMN        # `category` -- in EVERY file since 1g (Mode B's marker before)
 _DISCIPLINE = csv_exporter.DISCIPLINE_COLUMN    # `discipline` -- in every file since 1g (owner Z-c)
+_NOTES = csv_exporter.NOTES_COLUMN              # CAT-3: `item_notes`, written only where a row carries a note; absent = keep
 FORMAT_XLSX = csv_exporter.FORMAT_XLSX
 FORMAT_CSV = csv_exporter.FORMAT_CSV
 
@@ -441,8 +442,8 @@ def classify_columns(headers, attr_ids, rate_keys):
                            "Column '%s' appears more than once." % name})
             continue
         seen.add(name)
-        if name in (_CATEGORY, _DISCIPLINE):
-            spec["fixed"][name] = idx          # SLICE 1g: self-describing columns, checked in build_plan
+        if name in (_CATEGORY, _DISCIPLINE, _NOTES):
+            spec["fixed"][name] = idx          # SLICE 1g: self-describing columns, checked in build_plan (CAT-3: + the note)
         elif name in _TAIL or name in _FORMULA_COLUMNS:
             spec["ignored"][name] = idx            # a system column from an old file: read past, never applied
         elif pi_file and name in _PI_READONLY:
@@ -825,6 +826,7 @@ def _stored_payload(row):
         else json.loads(row["rates"] or "{}"),
         "source_sheet": row["source_sheet"],
         "source_row": row["source_row"],
+        "item_notes": row.get(_NOTES) or None,   # CAT-3
     }
 
 
@@ -937,7 +939,7 @@ def build_plan(discipline, raw, decisions=None, category_id=None, twin_decisions
         ITEM_DOCTYPE,
         filters={"discipline": discipline, "active": 1},
         fields=["name", "item_uid", "kind", "brand", "unit", "attributes", "rates",
-                "source_sheet", "source_row"],
+                "source_sheet", "source_row", _NOTES],
     )
     by_uid = {}
     for r in active:
@@ -1344,6 +1346,9 @@ def build_plan(discipline, raw, decisions=None, category_id=None, twin_decisions
             "rates": rates,
             "source_sheet": src_sheet,
             "source_row": src_row,
+            # CAT-3: the note column when the file carries it (a blank cell clears it), else the stored note
+            _NOTES: ((_opt(cell(cells, spec["fixed"].get(_NOTES))) or None) if _NOTES in spec["fixed"]
+                     else (stored.get(_NOTES) if stored else None)),
         }
 
         if stored is not None and _canon(new_payload) == _canon(stored):
@@ -1519,7 +1524,7 @@ def _diff_fields(stored, new_payload, spec):
 
     # SLICE 1e: the source pair is system-owned and cannot move through a file, so it is not diffed
     # (a new row's stamp is not a "change" a user made).
-    for key in ("kind", "brand", "unit"):
+    for key in ("kind", "brand", "unit", _NOTES):   # CAT-3: a changed note is shown like a changed unit
         if _canon(old.get(key)) != _canon(new_payload.get(key)):
             fields.append({"space": "fixed", "column": key,
                            "old": _cell(old.get(key)), "new": _cell(new_payload.get(key)),
@@ -1748,6 +1753,7 @@ def apply_plan(discipline, raw, expected_digest=None, decisions=None, accepted_f
             "rates": json.dumps(p["rates"]),
             "source_sheet": p["source_sheet"],
             "source_row": p["source_row"],
+            _NOTES: p.get(_NOTES),   # CAT-3: the note rides the superseding row
             "import_batch": batch,
             "active": 1,
         }).insert(ignore_permissions=True)

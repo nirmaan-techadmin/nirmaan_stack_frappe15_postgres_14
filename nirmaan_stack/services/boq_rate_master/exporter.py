@@ -67,7 +67,7 @@ def _parsed(value, default):
 
 def _item_payload(row):
     """One item, in the loader's shape. `attributes` and `rates` ride through WHOLE."""
-    return {
+    out = {
         "kind": row["kind"],
         "brand": row["brand"],
         "unit": row["unit"],
@@ -80,6 +80,11 @@ def _item_payload(row):
         # label rule. Never stored; the loader recomputes it and REFUSES a file whose labels differ (G-LABEL).
         "labels": catalogue_labels.labels_for(row["kind"], _parsed(row["attributes"], {}))[0],
     }
+    # CAT-3 (owner 2026-11-26 00:18): the row's note is DATA and rides the file; an empty note is not emitted, so a file of a
+    # catalogue with no notes is byte-identical to before.
+    if row.get("item_notes"):
+        out["item_notes"] = row["item_notes"]
+    return out
 
 
 def build_asset(discipline):
@@ -97,7 +102,7 @@ def build_asset(discipline):
         ITEM_DOCTYPE,
         filters={"discipline": discipline, "active": 1},
         fields=["kind", "brand", "unit", "attributes", "rates",
-                "source_sheet", "source_row", "item_uid"],
+                "source_sheet", "source_row", "item_uid", "item_notes"],
         order_by="kind asc, item_uid asc",
     )
     items = [_item_payload(r) for r in item_rows]

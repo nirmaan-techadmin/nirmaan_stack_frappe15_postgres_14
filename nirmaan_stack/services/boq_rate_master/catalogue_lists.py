@@ -75,7 +75,7 @@ EXCLUDES_KEY = "catalogue_excludes"
 # the item attribute a SKU's display name is read from, first present wins
 NAME_ATTRS = ("item", "item_name", "description")
 
-PLACEHOLDER_RE = re.compile(r"\{\{(cat|item):([^{}]*)\}\}")
+PLACEHOLDER_RE = re.compile(r"\{\{(cat|item|note):([^{}]*)\}\}")   # CAT-3: note = an item's `item_notes`, by item_uid
 
 _MEMO: dict = {}   # {discipline: (monotonic_time, built)} -- the per-worker served-path memo
 
@@ -230,7 +230,7 @@ def build(items, configs, stamp=None):
         if cid:
             lists[cid] = classify_and_rebuild(cfg, by_kind)
             item_values[cid] = category_item_values(cfg, by_kind)
-    names, values = {}, {}
+    names, values, notes = {}, {}, {}
     for i in items:
         if not i.get("active", 1):
             continue
@@ -238,12 +238,13 @@ def build(items, configs, stamp=None):
         uid = (i.get("item_uid") or "").strip()
         if uid:
             names[uid] = {k: v for k, v in a.items() if isinstance(v, (str, int, float)) and not isinstance(v, bool)}
+            notes[uid] = i.get("item_notes") or ""
         for k, v in a.items():
             if isinstance(v, (str, int, float)) and not isinstance(v, bool) and v not in ("", None):
                 values.setdefault(k, set()).add(v)
     return {"stamp": stamp or compute_stamp(items, configs), "lists": lists, "names": names,
             "values": {k: sorted(v, key=lambda x: (str(type(x)), str(x))) for k, v in values.items()},
-            "item_values": item_values}
+            "item_values": item_values, "notes": notes, "notes_sha": notes_sha(items)}
 
 
 # ── the merge + the fill (PURE) ─────────────────────────────────────────────────────────────────────────────────────
@@ -291,8 +292,15 @@ def item_name(names, uid, attr=None):
     return None
 
 
+def notes_sha(items):
+    """CAT-3: sha256 (16 hex) of the active items' notes -- the cache's freshness check for the {{note:}} fill. Deliberately NOT
+    part of `compute_stamp`: a note changes no list, so CAT-1's catalogue stamp leaves it out."""
+    return hashlib.sha256(canon(sorted([(i.get("item_uid") or "", i.get("item_notes") or "") for i in items
+                                        if i.get("active", 1) and i.get("item_notes")])).encode("utf-8")).hexdigest()[:16]
+
+
 def parse_placeholder(kind, body):
-    """-> ("cat", attr, value, mods) | ("item", uid, attr|None, mods) | None (malformed)."""
+    """-> ("cat", attr, value, mods) | ("item", uid, attr|None, mods) | ("note", uid, None, mods) | None (malformed)."""
     parts = body.split("|")
     head, mods = parts[0], [m.strip() for m in parts[1:]]
     if any(m not in ("lower", "trim") for m in mods):
@@ -308,6 +316,8 @@ def parse_placeholder(kind, body):
     uid = bits[0].strip()
     if not uid or len(bits) > 2:
         return None
+    if kind == "note":
+        return ("note", uid, None, mods) if len(bits) == 1 else None
     return ("item", uid, bits[1].strip() if len(bits) == 2 and bits[1].strip() else None, mods)
 
 
@@ -327,6 +337,14 @@ def resolve_placeholder(kind, body, built):
         if value not in set((built.get("values") or {}).get(attr) or ()):
             return _apply_mods(value, mods), f"names {attr} = '{value}' - no active SKU carries it"
         return _apply_mods(value, mods), None
+    if p[0] == "note":
+        _, uid, _attr, mods = p
+        if uid not in (built.get("names") or {}):
+            return UNRESOLVED_ITEM_TEXT, f"names the note of item {uid} - no active SKU has that id"
+        note = (built.get("notes") or {}).get(uid) or ""
+        if not note.strip():
+            return note, f"names the note of item {uid} - that item's note is empty"
+        return _apply_mods(note, mods), None
     _, uid, attr, mods = p
     name = item_name(built.get("names") or {}, uid, attr)
     if name is None:
@@ -392,7 +410,7 @@ def _parse(v, default):
 
 def _read(discipline):
     items = frappe.get_all(ITEM_DOCTYPE, filters={"discipline": discipline, "active": 1},
-                           fields=["kind", "brand", "unit", "attributes", "item_uid"], order_by="name asc")
+                           fields=["kind", "brand", "unit", "attributes", "item_uid", "item_notes"], order_by="name asc")
     for i in items:
         i["attributes"] = _parse(i.get("attributes"), {})
         i["active"] = 1
@@ -416,7 +434,8 @@ def current(discipline, fresh=True):
     stamp = compute_stamp(items, configs)
     cached = frappe.cache().get_value(cache_key(discipline))
     # CAT-3: a store cached before `item_values` existed is rebuilt once (same stamp, one more key)
-    if isinstance(cached, dict) and cached.get("stamp") == stamp and "item_values" in cached:
+    if isinstance(cached, dict) and cached.get("stamp") == stamp and "item_values" in cached \
+            and cached.get("notes_sha") == notes_sha(items):   # CAT-3: a note edit refreshes the {{note:}} fill, not the stamp
         built = cached
     else:
         built = build(items, configs, stamp)

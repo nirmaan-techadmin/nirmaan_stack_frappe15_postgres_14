@@ -8,6 +8,7 @@
  *   {{cat:<attr>=<value>}}        the value exactly as written, when an active SKU carries it on <attr>;
  *   {{item:<item_uid>}}           the SKU's name (the first of item / item_name / description that is set);
  *   {{item:<item_uid>:<attr>}}    that attribute of the SKU;
+ *   {{note:<item_uid>}}           the SKU's own note (`item_notes`; CAT-3) -- refused when the SKU is gone or its note is empty;
  *   |lower  |trim                 applied left to right (Python str.lower / str.strip).
  * `catalogueFill.parity.test.ts` pins it to the Python fill byte for byte (the fixture the Python side writes and re-checks).
  *
@@ -20,10 +21,12 @@ export type FillItem = {
   kind?: unknown; brand?: unknown; item_uid?: unknown; active?: unknown; attributes?: Record<string, unknown> | null;
   [k: string]: unknown;
 };
-export type FillBuilt = { values: Record<string, unknown[]>; names: Record<string, Record<string, string | number>> };
+export type FillBuilt = { values: Record<string, unknown[]>; names: Record<string, Record<string, string | number>>;
+  /** CAT-3: each active SKU's note by item_uid ("" when it has none) */
+  notes?: Record<string, string> };
 export type FillProblem = [where: string, problem: string];
 
-export const PLACEHOLDER_RE = /\{\{(cat|item):([^{}]*)\}\}/g;
+export const PLACEHOLDER_RE = /\{\{(cat|item|note):([^{}]*)\}\}/g;
 const NAME_ATTRS = ["item", "item_name", "description"] as const;
 const UNRESOLVED_ITEM_TEXT = "an item no longer in the catalogue";
 // Python's str.strip() whitespace (str.isspace), so `|trim` strips exactly what the server strips -- NOT JavaScript's trim(), which also
@@ -52,6 +55,7 @@ const isActive = (i: FillItem): boolean => {
 export function buildFillCatalogue(items: FillItem[]): FillBuilt {
   const values: Record<string, Set<unknown>> = {};
   const names: FillBuilt["names"] = {};
+  const notes: Record<string, string> = {};
   for (const i of items) {
     if (!isActive(i)) continue;
     const a = attrsOf(i);
@@ -60,15 +64,16 @@ export function buildFillCatalogue(items: FillItem[]): FillBuilt {
       const n: Record<string, string | number> = {};
       for (const [k, v] of Object.entries(a)) if (isScalar(v)) n[k] = v;
       names[uid] = n;
+      notes[uid] = typeof i.item_notes === "string" ? i.item_notes : "";
     }
     for (const [k, v] of Object.entries(a)) {
       if (isScalar(v) && v !== "") (values[k] ??= new Set()).add(v);
     }
   }
-  return { values: Object.fromEntries(Object.entries(values).map(([k, s]) => [k, [...s]])), names };
+  return { values: Object.fromEntries(Object.entries(values).map(([k, s]) => [k, [...s]])), names, notes };
 }
 
-type Parsed = ["cat", string, string, string[]] | ["item", string, string | null, string[]] | null;
+type Parsed = ["cat", string, string, string[]] | ["item", string, string | null, string[]] | ["note", string, null, string[]] | null;
 
 /** Python `parse_placeholder`. */
 export function parsePlaceholder(kind: string, body: string): Parsed {
@@ -86,6 +91,7 @@ export function parsePlaceholder(kind: string, body: string): Parsed {
   const bits = head.split(":");
   const uid = pyStrip(bits[0]);
   if (!uid || bits.length > 2) return null;
+  if (kind === "note") return bits.length === 1 ? ["note", uid, null, mods] : null;
   const attr = bits.length === 2 && pyStrip(bits[1]) ? pyStrip(bits[1]) : null;
   return ["item", uid, attr, mods];
 }
@@ -116,6 +122,13 @@ export function resolvePlaceholder(kind: string, body: string, built: FillBuilt)
     const [, attr, value, mods] = p;
     const carried = (built.values[attr] ?? []).some((v) => typeof v === "string" && v === value);
     return [applyMods(value, mods), carried ? null : `names ${attr} = '${value}' - no active SKU carries it`];
+  }
+  if (p[0] === "note") {
+    const [, uid, , mods] = p;
+    if (built.names[uid] === undefined) return [UNRESOLVED_ITEM_TEXT, `names the note of item ${uid} - no active SKU has that id`];
+    const note = built.notes?.[uid] ?? "";
+    if (!pyStrip(note)) return [note, `names the note of item ${uid} - that item's note is empty`];
+    return [applyMods(note, mods), null];
   }
   const [, uid, attr, mods] = p;
   const name = itemName(built.names, uid, attr);

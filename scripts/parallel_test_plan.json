@@ -2653,6 +2653,22 @@
    "writes": [],
    "reads": []
   },
+  "nirmaan_stack.services.boq_rate_master.test_cat3_item_notes": {
+   "seconds": 19.7,
+   "series": [],
+   "writes": [
+    "tabBoQ Rate Master Item"
+   ],
+   "reads": [
+    "tabAssignment Rule",
+    "tabBlock Module",
+    "tabBoQ Rate Category Config",
+    "tabBoQ Rate Master Snapshot",
+    "tabMilestone Tracker",
+    "tabServer Script",
+    "tabWorkflow"
+   ]
+  },
   "nirmaan_stack.services.boq_rate_master.test_catalogue_gate": {
    "seconds": 13.3,
    "series": [],

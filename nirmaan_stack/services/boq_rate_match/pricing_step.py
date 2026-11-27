@@ -96,9 +96,29 @@ def load_asset():
             configs[cid] = cfg
     payload = {"configs": configs, "itemsByDiscipline": items_by}
     snap = frappe.db.sql('select name from "tabBoQ Rate Master Snapshot" order by creation desc limit 1')
-    canon = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":")).encode()
+    canon = _version_canon(payload)
     version = f"{snap[0][0] if snap else 'no-snapshot'}:{_sha256(canon)[:16]}"
     return payload, version
+
+
+def _version_canon(payload):
+    """CAT-3 (owner 2026-11-26 00:18): the bytes the served-catalogue version hashes -- the payload with every item's
+    `item_notes` left out, and each note's text in the served configs (filled from a `{{note:<item_uid>}}`) put back as its
+    placeholder, so a note edit (wording only) moves no version and stales no stored rate. Nothing else is left out."""
+    notes = {}
+    items_by = {}
+    for d, items in (payload.get("itemsByDiscipline") or {}).items():
+        items_by[d] = []
+        for it in items:
+            n = it.get("item_notes")
+            if n and it.get("item_uid"):
+                notes[it["item_uid"]] = n
+            items_by[d].append({k: v for k, v in it.items() if k != "item_notes"})
+    text = json.dumps({"configs": payload.get("configs"), "itemsByDiscipline": items_by}, sort_keys=True, default=str,
+                      separators=(",", ":"))
+    for uid, n in sorted(notes.items(), key=lambda kv: -len(kv[1])):
+        text = text.replace(json.dumps(n)[1:-1], "{{note:%s}}" % uid)
+    return text.encode()
 
 
 def current_stamp(code_stamp, asset_version):

@@ -30,4 +30,6 @@ export interface BoQRateMasterItemDocType {
 	active?: 0 | 1
 	/** Item UID : Data */
 	item_uid?: string | null
+	/** Item notes : Small Text */
+	item_notes?: string | null
 }

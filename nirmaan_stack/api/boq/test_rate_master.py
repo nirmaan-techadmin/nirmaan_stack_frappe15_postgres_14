@@ -7517,8 +7517,10 @@ class TestRateMasterFreeze(FrappeTestCase):
         because it supersedes by RAW SQL and never touches doc.save. A guard on only one mechanism
         would leave the other wide open -- and the csv path has the larger blast radius.
         ADP-5a (owner D9): 6 -> 4 in the api module -- the two config endpoints were removed (BEFORE: five
-        audited doc.save endpoints plus the csv one, count 6)."""
-        self.assertEqual(_rmf_source(rate_master).count("freeze.guard_not_frozen()"), 4)
+        audited doc.save endpoints plus the csv one, count 6).
+        CAT-3 PIN P-FREEZE (owner 2026-11-26 00:18, R5): 4 -> 5 -- the Admin note edit `save_rate_master_item_note` is a write
+        and is guarded like the other audited doc.save endpoints."""
+        self.assertEqual(_rmf_source(rate_master).count("freeze.guard_not_frozen()"), 5)
         self.assertEqual(_rmf_source(csv_importer).count("freeze.guard_not_frozen()"), 1)
         self.assertIs(rate_master.freeze.guard_not_frozen, freeze.guard_not_frozen)
         self.assertIs(csv_importer.freeze.guard_not_frozen, freeze.guard_not_frozen)

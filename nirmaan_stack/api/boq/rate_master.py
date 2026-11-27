@@ -66,6 +66,7 @@ def get_rate_master_items(discipline=None, kind=None):
             "source_sheet",
             "source_row",
             "import_batch",
+            "item_notes",   # CAT-3 (owner 2026-11-26 00:18): read by everyone with Rate Master access; edited by Admin only
         ],
         order_by="kind asc, source_row asc",
     )
@@ -1762,6 +1763,57 @@ def deactivate_rate_master_item(name=None):
     return {"ok": True, "active": 0}
 
 
+# ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+# CAT-3 (owner 2026-11-26 00:18, R5: "who may edit the notes on an item? I recommend Admin only ... --agree"; 00:10, R6): ITEM
+# NOTES and THE "WHAT STOPS WORKING" LIST. Both Admin-gated FIRST (`_require_rate_admin`); everyone with Rate Master access READS
+# a note through `get_rate_master_items`. A note is edited IN PLACE (audited doc.save, no supersede, no recompute): it changes no
+# list, no price and no stamp (CAT-1's catalogue stamp and the pricing step's served-catalogue hash both leave it out).
+# ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+ITEM_NOTES_FIELD = "item_notes"
+
+
+@frappe.whitelist(methods=["POST"])
+def save_rate_master_item_note(name=None, item_notes=None):
+    """ADMIN-ONLY: save `item_notes` on one catalogue row, in place (audited doc.save; no supersede, no recompute, no stamp move).
+    Returns {ok, name, item_notes}. URL: .../rate_master.save_rate_master_item_note"""
+    _require_rate_admin()  # BEFORE resolution/write
+    freeze.guard_not_frozen()  # DEPLOYMENT FREEZE -- a write
+    if not name:
+        frappe.throw("name is required.", title="Missing field: name")
+    text = "" if item_notes is None else str(item_notes)
+    doc = frappe.get_doc(ITEM_DOCTYPE, name)  # 404s cleanly if missing
+    if not doc.active:
+        frappe.throw("This rate row is inactive; its note cannot be edited.", title="Row inactive")
+    if (doc.get(ITEM_NOTES_FIELD) or "") != text:
+        doc.set(ITEM_NOTES_FIELD, text)
+        doc.save(ignore_permissions=True, ignore_version=False)  # AUDITED; no recompute -- a note is no rate
+        frappe.db.commit()
+    return {"ok": True, "name": doc.name, "item_notes": text}
+
+
+@frappe.whitelist()
+def rate_master_item_usage(name=None, proposed_values=None):
+    """ADMIN-ONLY, READ-ONLY: what stops working if this row is DEACTIVATED (no `proposed_values`) or EDITED to `proposed_values`
+    ({attr: value}, JSON or dict; brand / kind / unit allowed). Built on CAT-1's reference registry (`item_usage`). Returns
+    {action, will_stop: [{config, path, message}], still_works: n, also: [...], labels, last_carrier_of, ms}. Never blocks."""
+    _require_rate_admin()  # BEFORE any read
+    if not name:
+        frappe.throw("name is required.", title="Missing field: name")
+    from nirmaan_stack.services.boq_rate_master import item_usage
+    discipline = frappe.db.get_value(ITEM_DOCTYPE, name, "discipline")
+    if not discipline:
+        frappe.throw("No rate row %s." % name, frappe.DoesNotExistError)
+    pv = _parse_json(proposed_values, None) if isinstance(proposed_values, str) else proposed_values
+    items, configs = item_usage.read_discipline(discipline)
+    row = next((i for i in items if i["name"] == name), None)
+    if row is None:   # an inactive row: nothing references it as a live carrier any more
+        return {"action": "edit" if pv else "deactivate", "will_stop": [], "still_works": 0, "also": [], "labels": {},
+                "last_carrier_of": [], "ms": 0.0}
+    out, ms = item_usage.timed(item_usage.usage, configs, items, row, pv if isinstance(pv, dict) else None, discipline)
+    out["ms"] = ms
+    return out
+
+
 # ── RM-4b: rate-master STRUCTURE EDITING (admin-only) ─────────────────────────────────────────────
 # The structural validator -- `_validate_config` and its vocabulary (`_KNOWN_STEP_TYPES`,
 # `_KNOWN_DEF_KEYS`, `_KNOWN_CONFIG_KEYS`), `_validate_params`, the suffix constants and the small
@@ -1981,7 +2033,24 @@ def preview_rate_master_csv(discipline=None, content_base64=None, csv_text=None,
 
     plan = csv_importer.build_plan(discipline, _decode_upload(content_base64, csv_text),
                                    category_id=(category_id or None))
-    return csv_importer.public_plan(plan)
+    out = csv_importer.public_plan(plan)
+    out["values_no_row_will_carry"] = _values_no_row_will_carry(discipline, plan)   # CAT-3 (R6): read-only, from the same plan
+    return out
+
+
+def _values_no_row_will_carry(discipline, plan):
+    """CAT-3 (owner 2026-11-26 00:10, R6): the CSV preview's "Values no row will carry after this upload" -- the catalogue as it
+    stands vs as it WOULD stand once this plan's changes apply (an update replaces its row; an add joins; a CSV never removes a
+    row). READ-ONLY. {"values": [[attr, value], ...], "will_stop": [{config, path, message}]}."""
+    from nirmaan_stack.services.boq_rate_master import item_usage
+    items, configs = item_usage.read_discipline(discipline)
+    replaced = {c.get("name") for c in plan.get("changes") or [] if c.get("kind") == "update" and c.get("name")}
+    after = [i for i in items if i["name"] not in replaced]
+    for c in plan.get("changes") or []:
+        p = c.get("_payload") or {}
+        after.append({"name": None, "item_uid": c.get("item_uid"), "kind": p.get("kind"), "brand": p.get("brand"),
+                      "unit": p.get("unit"), "attributes": p.get("attributes") or {}, "active": 1})
+    return item_usage.values_no_row_will_carry(configs, items, after, discipline)
 
 
 @frappe.whitelist(methods=["POST"])

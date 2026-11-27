@@ -375,6 +375,7 @@ def load_rate_master(payload=None, path=None, replace=False):
                 # Carried through from the payload exactly like brand/unit. A legacy asset (v29 and
                 # earlier) carries none, and .get() yields None -- which is why nothing else changes.
                 "item_uid": it.get("item_uid"),
+                "item_notes": it.get("item_notes"),   # CAT-3: the row's note rides the file (None in every older file)
                 "attributes": json.dumps(attrs),
                 "rates": json.dumps(it["rates"]),
                 "source_sheet": src.get("sheet"),
@@ -529,6 +530,7 @@ def _load_multi(payload, replace):
                 # Carried through from the payload exactly like brand/unit. A legacy asset (v29 and
                 # earlier) carries none, and .get() yields None -- which is why nothing else changes.
                 "item_uid": it.get("item_uid"),
+                "item_notes": it.get("item_notes"),   # CAT-3: the row's note rides the file (None in every older file)
                 "attributes": json.dumps(attrs),
                 "rates": json.dumps(it["rates"]),
                 "source_sheet": src.get("sheet"),
