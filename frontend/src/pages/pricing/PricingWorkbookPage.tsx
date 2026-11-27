@@ -69,7 +69,7 @@ import { ImportReportDialog, reportIsNoop } from "./ImportReportDialog";
 import { REASON_NEEDS_HELPER, applyHelperFixesOffline, applyLiveFix, assessHit } from "./pricingLiveFix";
 import { attachDataValidations } from "./pricingValidations";
 import { installDropdownSearch } from "./pricingDropdownSearch";
-import { workbookForPath } from "./pricingWorkbooks";
+import { spreadsheetOnForPath, workbookForPath } from "./pricingWorkbooks";
 import { PRICING_ROOT_CLASS_NORMAL, pricingRootClass, shouldExitPricingFullscreenOnEsc } from "./pricingHelpers";
 import { cn } from "@/lib/utils";
 import { PricingCalculator, calculatorDisciplineForPath } from "./PricingCalculator";
@@ -189,13 +189,36 @@ function csrfToken(): string {
  * `list_workbooks` + `get_workbook` run again, read-only, and `get_workbook` writes one
  * `Pricing Access Log` "open" row per return, as it does on every load. The full-screen overlay
  * (`fixed inset-0`) still covers the tab strip, unchanged.
+ *
+ * BCS-6b (owner R-BCS-152 Q2 b / Q3 a / Q5 a): THE SPREADSHEET SWITCH. A page whose registry entry has `spreadsheet: false`
+ * (`pricingWorkbooks.ts`; Electrical today) renders the Calculator alone - no tab strip - and never mounts the sheet, so its
+ * workbook and Sandbox cannot be opened. HVAC (strip: Spreadsheet + Calculator) and ELV (the sheet alone) are unchanged.
+ *
+ * BCS-6b - THE TAB IS NO LONGER CARRIED ACROSS PRICING PAGES. The three routes render the same element at the same place
+ * (routesConfig.tsx), so React kept ONE instance of this page - and its `tab` state - when the user moved between them: a
+ * Calculator chosen on HVAC was still chosen on the next page. The page is now keyed by its workbook path, so each Pricing
+ * page mounts fresh on its own default. (This also remounts the sheet between two sheet pages, e.g. HVAC -> ELV, which is
+ * what the route comment above asks for.)
  */
 export function PricingWorkbookPage() {
 	const { pathname } = useLocation();
+	const pageKey = workbookForPath(pathname)?.path ?? pathname;
+	return <PricingWorkbookPageFor key={pageKey} pathname={pathname} />;
+}
+
+function PricingWorkbookPageFor({ pathname }: { pathname: string }) {
 	const calculatorDiscipline = useMemo(() => calculatorDisciplineForPath(pathname), [pathname]);
+	const spreadsheetOn = spreadsheetOnForPath(pathname, calculatorDiscipline !== null);
 	const [tab, setTab] = useState<PricingPageTab>("sheet");
 
 	if (!calculatorDiscipline) return <PricingWorkbookSheet />;
+	if (!spreadsheetOn) {
+		return (
+			<div className={PRICING_ROOT_CLASS_NORMAL}>
+				<PricingCalculator discipline={calculatorDiscipline} />
+			</div>
+		);
+	}
 
 	return (
 		<div className={PRICING_ROOT_CLASS_NORMAL}>
