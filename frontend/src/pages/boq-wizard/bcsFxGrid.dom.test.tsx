@@ -100,7 +100,7 @@ describe("BCS-FX K2 the grid's cost payload (typed 0, cleared box)", () => {
 });
 
 // BCS-FX K5 (owner Q16 (b)): "On summary" shows in full at the default width - the installation column seeds at 128 px
-// (the other cost columns stay 112) and its box is w-24 (96 px; the other boxes stay w-20). jsdom does no text layout,
+// (the other cost columns stay 112) and its box is w-24 px-2 (96 px, 78 px of text room; the other boxes stay w-20). jsdom does no text layout,
 // so "the text fits" is proven in the live browser (canvas measureText at the C11 re-cert), not here.
 describe("BCS-FX K5 the installation placeholder's room", () => {
   it("(+) the installation column seeds at 128 px; (-) the supply column keeps 112", () => {
@@ -118,7 +118,7 @@ describe("BCS-FX K5 the installation placeholder's room", () => {
     const supply = host.querySelector(`td[data-colkey='${bcsWidthKey("supply")}'] input`) as HTMLInputElement;
     expect(install.placeholder).toBe("On summary");
     expect(install.className).toContain(BCS_INSTALL_BOX_CLASS);
-    expect(BCS_INSTALL_BOX_CLASS).toBe("w-24");
+    expect(BCS_INSTALL_BOX_CLASS).toBe("w-24 px-2"); // 96 px wide, 78 px of text room (the 72 px placeholder fits)
     expect(supply.className).toContain("w-20");
     expect(supply.className).not.toContain(BCS_INSTALL_BOX_CLASS);
   });
