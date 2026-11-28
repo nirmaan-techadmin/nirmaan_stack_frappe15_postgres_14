@@ -2,7 +2,7 @@
 /**
  * CAT-3 K5b (cert D1 / D2, ANSWER 14 - the approved mockup: "This is the only active Automatic Air Vent."):
  *  + the Deactivate box's head and the note editor's title name the row by its OWN item name (here a non-spec Valve Package grid,
- *    where the dialog's old label is the kind) - and the RM-4a first line keeps its old label (out of scope);
+ *    where the dialog's old label is the kind) - and, since K5c (ANSWER 18), the RM-4a first line names it too;
  *  + each distinct plain line shows once in the box; the Admin fold still lists every raw place;
  *  + usageRowName's order: item_name, item, the config's identity value, then the fallback.
  * jsdom + react-dom/client only, like cat3RateMasterScreen.dom.test.tsx. Data: the HVAC v92 rate file's Automatic Air Vent row.
@@ -58,7 +58,7 @@ describe("CAT-3 K5b - the row named by its own item name; each plain line once",
     expect(VALVE.identity_attribute_id ?? null).not.toBe("item_name");
   });
 
-  it("+ Deactivate: the head names 'Automatic Air Vent' (the mockup); the RM-4a first line keeps the old label; one line shown once, the fold keeps both", async () => {
+  it("+ Deactivate: the head names 'Automatic Air Vent' (the mockup); the RM-4a first line names it too (K5c); one line shown once, the fold keeps both", async () => {
     const { host, cleanup } = render();
     try {
       act(() => { (host.querySelector('[aria-label="Deactivate row"]') as HTMLButtonElement).click(); });
@@ -67,7 +67,9 @@ describe("CAT-3 K5b - the row named by its own item name; each plain line once",
       const box = dialog.querySelector('[data-testid="deactivate-usage-box"]') as HTMLElement;
       expect(box.textContent).toContain("This is the only active Automatic Air Vent. These stop working");
       expect(box.textContent).not.toContain("hvac_valve_item");
-      expect(dialog.textContent).toMatch(/hvac_valve_item\s*will drop from the active list/);   // RM-4a, unchanged (ANSWER 14)
+      // PIN P-K5c3 (ANSWER 18 point 3): the RM-4a line names the row too - BEFORE (ANSWER 14): "hvac_valve_item will drop ..."
+      expect(dialog.textContent).toMatch(/Automatic Air Vent will drop from the active list/);
+      expect(dialog.textContent).not.toContain("hvac_valve_item");
       const items = Array.from(box.querySelectorAll(":scope > ul > li")).map((li) => li.textContent);
       expect(items.filter((t) => t === LINE).length).toBe(1);
       expect(items.length).toBe(2);

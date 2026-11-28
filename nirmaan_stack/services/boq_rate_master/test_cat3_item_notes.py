@@ -185,7 +185,8 @@ class TestUsage(FrappeTestCase):
         vent = next(i for i in self.items if "air vent" in str(i["attributes"].get("item_name", "")).lower())
         after = [i for i in self.items if i is not vent] + [dict(vent, attributes=dict(vent["attributes"], item_name="cat3 renamed"))]
         out = item_usage.values_no_row_will_carry(self.configs, self.items, after, "HVAC")
-        self.assertIn(["item_name", vent["attributes"]["item_name"]], out["values"])
+        # PIN P-K5c1 (ANSWER 18): each lost value is [key, value, column heading] - the heading is the screen's, never the key
+        self.assertIn(["item_name", vent["attributes"]["item_name"], "Item"], out["values"])
         self.assertTrue(out["will_stop"])
         self.assertEqual(item_usage.values_no_row_will_carry(self.configs, self.items, list(self.items), "HVAC"),
                          {"values": [], "will_stop": []})
@@ -273,7 +274,7 @@ class TestCsvRoundTrip(_Scratch):
         vent = next(i for i in item_usage.read_discipline("HVAC")[0] if "air vent" in str(i["attributes"].get("item_name", "")).lower())
         name = vent["attributes"]["item_name"]
         out = rate_master.preview_rate_master_csv(discipline="HVAC", csv_text=text.replace(name, name + " X"), category_id="hvac_valve_package")
-        self.assertIn(["item_name", name], out["values_no_row_will_carry"]["values"])
+        self.assertIn(["item_name", name, "Item"], out["values_no_row_will_carry"]["values"])   # PIN P-K5c1
         self.assertTrue(out["values_no_row_will_carry"]["will_stop"])
         same = rate_master.preview_rate_master_csv(discipline="HVAC", csv_text=text, category_id="hvac_valve_package")
         self.assertEqual(same["values_no_row_will_carry"], {"values": [], "will_stop": []})
@@ -309,3 +310,51 @@ class TestLoaderGateCarriesNotes(FrappeTestCase):
                 with self.assertRaises(frappe.ValidationError) as cm:
                     config_validation.validate_catalogue_references(configs, items, "HVAC")
                 self.assertIn("note", str(cm.exception))
+
+
+class TestPlainNames(FrappeTestCase):
+    """CAT-3 K5c (owner review point 3, ANSWER 18): no code name in any line the usage list can show. Every attribute key reads as
+    its column heading (a placeholder in a heading is filled), the category as its display name; the CSV preview's lost values carry
+    the heading. The raw places stay in the Admin fold only. Read-only (the live HVAC catalogue)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.items, cls.configs = item_usage.read_discipline("HVAC")
+
+    def _fill(self, t):
+        from nirmaan_stack.services.boq_rate_master import catalogue_gate
+        return catalogue_lists.fill_text(t, catalogue_gate.build(self.items, self.configs))
+
+    def test_every_choice_list_and_default_line_reads_the_heading_not_the_key(self):
+        checked = 0
+        for cfg in self.configs:
+            for d in (cfg.get("list_spec") or {}).get("attribute_definitions") or []:
+                aid, label = d.get("id"), d.get("label")
+                if not aid or not label or "_" not in aid:
+                    continue
+                for path in ("list_spec.attribute_definitions[%s].values" % aid, "list_spec.defaults.%s" % aid):
+                    line = item_usage.describe(cfg, path, self._fill)
+                    self.assertNotIn(aid, line, line)
+                    self.assertNotIn("{{", line, line)
+                    self.assertIn(self._fill(label), line, line)
+                    checked += 1
+        self.assertGreater(checked, 50)
+
+    def test_the_air_vent_lines_carry_no_code_name(self):
+        vent = next(i for i in self.items if str(i["attributes"].get("item_name", "")).lower() == "automatic air vent")
+        out = item_usage.usage(self.configs, self.items, vent, None, "HVAC")
+        keys = {d.get("id") for c in self.configs for defs in (((c.get("list_spec") or {}).get("attribute_definitions")) or [],
+                c.get("attribute_definitions") or []) for d in defs if isinstance(d, dict) and "_" in str(d.get("id") or "")}
+        lines = [s["line"] for s in out["will_stop"]]
+        self.assertTrue(lines)
+        for line in lines:
+            self.assertFalse([k for k in keys if k in line], line)
+            self.assertNotIn("hvac_", line, line)
+            self.assertNotIn("{{", line, line)
+        self.assertIn("Valve Package: the Valve type list offers it", lines)
+
+    def test_attr_label_falls_back_to_a_readable_word(self):
+        self.assertEqual(item_usage.attr_label([], "pipe_class"), "Pipe class")
+        self.assertEqual(item_usage.attr_label({"attribute_definitions": [{"id": "x_y", "label": "Shown"}]}, "x_y"), "Shown")
+

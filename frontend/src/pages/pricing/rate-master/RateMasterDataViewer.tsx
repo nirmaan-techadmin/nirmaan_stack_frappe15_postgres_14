@@ -284,6 +284,7 @@ export function RateMasterDataViewer({
   const [deactivateUsage, setDeactivateUsage] = useState<ItemUsage | null>(null);
   const [deactivateUsageLoading, setDeactivateUsageLoading] = useState(false);
   const [editUsage, setEditUsage] = useState<ItemUsage | null>(null);
+  const [editConfirm, setEditConfirm] = useState<RateMasterItem | null>(null);   // CAT-3 K5c: the Edit pop-up's row
   // CAT-3: the Admin line above the grid filters to the rows the label rule could not label
   const [onlyFlagged, setOnlyFlagged] = useState(false);
   // SLICE 12b(A), owner ruling 2026-09-28 -- THE SCREEN MUST NOT LIE ABOUT A REFUSAL.
@@ -714,26 +715,24 @@ export function RateMasterDataViewer({
     setDraftRates(rr);
     setEditingRow(it.name ?? null);
   };
-  // CAT-3 (CAT-D1 review caveat 1): while a row is edited, the changed values are checked (debounced) against the catalogue
-  useEffect(() => {
-    setEditUsage(null);
-    if (!editingRow || !onItemUsage) return;
-    const it = scopedItems.find((x) => x.name === editingRow);
-    if (!it) return;
+  // CAT-3 K5c (owner review point 2, ANSWER 18): Save checks the changed values against the catalogue FIRST; when something
+  // would stop working, a pop-up of the Deactivate dialog's form asks (Cancel / "Save anyway"). Never blocks: a failed check saves.
+  const requestSave = async (it: RateMasterItem) => {
+    if (!onItemUsage || !it.name) { await saveEdit(it); return; }
     const proposed: Record<string, unknown> = {};
     for (const d of editableAttrCols) {
       const raw = draftAttrs[d.id] ?? "";
       if (raw !== cellText(it.attributes?.[d.id])) proposed[d.id] = specMode ? raw : coerceAttributeForStorage(d, raw);
     }
-    if (!Object.keys(proposed).length) return;
-    let live = true;
-    const t = setTimeout(() => {
-      onItemUsage(editingRow, proposed).then((u) => { if (live) setEditUsage(u); }).catch(() => { if (live) setEditUsage(null); });
-    }, 400);
-    return () => { live = false; clearTimeout(t); };
-  }, [editingRow, draftAttrs, onItemUsage]);   // eslint-disable-line react-hooks/exhaustive-deps
+    if (!Object.keys(proposed).length) { await saveEdit(it); return; }
+    const u = await onItemUsage(it.name, proposed).catch(() => null);
+    if (usageWarns(u)) { setEditUsage(u); setEditConfirm(it); return; }
+    await saveEdit(it);
+  };
 
   const cancelEdit = () => {
+    setEditUsage(null);
+    setEditConfirm(null);
     setEditingRow(null);
     setRowErr(null);
     setRowAsk(null);
@@ -1328,22 +1327,13 @@ export function RateMasterDataViewer({
                       <div className="flex flex-col items-end gap-1">
                         <div className="flex items-center justify-end gap-1">
                           {rowErr && <span className="text-[10px] text-destructive">{rowErr}</span>}
-                          {usageWarns(editUsage) ? (
-                            <Button size="sm" variant="outline" className="h-7" disabled={rowSaving || !!rowTwinAsk} aria-label="Save row" onClick={() => void saveEdit(r.it)}>
-                              Save anyway
-                            </Button>
-                          ) : (
-                            <Button size="icon" variant="ghost" className="h-7 w-7" disabled={rowSaving || !!rowTwinAsk} aria-label="Save row" onClick={() => void saveEdit(r.it)}>
-                              <Check className="h-4 w-4 text-emerald-600" />
-                            </Button>
-                          )}
+                          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={rowSaving || !!rowTwinAsk} aria-label="Save row" onClick={() => void requestSave(r.it)}>
+                            <Check className="h-4 w-4 text-emerald-600" />
+                          </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7" disabled={rowSaving} aria-label="Cancel edit" onClick={cancelEdit}>
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
-                        {usageWarns(editUsage) ? (
-                          <div className="max-w-md text-left"><ItemUsageBox usage={editUsage} label={rowName(r.it)} isAdmin={!!isAdmin} testId="edit-usage-box" /></div>
-                        ) : null}
                         {rowTwinAsk && rowTwinAsk.name === r.it.name ? (
                           // SLICE 1f (owner Y-e): the edit would make this item mean the same as another one.
                           <TwinQuestion twin={rowTwinAsk.twin} busy={rowSaving} onAnswer={(d) => void answerRowTwin(d)} testId="row-twin-question" />
@@ -1655,7 +1645,7 @@ export function RateMasterDataViewer({
           <AlertDialogHeader>
             <AlertDialogTitle>Deactivate this rate row?</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmDeactivate?.label} will drop from the active list (it is retained inactive, never
+              {confirmDeactivate?.name_for_usage ?? confirmDeactivate?.label} will drop from the active list (it is retained inactive, never
               deleted). New suggestions stop using it.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1666,6 +1656,23 @@ export function RateMasterDataViewer({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => void doDeactivate()}>{usageWarns(deactivateUsage) ? "Deactivate anyway" : "Deactivate"}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* CAT-3 K5c (owner review point 2): the Edit warning, in the Deactivate dialog's form -- never blocks */}
+      <AlertDialog open={!!editConfirm} onOpenChange={(o) => { if (!o) { setEditConfirm(null); setEditUsage(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save this change?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The change to {editConfirm ? rowName(editConfirm) : ""} is not saved yet.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ItemUsageBox usage={editUsage} label={editConfirm ? rowName(editConfirm) : ""} isAdmin={!!isAdmin} testId="edit-usage-box" />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const it = editConfirm; setEditConfirm(null); if (it) void saveEdit(it); }}>Save anyway</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

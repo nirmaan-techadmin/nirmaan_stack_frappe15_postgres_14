@@ -123,7 +123,7 @@ export interface UploadTarget {
 
 /** CAT-3 (R6): the preview's "Values no row will carry after this upload" (read-only, from the same plan). */
 export interface ValuesNoRowWillCarry {
-  values: Array<[string, unknown]>;
+  values: Array<[string, unknown, string?]>;   // [attribute key, value, its column heading (CAT-3 K5c)]
   will_stop: Array<{ config: string; path: string; message: string; line?: string }>;
 }
 

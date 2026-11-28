@@ -96,7 +96,7 @@ export function ItemUsageBox({ usage, label, isAdmin, loading, testId }: {
 
 /** CAT-3 (R6, the mockup): the CSV preview's section "Values no row will carry after this upload" -- listed, never blocking. */
 export function UploadValuesLost({ lost }: {
-  lost?: { values: Array<[string, unknown]>; will_stop: UsageLine[] } | null;
+  lost?: { values: Array<[string, unknown, string?]>; will_stop: UsageLine[] } | null;
 }) {
   if (!lost || lost.values.length === 0) return null;
   return (
@@ -106,7 +106,8 @@ export function UploadValuesLost({ lost }: {
         <span>Values no row will carry after this upload ({lost.values.length})</span>
       </div>
       <ul className="ml-5 list-disc">
-        {lost.values.map(([attr, v]) => <li key={`${attr}=${String(v)}`}>{attr}: &quot;{String(v)}&quot;</li>)}
+        {/* CAT-3 K5c: the column heading people see (the server's label), never the attribute key */}
+        {lost.values.map(([attr, v, label]) => <li key={`${attr}=${String(v)}`}>{label || attr}: &quot;{String(v)}&quot;</li>)}
       </ul>
       {lost.will_stop.length > 0 ? (
         <>

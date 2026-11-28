@@ -127,23 +127,34 @@ describe("CAT-3 the Rate Master screen", () => {
     }
   });
 
-  it("+ Edit: a change that leaves a value without a carrier shows the box and 'Save anyway'; an unchanged row does not ask", async () => {
+  // PIN P-K5c2 (owner review point 2, ANSWER 18): the Edit warning is a POP-UP of the Deactivate dialog's form, asked on Save -
+  // BEFORE: an inline box in the actions column while typing (debounced) and the row button reading "Save anyway".
+  it("+ Edit: Save on a change that leaves a value without a carrier opens the pop-up (Cancel / 'Save anyway'); Cancel saves nothing", async () => {
     const asked: Array<Record<string, unknown> | undefined> = [];
+    let saved = 0;
     const { host, cleanup } = render(cables.map((c) => toItem(c)), {
-      isAdmin: true, onSaveItem: async () => undefined,
+      isAdmin: true, onSaveItem: async () => { saved += 1; return undefined; },
       onItemUsage: async (_n, proposed) => { asked.push(proposed); return { ...STOPS, action: "edit" }; },
     });
     try {
       act(() => { (host.querySelector('[aria-label="Edit row"]') as HTMLButtonElement).click(); });
-      await flush(450);
-      expect(asked).toEqual([]);                                                       // nothing changed yet: no question
       const input = host.querySelector("tbody input") as HTMLInputElement;
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
       act(() => { setter.call(input, `${input.value}-renamed`); input.dispatchEvent(new Event("input", { bubbles: true })); });
       await flush(500);
+      expect(asked).toEqual([]);                                                       // typing asks nothing
+      expect(host.querySelector('[data-testid="edit-usage-box"]')).toBeNull();          // no inline box any more
+      act(() => { (host.querySelector('[aria-label="Save row"]') as HTMLButtonElement).click(); });
+      await flush();
       expect(asked.length).toBe(1);
-      expect(host.querySelector('[data-testid="edit-usage-box"]')).not.toBeNull();
-      expect(button(host, "Save anyway")).toBeDefined();
+      const dialog = document.querySelector('[role="alertdialog"]') as HTMLElement;
+      expect(dialog.textContent).toMatch(/Save this change\?/);
+      expect(dialog.querySelector('[data-testid="edit-usage-box"]')).not.toBeNull();
+      expect(button(dialog, "Save anyway")).toBeDefined();
+      act(() => { button(dialog, "Cancel")!.click(); });
+      await flush();
+      expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+      expect(saved).toBe(0);
     } finally { cleanup(); }
   });
 
