@@ -47,8 +47,9 @@ export interface BcsDelta {
   excelRow: number;
   field: BcsRateField;
   draftKey: string;
-  oldValue: number;
-  newValue: number;
+  /** BCS-FX (R-BCS-175): null = the box was / becomes "not entered" (cleared), never a 0. */
+  oldValue: number | null;
+  newValue: number | null;
   /** row.description -- carried so a replay can send the same save args (optional). */
   description?: string;
 }

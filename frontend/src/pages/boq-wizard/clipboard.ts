@@ -141,7 +141,8 @@ export function foldBcsWrites(
   entries: readonly {
     excelRow: number;
     field: BcsRateField;
-    value: number;
+    /** BCS-FX (R-BCS-175): null = a cleared box ("not entered"), never a 0. */
+    value: number | null;
     description?: string;
   }[],
   baseline: (excelRow: number) => BcsRowRates,
@@ -155,6 +156,14 @@ export function foldBcsWrites(
       byRow.set(e.excelRow, args);
     }
     args.rates[e.field] = e.value;
+  }
+  // BCS-FX (BCSFX-30 Q12 (a), the same rule as PricingGrid.gatherBcsForRow): a row the gesture writes a NUMBER into sends its
+  // EMPTY boxes as 0, so a pasted / redone 0 on a never-costed row saves a 0; a gesture that only clears keeps them null.
+  const numbered = new Set(entries.filter((e) => typeof e.value === "number").map((e) => e.excelRow));
+  for (const args of byRow.values()) {
+    if (!numbered.has(args.excelRow)) continue;
+    const r = args.rates;
+    args.rates = { supply_rate: r.supply_rate ?? 0, install_rate: r.install_rate ?? 0, combined_rate: r.combined_rate ?? 0 };
   }
   return [...byRow.values()].map((args) => ({ kind: "bcs" as const, args }));
 }

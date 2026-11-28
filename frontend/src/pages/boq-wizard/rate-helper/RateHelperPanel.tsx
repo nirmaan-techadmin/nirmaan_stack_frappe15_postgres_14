@@ -37,7 +37,7 @@ import {
 } from "./pricingSheetHelper";
 import { moneyValue } from "./attributeWorkingLines";
 // BCS-3: the ONE section piece (tag, colour, open / folded) the panel and the calculator draw both sections with
-import { PriceSection } from "./PriceSection";
+import { BcsFillFieldsLine, PriceSection } from "./PriceSection";
 import { BCS_INSTALL_NOTE, bcsExactText, bcsFigureText, bcsLine, boqFigureText, boqLine, parseBcsValue } from "./bcsSide";
 import { neverAskedDisplay } from "./pricingSheetHelper";
 import { ScopeBox } from "./ScopeBox";
@@ -480,6 +480,12 @@ interface RateHelperPanelProps {
    */
   showCost?: boolean;
   /**
+   * BCS-FX (owner R-BCS-180, ODD-12): the Calculator only -- the category has a cost calculation and the viewer may see cost, so
+   * until the fields are filled the panel shows the blue section folded: "BCS - our cost: fill the fields to see it". Absent /
+   * false = nothing (the BoQ editor, a non-cost viewer, a category with no BCS calculation).
+   */
+  costHint?: boolean;
+  /**
    * BCS-4 (owner R1): the OPENED row's saved helper edits (get_row_helper_edits). The panel seeds its attribute overrides
    * from them before its first compute, so every view of the row -- and a fresh mount after a reload -- computes from the same
    * overrides. Absent (the calculator, a viewer the read refused) = nothing seeded, exactly as before.
@@ -545,7 +551,7 @@ export function hasSessionEdits(
   return anyAttr || Object.keys(finals).length > 0;
 }
 
-export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onClose, variant = "embedded", calculatorBlocks, fieldColumns, blockColumns, target = "rate", showCost = false, savedEdits, onSaveEdit, onClearEdits }: RateHelperPanelProps) {
+export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onClose, variant = "embedded", calculatorBlocks, fieldColumns, blockColumns, target = "rate", showCost = false, costHint = false, savedEdits, onSaveEdit, onClearEdits }: RateHelperPanelProps) {
   // RM-3b: a row is loaded iff we have its context. Absent => the empty-state placeholder.
   const hasSelection = ctx != null && excelRow != null && col != null && kind != null;
   // Panel-session state ONLY (never persisted): per-helper attribute edits, which card is expanded,
@@ -1345,6 +1351,8 @@ export function RateHelperPanel({ excelRow, col, kind, ctx, helpers, onUse, onCl
                             </div>
                           </PriceSection>
                         )}
+                        {/* BCS-FX (ODD-12): before the fields are filled, the cost section shows folded with what it needs */}
+                        {!bcs && isCalculator && showCost && costHint && <BcsFillFieldsLine className="order-1" />}
                         {/* BCS-W (owner 20:09 "ok"; mockup board 3): the installation line ONCE, below the sections */}
                         {bcs && bcsOpen && bcs.installNote && (
                           <p className={cn("px-1 text-xs text-muted-foreground", isCalculator && "order-1")} data-testid="bcs-install-note">{bcs.installNote}</p>

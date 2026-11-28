@@ -68,8 +68,9 @@ describe("BCS-5 the sheet-summary line", () => {
   it("(+) a ticked sheet, a cost user: the line under the table with the live Rs per sq ft and the block margin", async () => {
     await mount();
     const line = [...host!.querySelectorAll("p")].find((p) => p.textContent?.startsWith("This sheet"));
-    expect(line?.textContent).toBe("This sheet’s margin counts installation typed on its rows. The BoQ’s installation cost (area x Rs "
-      + "42 + floor cutting) is in the BoQ summary on the BoQ’s main page: margin there 19.0% for the ticked sheets.");
+    // BCS-FX moved check T2-6 (R-BCS-181 W11, word for word; the 42 still the setting's figure)
+    expect(line?.textContent?.replace(/\s+/g, " ")).toBe("This sheet’s margin counts only the installation typed on its rows. The BoQ’s installation cost "
+      + "(area x Rs 42 + floor cutting) is added in the BoQ summary on the BoQ’s main page. Enter the area there to see the full margin.");
     expect(host!.querySelector("table")!.compareDocumentPosition(line!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
   it("(-) an unticked sheet: no line", async () => {

@@ -1040,15 +1040,21 @@ class TestBcsCombinedRate(_BcsEndpointBase):
         self.assertEqual(cur[0]["combined_rate"], 0.0)
         self.assertEqual(cur[0]["supply_rate"], 5.0)
 
-    def test_an_empty_string_combined_rate_is_zero_not_an_error(self):
-        """The HTTP shape: a cleared input arrives as "". The two halves already coerce it
-        to 0.0 and this must not be stricter."""
+    def test_an_empty_string_beside_a_filled_box_is_zero_and_alone_clears_the_row(self):
+        """The HTTP shape: a cleared input arrives as "". BCS-FX moved check K2-1 (R-BCS-175, released TABLE 1), INVERTED:
+        "" beside a filled box still stores 0.0 and is never an error (the negative half kept); "" with every other box
+        cleared too removes the row's cost - no current record, never a stored 0."""
         self._ready()
+        save_row_bcs_rates(
+            boq_name=self.boq, sheet_name=self.sheet, excel_row=10,
+            committed_version=self.cv, supply_rate=5.0, combined_rate="",
+        )
+        self.assertEqual(self._current(10)[0]["combined_rate"], 0.0)
         save_row_bcs_rates(
             boq_name=self.boq, sheet_name=self.sheet, excel_row=10,
             committed_version=self.cv, combined_rate="",
         )
-        self.assertEqual(self._current(10)[0]["combined_rate"], 0.0)
+        self.assertEqual(self._current(10), [], "every box cleared: the row has no cost")
 
     def test_a_non_numeric_combined_rate_is_refused_by_name(self):
         """The same named refusal the halves get -- a number field says so, rather than
@@ -2097,3 +2103,107 @@ class TestSuggestSwitchesBcsOn(FrappeTestCase):
                 enable_bcs_for_suggest(self.boq, sheet, 1)
         finally:
             frappe.db.rollback()
+
+
+# ===========================================================================
+# BCS-FX (owner R-BCS-175 "2 is ok"; QR-CLEAR ruled (a), chat-Claude 01:36): a CLEARED cost box is "not entered", never 0
+# ===========================================================================
+class TestBcsClearedBox(_BcsEndpointBase):
+    """(+) every box cleared -> the row's cost is removed: the current record frozen (kept in history), NO new current record,
+    so the sheet read returns nothing for the row (the screens show it blank); (+) a typed 0 keeps a record holding 0;
+    (-) clearing never stores a 0; (+) a cleared row re-typed later gets a fresh current record and the frozen one stays frozen;
+    (+) mixed boxes: the cleared box stores 0; (+) clearing a row that has no cost writes nothing."""
+
+    def setUp(self):
+        super().setUp()
+        self._make_ready()
+
+    def _save(self, excel_row=10, **rates):
+        return save_row_bcs_rates(boq_name=self.boq, sheet_name=self.sheet, excel_row=excel_row,
+                                  committed_version=self.cv, **rates)
+
+    def _read(self, excel_row=10):
+        rows = get_sheet_bcs_rates(boq_name=self.boq, sheet_name=self.sheet, committed_version=self.cv)["rows"]
+        return [r for r in rows if r["excel_row"] == excel_row]
+
+    def test_every_box_cleared_removes_the_rows_cost_and_keeps_the_history(self):
+        self._save(supply_rate=10000.0)
+        res = self._save(supply_rate=None, install_rate=None, combined_rate=None)
+        self.assertEqual(res, {"ok": True, "cleared": True, "froze_prior": 1})
+        self.assertEqual(self._current(10), [], "no current record: the row has no cost")
+        self.assertEqual(self._read(10), [], "the sheet read returns nothing for the row -> blank cell, BCS Total, % Margin")
+        versions = self._all_versions(10)
+        self.assertEqual([(v["bcs_version"], v["is_current"]) for v in versions], [(1, 0)], "the old record kept, frozen")
+
+    def test_the_http_shape_empty_strings_clear_too(self):
+        self._save(combined_rate=50.0)
+        res = self._save(supply_rate="", install_rate="", combined_rate="")
+        self.assertTrue(res["cleared"])
+        self.assertEqual(self._current(10), [])
+
+    def test_clearing_never_stores_a_zero(self):
+        self._save(supply_rate=10000.0)
+        self._save()   # nothing sent = every box cleared
+        zeros = frappe.get_all(_BCS, filters={"boq": self.boq, "excel_row": 10, "is_current": 1},
+                               fields=["supply_rate", "install_rate", "combined_rate"])
+        self.assertEqual(zeros, [], "a cleared box must not become a stored 0 (BOQ-26-00227 row 49's history, ODD-4)")
+
+    def test_a_typed_zero_keeps_a_record_holding_zero(self):
+        # BCSFX-30 Q12 (a): the grid sends a typed number with the empty siblings as 0 -> {0, 0, 0}, nothing cleared -> saved
+        res = self._save(supply_rate=0, install_rate=0, combined_rate=0)
+        self.assertNotIn("cleared", res)
+        cur = self._current(10)
+        self.assertEqual(len(cur), 1)
+        self.assertEqual((cur[0]["supply_rate"], cur[0]["is_filled"]), (0.0, 1))
+        self._save(supply_rate=0, install_rate=0, combined_rate="0")   # the grid's payload for a typed "0" (BCSFX-30 Q12)
+        self.assertEqual(self._current(10)[0]["combined_rate"], 0.0, "a typed \"0\" is a value, not a clear")
+
+    def test_a_cleared_row_retyped_gets_a_fresh_current_record(self):
+        self._save(supply_rate=100.0)
+        self._save()
+        res = self._save(supply_rate=150.0)
+        self.assertEqual((res["bcs_version"], res["froze_prior"]), (2, 0))
+        versions = self._all_versions(10)
+        self.assertEqual([(v["bcs_version"], v["is_current"]) for v in versions], [(1, 0), (2, 1)])
+        self.assertEqual(self._current(10)[0]["supply_rate"], 150.0)
+
+    def test_mixed_boxes_store_the_cleared_one_as_zero(self):
+        self._save(supply_rate=100.0, install_rate=None)
+        cur = self._current(10)[0]
+        self.assertEqual((cur["supply_rate"], cur["install_rate"], cur["combined_rate"]), (100.0, 0.0, 0.0))
+
+    def test_clearing_a_row_with_no_cost_writes_nothing(self):
+        res = self._save()
+        self.assertEqual(res, {"ok": True, "cleared": True, "froze_prior": 0})
+        self.assertEqual(self._all_versions(10), [])
+
+    # BCS-FX K2+3 reviewer finding 1 (Question 11): the GRID's own payload after a clear. The server stores 0.0 in every box
+    # nobody typed in, and the grid merges the saved record back as strings ("0"), so clearing the ONE typed box sends
+    # {null, 0, 0} - the end-to-end chain (P3d): saved record -> the grid's gather -> save -> no current record.
+    def test_e2e_clearing_the_one_typed_box_from_the_grid_removes_the_cost(self):
+        self._save(supply_rate=10000.0)                       # the server fills install / combined with 0.0
+        payload = {"supply_rate": None, "install_rate": 0.0, "combined_rate": 0.0}   # bcsColumns.gatherBcsRowRates' output
+        self._save(**payload)
+        self.assertEqual(self._current(10), [], "clearing the only typed box from the grid leaves no stored cost")
+        self.assertEqual(self._read(10), [])
+
+    def test_e2e_a_combined_only_row_cleared_from_the_grid_removes_the_cost(self):
+        # BOQ-26-00227 row 49's shape (ODD-4): a one-rate sheet, the combined box typed, the hidden halves stored as 0.0
+        self._save(combined_rate=10000.0)
+        self._save(supply_rate=0.0, install_rate=0.0, combined_rate=None)
+        self.assertEqual(self._current(10), [])
+
+    def test_e2e_a_real_figure_beside_the_cleared_box_stays(self):
+        self._save(supply_rate=100.0, install_rate=50.0)
+        self._save(supply_rate=None, install_rate=50.0, combined_rate=0.0)
+        cur = self._current(10)[0]
+        self.assertEqual((cur["supply_rate"], cur["install_rate"]), (0.0, 50.0), "mixed: the cleared box stores 0, the 50 stays")
+
+    def test_e2e_a_typed_zero_on_a_fresh_row_saves_zero_and_clearing_it_removes_the_cost(self):
+        # BCSFX-30 Q12 (a), end to end: the grid's payload for "0" typed on a never-costed row is {0, 0, 0} (the empty siblings
+        # filled with 0 because the committed box holds a number) -> a record holding 0; clearing it afterwards sends {null, 0, 0}
+        self._save(supply_rate=0.0, install_rate=0.0, combined_rate=0.0)
+        cur = self._current(10)
+        self.assertEqual((len(cur), cur[0]["supply_rate"], cur[0]["is_filled"]), (1, 0.0, 1), "a typed 0 stays 0 (R6)")
+        self._save(supply_rate=None, install_rate=0.0, combined_rate=0.0)
+        self.assertEqual(self._current(10), [], "cleared: the row's cost removed")

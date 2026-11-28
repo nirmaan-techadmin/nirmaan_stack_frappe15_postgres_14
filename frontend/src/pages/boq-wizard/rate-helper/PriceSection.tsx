@@ -29,6 +29,21 @@ const LOOK: Record<PriceSide, { box: string; tag: string }> = {
   bcs: { box: "bg-blue-50 border-blue-300 dark:bg-blue-950/30 dark:border-blue-800", tag: "bg-blue-700 text-white" },
 };
 
+/** BCS-FX (owner R-BCS-180, ODD-12): the Calculator's folded BCS line before the fields are filled, word for word. */
+export const BCS_FILL_FIELDS_TEXT = `${SECTION_TAG.bcs}: fill the fields to see it`;
+
+/** BCS-FX (ODD-12): the blue "BCS - our cost" section FOLDED until the fields are filled -- a sign the Calculator also gives our
+ *  cost. Shown only where the caller decides (a cost viewer, on a category with a cost calculation); it carries no figure. */
+export function BcsFillFieldsLine({ className }: { className?: string }) {
+  return (
+    <div data-testid="price-section-bcs-fill-fields" aria-expanded={false}
+      className={cn("flex w-full items-center justify-between gap-2 rounded-md border px-2 py-1 text-left text-xs text-blue-900 dark:text-blue-100", LOOK.bcs.box, className)}>
+      <span>{BCS_FILL_FIELDS_TEXT}</span>
+      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+    </div>
+  );
+}
+
 export interface PriceSectionProps {
   side: PriceSide;
   /** open = the body shows; folded = one line: the tag, the figure, a chevron */

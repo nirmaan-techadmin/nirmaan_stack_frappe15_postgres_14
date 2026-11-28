@@ -994,14 +994,15 @@ export function mergeBcsRowValues(
  * be dropped here in silence. `test: gatherBcsRowRates covers every BCS_RATE_FIELDS key` closes
  * exactly that gap -- keep the two lists in step or that test fires.
  *
- * Absent / blank / partial-decimal -> 0, mirroring `commitRate`'s parseFloat semantics exactly
- * (and the server's own coercion), so a cleared box and a typed "-" both save as 0.
+ * BCS-FX (owner R-BCS-175, 28 Nov "2 is ok"; QR-CLEAR): a CLEARED box -- absent, blank, or a partial decimal that is no number
+ * ("-", ".") -- is sent as null ("not entered"), never 0; a typed 0 is sent as 0. Until BCS-FX a cleared box saved as 0, which is
+ * how BOQ-26-00227 row 49 came to hold a stored 0 (BCS-RV1 ODD-4). The server decides what a null stores (`save_row_bcs_rates`).
  */
 export function gatherBcsRowRates(merged: Record<BcsRateField, string | null>): BcsRowRates {
-  const num = (v: string | null): number => {
-    if (v === null || v === "") return 0;
+  const num = (v: string | null): number | null => {
+    if (v === null || v.trim() === "") return null;
     const n = parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
+    return Number.isFinite(n) ? n : null;
   };
   return {
     supply_rate: num(merged.supply_rate),

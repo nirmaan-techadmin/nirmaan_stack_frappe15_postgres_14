@@ -36,9 +36,12 @@ import {
   type BcsRollupInput,
   type RollupNode,
 } from "./pricingRollup";
-import { bcsBlankReasonText, formatBcsMargin, type BcsComputedCell } from "./bcsColumns";
-import type { BcsSectionTotals } from "./bcsRollup";
-import { BoqSummarySheetLine, RowRangeList } from "./BoqSummaryBlock";
+import { bcsAmountAxes } from "./bcsColumns";
+import { BoqSummarySheetLine, RowRangeList, useThisSheetTicked } from "./BoqSummaryBlock";
+import { NOT_FINAL_LINE, POINT5_TEXT, point5MarkedRowIndexes, point5Rows } from "./bcsPoint5";
+// BCS-FX (file size, rule S1): the BCS cells of a row moved to their own module.
+import { bcsCells } from "./summaryBcsCells";
+import { indianAmount } from "./indianAmount";
 import type {
   ColumnDescriptor,
   ColumnFormula,
@@ -70,43 +73,15 @@ const BCS_HEADERS: ReadonlyArray<{ label: string; title: string }> = [
 // (design v1.6 §6). classification is the lowercase taxonomy (effective_classification).
 const SHOWN_CLASSIFICATIONS = new Set(["preamble", "line_item"]);
 
-/** Display a rolled amount: blank for absent, "0" for zero, locale-grouped otherwise. */
-function fmtAmount(n: number | null | undefined): string {
-  if (n === null || n === undefined) return "";
-  if (n === 0) return "0";
-  return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
+/** BCS-FX (owner R-BCS-179 / ODD-5): the "BoQ amount" column on a sheet with no Amount (Total) column -- the figure the margin
+ *  divides by (supply amount + install amount), the rollup's own `tendered`. */
+const BOQ_AMOUNT_HEADER = { label: "BoQ amount", title: "BoQ amount — supply amount + install amount, the figure the % Margin divides by" };
+/** BCS-FX (owner R-BCS-180 / ODD-9): a ticked sheet's own margin leaves out the BoQ's installation (it is on the BoQ summary). */
+export const MARGIN_BEFORE_INSTALL = "% Margin (before the BoQ's installation)";
 
-/**
- * BCS-S5: one row's three BCS cells, rendered OUTSIDE the `columns.map` loop.
- *
- * ⚠️ A BLANK IS NEVER A 0 HERE, and the reason is carried in the `title` -- the same rule the
- * grid's computed cells keep. A section nobody has costed shows an EMPTY cost cell and an EMPTY
- * % Margin; rendering 0 / 0% would be a confident claim ("this section costs nothing", "we make
- * nothing on it") about a section where nothing is known. `fmtAmount` already distinguishes the
- * two: null -> "", a genuine 0 -> "0".
- *
- * No colour scale, deliberately: the grid presents % Margin as plain right-aligned figures, and a
- * second visual language for the same number in the panel above it would be its own confusion.
- */
-function bcsCells(totals: BcsSectionTotals | undefined, keyPrefix: string, cls: string) {
-  const marginCell: BcsComputedCell = totals?.margin ?? { kind: "blank", reason: "no_cost" };
-  return (
-    <>
-      <td key={`${keyPrefix}-cost`} className={cls}>
-        {fmtAmount(totals?.cost ?? null)}
-      </td>
-      {/* BCS-S8: the tendered `<td>` was removed here. `totals.tendered` is deliberately still
-          populated -- `sectionMarginPercent` divides by it. */}
-      <td
-        key={`${keyPrefix}-margin`}
-        className={cls}
-        title={marginCell.kind === "blank" ? bcsBlankReasonText(marginCell.reason) : undefined}
-      >
-        {marginCell.kind === "value" ? formatBcsMargin(marginCell.value) : null}
-      </td>
-    </>
-  );
+/** Display a rolled amount: blank for absent, "0" for zero, Indian grouping otherwise (BCS-FX: one Indian style, ODD-7). */
+function fmtAmount(n: number | null | undefined): string {
+  return indianAmount(n);
 }
 
 interface FlatRow {
@@ -176,6 +151,19 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
     return amountExceptions(rows, columnDescriptors, columnFormulas, reconChoices, costRows);
   }, [rows, columnDescriptors, columnFormulas, reconChoices, bcs]);
   const showCostNote = !!bcs;
+  // BCS-FX (owner R-BCS-174; QR-P5-SOURCE (a)): note point 5 and the margin's "*" -- only where the cost axis shows (cost viewers,
+  // BCS on). It READS the rollup's own row amounts and the stored cost rows (`bcsPoint5.ts`); no figure is worked out again.
+  const point5 = useMemo(
+    () => (bcs ? point5Rows({ roots, columns, ratesByExcelRow: bcs.ratesByExcelRow, kinds: bcs.kinds, leftOut: exceptions.leftOut, rows,
+      descriptors: columnDescriptors }) : []),
+    [bcs, roots, columns, exceptions, rows, columnDescriptors],
+  );
+  const notFinalRows = useMemo(() => point5MarkedRowIndexes(roots, point5), [roots, point5]);
+  // BCS-FX (R-BCS-179): no Amount (Total) column on the sheet -> the panel shows the BoQ amount the margin divides by.
+  const showBoqAmount = !!bcsRollup && !columns.some((c) => bcsAmountAxes(c.descriptor)?.kind === "total");
+  const bcsHeaders = [...(showBoqAmount ? [BOQ_AMOUNT_HEADER] : []), ...BCS_HEADERS];
+  // BCS-FX (R-BCS-180 / ODD-9): on a ticked sheet's own panel the margin is labelled "before the BoQ's installation".
+  const ticked = useThisSheetTicked();
 
   // Default view = expanded down to the shallowest preamble tier (computed from data).
   const [collapsed, setCollapsed] = useState<Set<number>>(() => defaultCollapsedSet(roots));
@@ -300,7 +288,7 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
                 {/* BCS-S5: the three cost columns, rendered OUTSIDE the columns.map loop. They
                     have no backing ColumnDescriptor, so they are NOT members of `columns`. */}
                 {bcsRollup &&
-                  BCS_HEADERS.map((h) => (
+                  bcsHeaders.map((h) => (
                     <th
                       key={h.label}
                       className={cn(
@@ -309,7 +297,7 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
                       )}
                       title={h.title}
                     >
-                      {h.label}
+                      {ticked && h === BCS_HEADERS[1] ? MARGIN_BEFORE_INSTALL : h.label}
                     </th>
                   ))}
               </tr>
@@ -318,7 +306,7 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
               {visible.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={1 + columns.length + (bcsRollup ? BCS_HEADERS.length : 0)}
+                    colSpan={1 + columns.length + (bcsRollup ? bcsHeaders.length : 0)}
                     className="px-2 py-6 text-center text-sm text-muted-foreground"
                   >
                     No priceable rows to summarize.
@@ -388,6 +376,8 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
                             "px-2 py-1.5 text-right align-top border-l border-border tabular-nums",
                             COL_W,
                           ),
+                          notFinalRows.has(node.rowIndex),
+                          showBoqAmount,
                         )}
                     </tr>
                   );
@@ -421,10 +411,16 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
                     bcsRollup.grand,
                     "bcs-grand",
                     cn("px-2 py-2 text-right border-l border-border tabular-nums", COL_W),
+                    point5.length > 0,
+                    showBoqAmount,
                   )}
               </tr>
             </tfoot>
           </table>
+          {bcsRollup && point5.length > 0 && (bcsRollup.grand.margin.kind === "value" // only when a "*" shows
+            || [...notFinalRows].some((i) => bcsRollup.byRowIndex.get(i)?.margin.kind === "value")) && (
+            <p className="px-3 py-1.5 text-xs text-muted-foreground" data-note="not-final">{NOT_FINAL_LINE}</p>
+          )}
         </div>
       )}
       {/* BCS-6a P2g -- THE NOTE (owner R-BCS-156 / 158 / 159, R3 / R5 / R6; mockup board 2), wording verbatim. BELOW the
@@ -433,10 +429,10 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
       {showCostNote && (
         <div className="px-3 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground" data-note="how-boq-amount-taken">
           <p className="font-medium text-foreground">How the BoQ amount was taken on this sheet</p>
-          <p className="mt-0.5">Every row: quantity x the rate you chose, as shown in the Amount column. Three exceptions, listed by row:</p>
+          <p className="mt-0.5">Every row: quantity x the rate you chose, as shown in the Amount column. Exceptions, listed by row:</p>
           <ol className="mt-1 list-decimal pl-5 space-y-0.5">
             <li data-exception="kept-document">Priced in the app, but the uploaded file&rsquo;s amount was kept instead of quantity x your rate (you
-              chose &ldquo;keep the document&rsquo;s amount&rdquo;): <RowRangeList rows={exceptions.keptDocument} onJump={onJumpToRow} /></li>
+              chose &quot;Keep document&quot;): <RowRangeList rows={exceptions.keptDocument} onJump={onJumpToRow} /></li>
             <li data-exception="file-rate">Not priced in the app yet (no rate entered here), so the rate written in the uploaded file is used:{" "}
               <RowRangeList rows={exceptions.fileRate} onJump={onJumpToRow} /></li>
             <li data-exception="left-out">No rate in the app or in the uploaded file, so left out of the margin (amount and cost):{" "}
@@ -446,6 +442,10 @@ const SummaryPanel = ({ rows, columnDescriptors, columnFormulas, reconChoices, b
               <li data-exception="suspect">The rates/amounts on these rows appear incorrect. Please review them and change if required.{" "}
                 <RowRangeList rows={exceptions.suspect} onJump={onJumpToRow} /></li>
             )}
+            {/* BCS-FX (owner R-BCS-174 / R-BCS-181): point 5, always with the cost note (beside point 4 whenever point 4 shows), always
+                numbered "5." -- "none on this sheet" when no row is listed. */}
+            <li value={5} data-exception="no-bcs-supply">{POINT5_TEXT}{" "}
+              <RowRangeList rows={point5} onJump={onJumpToRow} /></li>
           </ol>
         </div>
       )}

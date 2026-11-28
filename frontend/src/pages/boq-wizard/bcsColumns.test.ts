@@ -1121,10 +1121,11 @@ describe("mergeBcsRowValues + gatherBcsRowRates -- THE WHOLE-ROW GATHER", () => 
     expect(gatherBcsRowRates(merged).combined_rate).toBe(77);
   });
 
-  it("treats a CLEARED box as 0, not as absent", () => {
+  // BCS-FX moved check T2-7 (R-BCS-175), INVERTED: a cleared box is "not entered" (null), never 0; the untouched sibling keeps its value
+  it("treats a CLEARED box as null (not entered), never 0", () => {
     const saved = { supply_rate: 100, install_rate: 40, combined_rate: 0 };
     const merged = mergeBcsRowValues(saved, new Map([["supply_rate", ""]]));
-    expect(gatherBcsRowRates(merged).supply_rate).toBe(0);
+    expect(gatherBcsRowRates(merged).supply_rate).toBeNull();
     expect(gatherBcsRowRates(merged).install_rate).toBe(40);
   });
 
@@ -1134,19 +1135,21 @@ describe("mergeBcsRowValues + gatherBcsRowRates -- THE WHOLE-ROW GATHER", () => 
       install_rate: null,
       combined_rate: null,
     });
+    // BCS-FX moved check T2-8 (R-BCS-175): all three keys still sent; the untouched ones are null ("not entered"), not 0
     expect(gatherBcsRowRates(mergeBcsRowValues(undefined, new Map([["supply_rate", "9"]])))).toEqual({
       supply_rate: 9,
-      install_rate: 0,
-      combined_rate: 0,
+      install_rate: null,
+      combined_rate: null,
     });
   });
 
-  it("coerces a partial decimal to 0 rather than NaN (mirrors commitRate)", () => {
+  // BCS-FX moved check T2-9 (R-BCS-175): a partial decimal holds no number -> null, never NaN and never 0
+  it("coerces a partial decimal to null (not entered) rather than NaN or 0", () => {
     const merged = mergeBcsRowValues(undefined, new Map([["supply_rate", "-"], ["install_rate", "."]]));
     expect(gatherBcsRowRates(merged)).toEqual({
-      supply_rate: 0,
-      install_rate: 0,
-      combined_rate: 0,
+      supply_rate: null,
+      install_rate: null,
+      combined_rate: null,
     });
   });
 

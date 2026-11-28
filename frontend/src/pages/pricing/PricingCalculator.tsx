@@ -41,7 +41,9 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronDown } from "lucide-react";
 import { RATE_MASTER_DISCIPLINES, calculatorEntry } from "./rate-master/rateMasterRegistry";
+import { CALCULATOR_LINE, PICKER_SCROLL_CUE, PICKER_VISIBLE, hasCostCalculation, offeredCount, offeredInCalculator } from "./calculatorPicker";
 import type { RateCategoryConfig } from "./rate-master/rateMasterTypes";
 import {
   RATE_MASTER_CONFIG_TARGETS,
@@ -334,6 +336,7 @@ export function PricingCalculator({ discipline }: { discipline: string }) {
   const { data: itemsData } = useRateMasterItems(true, discipline);
   const { role, user_id } = useUserData();
   const showCost = canSeeBcsCost(role, user_id);
+  const pickerCount = useMemo(() => offeredCount(calculatorEntry(entry)?.categories ?? [], configsByCategory), [entry, configsByCategory]);
   const ownItems = useMemo(() => itemsData?.message?.items ?? [], [itemsData]);
   // SLICE 3 (L6): an aliased category prices with its TARGET discipline's items, so every alias target
   // discipline is fetched too (one child per discipline) and merged behind the own set, deduplicated by
@@ -439,17 +442,24 @@ export function PricingCalculator({ discipline }: { discipline: string }) {
           <SelectContent>
             {(calculatorEntry(entry)?.categories ?? []).map((c) => {
               const cfg = configsByCategory.get(c.category_id);
+              if (!offeredInCalculator(cfg)) return null; // BCS-FX (ODD-13): Pricing Inputs prices nothing
               return (
                 <SelectItem key={c.category_id} value={c.category_id}>
                   {cfg ? categoryLabel(cfg) : c.label}
                 </SelectItem>
               );
             })}
+            {/* BCS-FX (ODD-13): a visible cue that the list scrolls, when it holds more than fit. */}
+            {pickerCount > PICKER_VISIBLE && (
+              <div className="sticky bottom-0 flex items-center justify-center gap-1 border-t bg-popover py-1 text-[11px] text-muted-foreground"
+                data-cue="picker-scroll">
+                <ChevronDown className="h-3 w-3" aria-hidden />
+                {PICKER_SCROLL_CUE} ({pickerCount})
+              </div>
+            )}
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground">
-          Every field starts blank; a blank withholds the price. Nothing here is saved.
-        </span>
+        <span className="text-xs text-muted-foreground">{CALCULATOR_LINE}</span>
       </div>
 
       {!categoryId ? (
@@ -478,6 +488,7 @@ export function PricingCalculator({ discipline }: { discipline: string }) {
             fieldColumns={fieldColumns}
             blockColumns={blockColumns}
             showCost={showCost}
+            costHint={showCost && hasCostCalculation(configsByCategory.get(categoryId))}
           />
         </div>
       )}

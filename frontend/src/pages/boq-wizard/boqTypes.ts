@@ -1802,9 +1802,10 @@ export type BcsRateField = "supply_rate" | "install_rate" | "combined_rate";
  * to chance. Built in exactly one place -- `bcsColumns.gatherBcsRowRates`.
  */
 export interface BcsRowRates {
-  supply_rate: number;
-  install_rate: number;
-  combined_rate: number;
+  /** BCS-FX (owner R-BCS-175, QR-CLEAR): null = the box is CLEARED ("not entered"); a typed 0 is 0. */
+  supply_rate: number | null;
+  install_rate: number | null;
+  combined_rate: number | null;
 }
 
 /**

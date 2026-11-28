@@ -71,9 +71,9 @@ describe("BCS-6a the note on the sheet's Summary panel", () => {
     await mount(<SummaryPanel rows={ROWS as never} columnDescriptors={DESCS} columnFormulas={FORMULAS as never} reconChoices={RECON as never}
       bcs={BCS as never} sheetName="A" onClose={() => {}} />);
     expect(note()!.querySelector("p")!.textContent).toBe("How the BoQ amount was taken on this sheet");
-    expect(note()!.textContent).toContain("Every row: quantity x the rate you chose, as shown in the Amount column. Three exceptions, listed by row:");
+    expect(note()!.textContent).toContain("Every row: quantity x the rate you chose, as shown in the Amount column. Exceptions, listed by row:"); // BCS-FX moved check T2-1 (R-BCS-178 / W2)
     expect(item("kept-document")).toBe("Priced in the app, but the uploaded file’s amount was kept instead of quantity x your rate (you chose "
-      + "“keep the document’s amount”): 1 row: 11");
+      + '"Keep document"): 1 row: 11'); // BCS-FX moved check T2-1 (W3)
     expect(item("file-rate")).toBe("Not priced in the app yet (no rate entered here), so the rate written in the uploaded file is used: 1 row: 12");
     expect(item("left-out")).toBe("No rate in the app or in the uploaded file, so left out of the margin (amount and cost): 1 row: 13");
   });
@@ -135,7 +135,11 @@ describe("BCS-6a K2c the note's 4th point (owner ANSWER 12)", () => {
     await mount(<SummaryPanel rows={ROWS as never} columnDescriptors={DESCS} columnFormulas={FORMULAS as never} reconChoices={RECON as never}
       bcs={BCS as never} sheetName="A" onClose={() => {}} />);
     expect(host!.querySelector("[data-exception='suspect']")).toBeNull();
-    expect(note()!.querySelectorAll("ol > li").length).toBe(3);
+    // BCS-FX moved check T2-2 (R-BCS-174): points 1 - 3 and point 5 (always with the cost note) - still no point 4
+    const items = [...note()!.querySelectorAll("ol > li")];
+    expect(items.length).toBe(4);
+    expect(items[3].getAttribute("data-exception")).toBe("no-bcs-supply");
+    expect(items[3].getAttribute("value")).toBe("5");
   });
 });
 
@@ -161,7 +165,7 @@ describe("BCS-6a K2d point 4 on every sheet, for every Summary viewer (owner ANS
   it("(+) a cost viewer with BCS on sees points 1-4 in the one note, and no separate point-4 block", async () => {
     await mount(<SummaryPanel rows={suspectRows as never} columnDescriptors={DESCS} columnFormulas={FORMULAS as never} reconChoices={RECON as never}
       bcs={BCS as never} sheetName="A" onClose={() => {}} />);
-    expect(note()!.querySelectorAll("ol > li").length).toBe(4);
+    expect(note()!.querySelectorAll("ol > li").length).toBe(5); // BCS-FX moved check T2-3 (R-BCS-174): points 1 - 5
     expect(host!.querySelector("[data-note='rates-appear-incorrect']")).toBeNull();
   });
 

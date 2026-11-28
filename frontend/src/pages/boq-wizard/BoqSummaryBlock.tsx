@@ -13,15 +13,19 @@
  * the only write is `save_boq_summary_inputs` (area, ticks, the two installation parts).
  */
 import { Fragment, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { FrappeContext, useFrappeGetCall, useFrappePostCall, type FrappeConfig } from "@/lib/frappe";
 import { useUserData } from "@/hooks/useUserData";
 import { canSeeBcsCost } from "./boqAccess";
-import { amountExceptions, rollupByParent, rowRanges, type AmountExceptions, type RollupNode } from "./pricingRollup";
+import { amountExceptions, rollupByParent, type AmountExceptions, type RollupNode } from "./pricingRollup";
+// BCS-FX (file size, rule S1): the long-list form moved to its own module; re-exported here for its readers.
+import { RowRangeList } from "./rowRangeList";
+export { ROW_LIST_SHOWN, RowRangeList } from "./rowRangeList";
 import { matchRowHref } from "./rate-helper/PreviouslyPricedMatches";
 import { bcsAmountColumns, bcsLiveRateKinds, bcsMarginPercent, formatBcsMargin } from "./bcsColumns";
 import type { BcsSectionTotals } from "./bcsRollup";
 import { bcsFigureText } from "./rate-helper/bcsSide";
+import { NOT_FINAL_LINE, NOT_FINAL_MARK, point5Rows } from "./bcsPoint5";
 import type { BcsRowRate, BcsSource, ColumnDescriptor, ColumnFormula, GetBcsStateResponse, GetPricedRowsResponse,
   GetSheetBcsRatesResponse, PricedRow, ReconciliationChoiceRef } from "./boqTypes";
 
@@ -57,6 +61,8 @@ export interface SheetFigures {
   boqAmount: number | null; bcsSupply: number | null; typedInstall: number | null; rowsWithAmount: number; rowsWithSupply: number;
   /** BCS-6a: the note's three exception lists for this sheet (`amountExceptions`), only where BCS is on (a margin is shown). */
   exceptions?: AmountExceptions | null;
+  /** BCS-FX (R-BCS-174): the sheet's note point 5 rows (BoQ supply amount, no BCS supply), only where BCS is on; drives the "*". */
+  point5?: number[] | null;
 }
 
 /** The stored cost rows keyed by Excel row, with one side read as 0 (install for BCS supply; supply + combined for install). */
@@ -111,12 +117,18 @@ export function sheetFigures(r: SheetReads): SheetFigures {
   sup.roots.forEach(walk);
   const costRows = new Set(r.rates.filter((x) => Number(x.supply_rate) || Number(x.install_rate) || Number(x.combined_rate))
     .map((x) => x.excel_row));
+  const exceptions = r.bcsOn ? amountExceptions(r.rows, r.descriptors, r.formulas, r.recon, costRows) : null;
   return {
     boqAmount,
     bcsSupply: r.bcsOn ? (sup.bcs?.grand.cost ?? null) : null,
     typedInstall: r.bcsOn ? (ins.bcs?.grand.cost ?? null) : null,
     rowsWithAmount, rowsWithSupply,
-    exceptions: r.bcsOn ? amountExceptions(r.rows, r.descriptors, r.formulas, r.recon, costRows) : null,
+    exceptions,
+    // BCS-FX (R-BCS-174): the same point-5 rows the sheet's own Summary lists (`bcsPoint5.point5Rows`, the same inputs).
+    point5: exceptions
+      ? point5Rows({ roots: sup.roots, columns: sup.columns, ratesByExcelRow: new Map(r.rates.map((x) => [x.excel_row, x])), kinds,
+        leftOut: exceptions.leftOut, rows: r.rows, descriptors: r.descriptors })
+      : null,
   };
 }
 
@@ -219,44 +231,17 @@ const fig = (v: number | null | undefined): string => {
   return t === "-0" ? "0" : t;
 };
 const pct = (v: number | null): string => (v === null ? "" : formatBcsMargin(v));
+/** BCS-FX (R-BCS-174): a shown margin with a point-5 row behind it carries "*" (the figure is unchanged); a blank stays blank. */
+const pctMarked = (v: number | null, notFinal: boolean): string => (v === null ? "" : `${pct(v)}${notFinal ? NOT_FINAL_MARK : ""}`);
+/** BCS-FX: does this sheet's own Summary list a point-5 row? */
+const hasPoint5 = (f: SheetFigures | null | undefined): boolean => (f?.point5?.length ?? 0) > 0;
+/** BCS-FX (R-BCS-180 / ODD-10): the ticked sheets' installation and margin, ONE visibly merged cell across the block's rows. */
+const MERGED_CELL = "px-2 py-1.5 text-right tabular-nums align-middle border-x border-sky-200 dark:border-sky-800 bg-sky-100/60 dark:bg-sky-900/40";
 const td = "px-2 py-1.5 text-right tabular-nums align-top";
 /** BCS-6b (board 1; "dont hardcode it"): the band's heading. The Rs per sq ft is the figure the installation cost itself uses,
  * from the server (`rates.install_per_sqft`), never typed here. */
 export function blockHeading(installPerSqft: number | null | undefined): string {
   return `Electrical installation block · one installation figure (area x Rs ${fig(installPerSqft)} + floor cutting) for these sheets`;
-}
-
-/** How many ranges the long list shows before "show all" (owner R5, 00:28: "the long list format is correct, but it should be
- *  shown in the block itself"). */
-export const ROW_LIST_SHOWN = 8;
-
-/**
- * BCS-6a -- THE LONG-LIST FORM (owner R5 00:26 "how do wew show all these ows in the list on the note"; mockup board 2): the
- * count first, the row numbers joined into ranges, "show all" opening the full list, each row number taking the user to that
- * row -- by `onJump` (the sheet page's own grid jump) or by `hrefFor` (the pricing route's `?row=` link, `matchRowHref`). An
- * empty list reads "none on this sheet". Shared by the sheet's Summary panel note and the BoQ summary's grey lines.
- */
-export function RowRangeList({ rows, onJump, hrefFor }: { rows: readonly number[]; onJump?: (excelRow: number) => void;
-  hrefFor?: (excelRow: number) => string }) {
-  const [all, setAll] = useState(false);
-  if (rows.length === 0) return <span>none on this sheet</span>;
-  const ranges = rowRanges(rows);
-  const shown = all ? ranges : ranges.slice(0, ROW_LIST_SHOWN);
-  const num = (n: number) => onJump
-    ? <button type="button" aria-label={`Go to row ${n}`} className="text-primary hover:underline" onClick={() => onJump(n)}>{n}</button>
-    : hrefFor ? <Link aria-label={`Go to row ${n}`} className="text-primary hover:underline" to={hrefFor(n)}>{n}</Link> : <span>{n}</span>;
-  return (
-    <span>
-      {rows.length} {rows.length === 1 ? "row" : "rows"}:{" "}
-      {shown.map(([a, b], k) => (
-        <span key={a}>{k > 0 ? ", " : ""}{num(a)}{b !== a && <>-{num(b)}</>}</span>
-      ))}
-      {ranges.length > ROW_LIST_SHOWN && (
-        <>{!all && " ..."} <button type="button" className="text-primary hover:underline" onClick={() => setAll(!all)}>
-          {all ? "show fewer" : "show all"}</button></>
-      )}
-    </span>
-  );
 }
 
 /** The BoQ summary's short grey lines under a sheet's name, one per exception that applies (owner R3 / R5; mockup board 1). */
@@ -334,6 +319,12 @@ function BoqSummaryBody({ boqId, summary, mutate }: { boqId: string | undefined;
   const ordered = firstTicked < 0 ? table.lines
     : [...table.lines.slice(0, firstTicked).filter((l) => !l.ticked), ...ticked, ...table.lines.slice(firstTicked).filter((l) => !l.ticked)];
   const rows = (l: { rowsWithSupply: number; rowsWithAmount: number }) => `${l.rowsWithSupply} of ${l.rowsWithAmount}`;
+  // BCS-FX (R-BCS-174): which margins include a point-5 row -- each sheet line, the block (any ticked sheet), the BoQ total (any).
+  const blockNotFinal = ticked.some((l) => hasPoint5(l.fig));
+  const totalNotFinal = table.lines.some((l) => hasPoint5(l.fig));
+  // the footnote only when a "*" is actually shown (a blank or "- enter the area" margin carries none)
+  const anyMark = table.lines.some((l) => !l.ticked && hasPoint5(l.fig) && l.margin !== null)
+    || (!table.needsArea && ((blockNotFinal && table.block?.margin != null) || (totalNotFinal && table.total.margin !== null)));
   const setTick = (name: string, on: boolean) =>
     void send({ covered_sheets: JSON.stringify(sheets.filter((s) => (s.sheet_name === name ? on : s.ticked)).map((s) => s.sheet_name)) });
 
@@ -397,7 +388,7 @@ function BoqSummaryBody({ boqId, summary, mutate }: { boqId: string | undefined;
                   {s.sheet_name.trim() || s.sheet_name}
                 </label>
               ))}
-              <p className="text-xs text-muted-foreground">Electrical sheets start ticked; the user corrects them; only committed data
+              <p className="text-xs text-muted-foreground">Electrical sheets start ticked; the user corrects them; only confirmed data
                 sheets are listed.</p>
             </div>
           </div>
@@ -429,10 +420,10 @@ function BoqSummaryBody({ boqId, summary, mutate }: { boqId: string | undefined;
                         <td className={td}>{fig(l.fig?.boqAmount)}</td>
                         <td className={td}>{fig(l.fig?.bcsSupply)}</td>
                         {!l.ticked && <td className={td}>{fig(l.install)}</td>}
-                        {spanFirst && <td className={td} rowSpan={ticked.length}>{table.needsArea ? ENTER_AREA : fig(table.block?.install)}</td>}
+                        {spanFirst && <td className={MERGED_CELL} rowSpan={ticked.length} data-cell="block-install">{table.needsArea ? ENTER_AREA : fig(table.block?.install)}</td>}
                         <td className={td}>{l.fig ? rows(l.fig) : ""}</td>
-                        {!l.ticked && <td className={td}>{pct(l.margin)}</td>}
-                        {spanFirst && <td className={td} rowSpan={ticked.length}>{table.needsArea ? ENTER_AREA : pct(table.block?.margin ?? null)}</td>}
+                        {!l.ticked && <td className={td}>{pctMarked(l.margin, hasPoint5(l.fig))}</td>}
+                        {spanFirst && <td className={MERGED_CELL} rowSpan={ticked.length} data-cell="block-margin">{table.needsArea ? ENTER_AREA : pctMarked(table.block?.margin ?? null, blockNotFinal)}</td>}
                       </tr>
                       {lastTicked && table.block && (
                         <tr className={`${BLOCK_BAND} border-b border-border font-medium`} data-row="ticked-block">
@@ -440,7 +431,7 @@ function BoqSummaryBody({ boqId, summary, mutate }: { boqId: string | undefined;
                           <td className={td}>{fig(table.block.bcsSupply)}</td>
                           <td className={td}>{table.needsArea ? ENTER_AREA : fig(table.block.install)}</td>
                           <td className={td}>{rows(table.block)}</td>
-                          <td className={td}>{table.needsArea ? ENTER_AREA : pct(table.block.margin)}</td>
+                          <td className={td}>{table.needsArea ? ENTER_AREA : pctMarked(table.block.margin, blockNotFinal)}</td>
                         </tr>
                       )}
                     </Fragment>
@@ -451,10 +442,11 @@ function BoqSummaryBody({ boqId, summary, mutate }: { boqId: string | undefined;
                   <td className={td}>{fig(table.total.bcsSupply)}</td>
                   <td className={td}>{table.needsArea ? ENTER_AREA : fig(table.total.install)}</td>
                   <td className={td}>{rows(table.total)}</td>
-                  <td className={td}>{table.needsArea ? ENTER_AREA : pct(table.total.margin)}</td>
+                  <td className={td}>{table.needsArea ? ENTER_AREA : pctMarked(table.total.margin, totalNotFinal)}</td>
                 </tr>
               </tbody>
             </table>
+            {anyMark && <p className="pt-1 text-xs text-muted-foreground" data-note="not-final">{NOT_FINAL_LINE}</p>}
           </div>
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
             data-box="how-worked-out">
@@ -480,20 +472,26 @@ function BoqSummaryBody({ boqId, summary, mutate }: { boqId: string | undefined;
  * The one line on a sheet's own Summary (owner, mockup point B): only when this sheet is ticked in its BoQ's summary and the
  * viewer may see cost. The block margin is live ("- enter the area" when none).
  */
+/** BCS-FX (R-BCS-180 / ODD-9): is the sheet on this route ticked in its BoQ's summary (cost viewers only; false otherwise)? The
+ *  same read `BoqSummarySheetLine` makes (SWR shares it). */
+export function useThisSheetTicked(): boolean {
+  const { boqId, sheetName } = useParams<{ boqId: string; sheetName: string }>();
+  const { allowed, summary } = useBoqSummary(boqId);
+  return allowed && !!sheetName && (summary?.sheets ?? []).some((s) => s.ticked && s.sheet_name === sheetName);
+}
+
 export function BoqSummarySheetLine() {
   const { boqId, sheetName } = useParams<{ boqId: string; sheetName: string }>();
   const { allowed, summary } = useBoqSummary(boqId);
   const ticked = useMemo(() => (summary?.sheets ?? []).filter((s) => s.ticked), [summary]);
   const isTicked = !!sheetName && ticked.some((s) => s.sheet_name === sheetName);
-  const { figs } = useSheetFigures(boqId, isTicked ? ticked : []);
   if (!allowed || !summary || !isTicked) return null;
-  const t = summaryTable(ticked, figs, summary.installation.total);
-  const margin = t.needsArea ? ENTER_AREA : pct(t.block?.margin ?? null);
+  // BCS-FX (owner R-BCS-181, W11): the whole sentence replaced, word for word; the 42 is still the setting's figure.
   return (
-    <p className="px-3 py-2 border-t border-border bg-sky-50 dark:bg-sky-950/40 text-xs text-sky-900 dark:text-sky-100">
-      This sheet&rsquo;s margin counts installation typed on its rows. The BoQ&rsquo;s installation cost (area x Rs{" "}
-      {fig(summary.rates.install_per_sqft)} + floor cutting) is in the BoQ summary on the BoQ&rsquo;s main page: margin there{" "}
-      {margin} for the ticked sheets.
+    <p className="px-3 py-2 border-t border-border bg-sky-50 dark:bg-sky-950/40 text-xs text-sky-900 dark:text-sky-100" data-line="ticked-sheet">
+      This sheet&rsquo;s margin counts only the installation typed on its rows. The BoQ&rsquo;s installation cost (area x Rs{" "}
+      {fig(summary.rates.install_per_sqft)} + floor cutting) is added in the BoQ summary on the BoQ&rsquo;s main page. Enter the area
+      there to see the full margin.
     </p>
   );
 }

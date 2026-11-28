@@ -235,6 +235,8 @@ import type {
 import { deriveVerdictState, isRowEditable, labelFor } from "./CategoryVerdictPicker";
 import { categoryCellTitle } from "./sheetCategoryResolve";
 import { type RowSuggestions, rowSuggestionsEqual } from "./rate-helper/rateHelperTypes";
+import { indianAmount } from "./indianAmount";
+import { rateOnlyQtyText } from "./rateOnlyQty";
 
 // Depth indent step -- mirrors ReviewTree.INDENT_PX (kept in sync; the pricing grid does
 // not import ReviewTree per design v1.3 Sec.4 path b).
@@ -3038,8 +3040,10 @@ export function pricingRowPropsAreEqual(
 export const RATE_HELPER_OPEN_TEXT = "Open rate suggestions";
 /** BCS-3: the BCS supply box's opener -- the same panel, opened on the BCS section. */
 export const BCS_HELPER_OPEN_TEXT = "Open rate suggestions (BCS - our cost)";
-/** BCS-3 (R-BCS-29, P3e): what an Electrical row's installation cost box says. */
+/** BCS-3 (R-BCS-29, P3e): what an Electrical row's installation cost box says -- the full sentence, the cell's tooltip. */
 export const BCS_INSTALL_ON_SUMMARY = "On the BoQ summary";
+/** BCS-FX (owner R-BCS-180 / R-BCS-181 W15, ODD-11): the box's own placeholder -- short, so it is never cut off ("On the Bo"). */
+export const BCS_INSTALL_ON_SUMMARY_SHORT = "On summary";
 
 /** PURE (DEV2-B6 PANEL ICON). What a rate cell shows to open the panel:
  *  "badge+sparkle" -- this cell has a badge entry (count / tick): the badge, and beside it the visible sparkle;
@@ -3833,7 +3837,8 @@ const PricingGridRow = memo(function PricingGridRow({
                 )}
               />
             )}
-            {renderDescriptorCell(val)}
+            {/* BCS-FX (owner R-BCS-180 / ODD-8): a rate-only row's quantity reads as the file has it ("RO"), not 0 -- display only. */}
+            {rateOnlyQtyText(row, d, val) ?? renderDescriptorCell(val)}
             {/* SLICE 3 (owner Q-c): NO pending mark here -- a read-only rate cell cannot take a rate, so a
                 heading / preamble row in a pending_label category shows nothing; the mark lives ONLY in
                 the editable branch above (the grid's own rate-editable condition). */}
@@ -3959,7 +3964,7 @@ const PricingGridRow = memo(function PricingGridRow({
                         {...inputFocusProps(colIndex)}
                         type="text"
                         inputMode="decimal"
-                        placeholder={onSummary ? BCS_INSTALL_ON_SUMMARY : undefined}
+                        placeholder={onSummary ? BCS_INSTALL_ON_SUMMARY_SHORT : undefined}
                         value={value}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -3992,7 +3997,7 @@ const PricingGridRow = memo(function PricingGridRow({
                 BCS_TOTAL_COL_KEY,
                 bcsColStart + bcsKinds.length,
                 totalCell,
-                (v) => renderDescriptorCell(v),
+                (v) => indianAmount(v),
                 "BCS Total Amount — quantity x the cost entered",
               )}
               {/* % Margin needs its OWN formatter: renderDescriptorCell is the sheet's
@@ -4499,9 +4504,16 @@ export const PricingGrid = memo(forwardRef<PricingGridHandle, PricingGridProps>(
     (row: PricedRow, extra?: { field: BcsRateField; value: string }): BcsRowRates => {
       const drafts = bcsDraftsForRow(row.row_index, draftBcsRatesRef.current);
       if (extra) drafts.set(extra.field, extra.value);
-      return gatherBcsRowRates(
+      const rates = gatherBcsRowRates(
         mergeBcsRowValues(bcsRatesRef.current.get(row.source_row_number), drafts),
       );
+      // BCS-FX (ruled BCSFX-30 Q12 (a)): a NUMBER committed -> the EMPTY siblings go as 0 (what the server stores for them
+      // anyway), so a typed 0 on a never-costed row saves a 0; a CLEARED box keeps its siblings as they are, so the server
+      // can tell "one box cleared, the rest 0" (the row's cost removed, BCSFX-26 Q11 (a)).
+      if (extra && extra.value.trim() !== "" && Number.isFinite(parseFloat(extra.value))) {
+        return { supply_rate: rates.supply_rate ?? 0, install_rate: rates.install_rate ?? 0, combined_rate: rates.combined_rate ?? 0 };
+      }
+      return rates;
     },
     [],
   );
@@ -4524,9 +4536,10 @@ export const PricingGrid = memo(forwardRef<PricingGridHandle, PricingGridProps>(
       if (rawValue === saved) return; // unchanged vs the saved value -> nothing to do
       if (bcsAttemptRef.current[key] === rawValue) return; // dedupe blur+Enter same value
       bcsAttemptRef.current[key] = rawValue;
+      // BCS-FX (R-BCS-175): a row with no saved cost was "not entered" (null), so undo puts it back as cleared, never as 0
       const oldNum = (() => {
         const n = parseFloat(saved);
-        return Number.isFinite(n) ? n : 0;
+        return Number.isFinite(n) ? n : null;
       })();
       const rates = gatherBcsForRowRef.current(row, { field, value: rawValue });
       void onSaveBcsRates({
@@ -5028,11 +5041,12 @@ export const PricingGrid = memo(forwardRef<PricingGridHandle, PricingGridProps>(
   const buildBcsBatch = (intents: BcsIntent[]) => {
     const drafts: Record<string, string> = {};
     const perRow = new Map<number, BcsDelta[]>();
-    const folded: { excelRow: number; field: BcsRateField; value: number; description?: string }[] =
+    const folded: { excelRow: number; field: BcsRateField; value: number | null; description?: string }[] =
       [];
     for (const it of intents) {
       const n = parseFloat(it.raw);
-      const value = Number.isFinite(n) ? n : 0;
+      // BCS-FX (R-BCS-175): a cut or a pasted blank CLEARS the box -- "not entered" (null), never a 0
+      const value = Number.isFinite(n) ? n : null;
       const savedStr = bcsRatesByExcelRow.get(it.row.source_row_number)?.[it.field];
       folded.push({
         excelRow: it.row.source_row_number,
@@ -5046,7 +5060,7 @@ export const PricingGrid = memo(forwardRef<PricingGridHandle, PricingGridProps>(
         excelRow: it.row.source_row_number,
         field: it.field,
         draftKey: bcsCellKey(it.row.row_index, it.field),
-        oldValue: typeof savedStr === "number" ? savedStr : 0,
+        oldValue: typeof savedStr === "number" ? savedStr : null,
         newValue: value,
         description: it.row.description ?? undefined,
       });
@@ -5386,7 +5400,7 @@ export const PricingGrid = memo(forwardRef<PricingGridHandle, PricingGridProps>(
           },
         );
         writes.push(...folded);
-        for (const d of liveBcs) bcsDrafts[d.draftKey] = String(d.newValue);
+        for (const d of liveBcs) bcsDrafts[d.draftKey] = d.newValue === null ? "" : String(d.newValue);
       }
       void runBatch(writes, drafts, bcsDrafts);
     } finally {

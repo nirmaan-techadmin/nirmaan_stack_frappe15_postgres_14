@@ -521,7 +521,13 @@ def save_row_bcs_rates(boq_name=None, sheet_name=None, excel_row=None,
                        combined_rate=None, description=None):
     """Save the BCS cost rates for ONE committed row -- freeze-and-supersede.
 
-    ALL THREE rates are OPTIONAL and coerce absent/empty to 0.0. `combined_rate` (BCS-S2b)
+    BCS-FX (owner R-BCS-175 "2 is ok"; QR-CLEAR ruled (a), chat-Claude 01:36; BCSFX-26 Q11 (a)): when at least one box arrives
+    cleared (null / absent / empty) and every other box is cleared or 0, the row's cost is REMOVED, not saved as 0: the current record is frozen (the same freeze every save does; history
+    kept, nothing deleted) and NO new current record is written, so every reader shows the row blank ("not entered"). Returns
+    {ok, cleared: True, froze_prior: n}. A typed 0 is a value and is saved. With some boxes filled, a cleared box stores 0 (a
+    per-box blank beside a filled box would need a schema change -- the owner's later call).
+
+    Otherwise ALL THREE rates are OPTIONAL and coerce absent/empty to 0.0. `combined_rate` (BCS-S2b)
     is accepted on exactly the same terms as the two halves -- deliberately NOT stricter,
     and deliberately NOT cross-validated against them. WHICH input a sheet offers is the
     SCREEN's decision, so storage refuses to have an opinion: a sheet that changes shape
@@ -563,6 +569,13 @@ def save_row_bcs_rates(boq_name=None, sheet_name=None, excel_row=None,
     supply_val = _num(supply_rate, "supply_rate")
     install_val = _num(install_rate, "install_rate")
     combined_val = _num(combined_rate, "combined_rate")
+    # BCS-FX: the row's cost is removed (frozen, kept in history), never stored as 0, when at least one box is CLEARED and every
+    # other box is cleared or 0 (ruled BCSFX-26 Q11 (a)): the grid sends the boxes nobody typed in as the 0.0 this endpoint
+    # stored for them, so clearing a row's one typed box arrives as {null, 0, 0}. {null, 50, 0} stays mixed (the cleared box
+    # stores 0); {0, 0, 0} with nothing cleared is a typed 0 and is saved.
+    raw = (supply_rate, install_rate, combined_rate)
+    cleared = [v is None or (isinstance(v, str) and v.strip() == "") for v in raw]
+    cleared_all = any(cleared) and all(c or val == 0.0 for c, val in zip(cleared, (supply_val, install_val, combined_val)))
 
     # 1. the cell must exist in the committed tier (yields the node pointer).
     node = _resolve_committed_cell(boq_name, sheet_name, excel_row, committed_version)
@@ -578,6 +591,11 @@ def save_row_bcs_rates(boq_name=None, sheet_name=None, excel_row=None,
     prior = _current_bcs_names(boq_name, sheet_name, excel_row, committed_version)
     for name in prior:
         frappe.db.set_value(_BCS, name, "is_current", 0)
+    if cleared_all:
+        # BCS-FX: no new current record -- the row now has no cost ("not entered"); the frozen record stays as history.
+        # set_value skips doc_events: this doctype has none, and nothing is derived from is_current (the same write as above).
+        frappe.db.commit()
+        return {"ok": True, "cleared": True, "froze_prior": len(prior)}
 
     bcs_version = _next_bcs_version(boq_name, sheet_name, excel_row, committed_version)
 

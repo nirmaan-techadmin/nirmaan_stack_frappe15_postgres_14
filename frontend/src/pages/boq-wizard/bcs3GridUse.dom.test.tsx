@@ -12,7 +12,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PricingGrid, type PricingGridHandle, BCS_INSTALL_ON_SUMMARY } from "./PricingGrid";
+import { PricingGrid, type PricingGridHandle, BCS_INSTALL_ON_SUMMARY, BCS_INSTALL_ON_SUMMARY_SHORT } from "./PricingGrid";
 import type { ColumnDescriptor, PricedRow } from "./boqTypes";
 import type { BcsRateKind } from "./bcsColumns";
 
@@ -91,14 +91,16 @@ describe("BCS-3 the BCS box on the grid", () => {
   it("(-) the installation box opens nothing and reads 'On the BoQ summary' on an Electrical row, still editable", () => {
     mount(["supply", "install"]);
     const inputs = [...host!.querySelectorAll("input[inputmode='decimal']")] as HTMLInputElement[];
-    const install = inputs.find((i) => i.placeholder === BCS_INSTALL_ON_SUMMARY);
+    // BCS-FX moved check T2-5 (R-BCS-180 ODD-11 / W15): the short placeholder, the full sentence in the cell's tooltip
+    const install = inputs.find((i) => i.placeholder === BCS_INSTALL_ON_SUMMARY_SHORT);
     expect(install).toBeTruthy();
+    expect(install!.closest("td")!.getAttribute("title")).toBe(BCS_INSTALL_ON_SUMMARY);
     expect(install!.disabled).toBe(false);
     expect(install!.closest("td")!.querySelector("[data-testid='bcs-helper-open']")).toBeNull();
   });
   it("(-) not an Electrical row: no hint; no opener prop: no opener", () => {
     mount(["supply", "install"], false, false);
     expect(host!.querySelector("[data-testid='bcs-helper-open']")).toBeNull();
-    expect([...host!.querySelectorAll("input")].some((i) => (i as HTMLInputElement).placeholder === BCS_INSTALL_ON_SUMMARY)).toBe(false);
+    expect([...host!.querySelectorAll("input")].some((i) => (i as HTMLInputElement).placeholder === BCS_INSTALL_ON_SUMMARY_SHORT)).toBe(false); // T2-5
   });
 });
