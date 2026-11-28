@@ -22,6 +22,24 @@ export function usageWarns(u: ItemUsage | null | undefined): boolean {
   return !!u && u.will_stop.length > 0;
 }
 
+/** CAT-3 K5b (cert D1, ANSWER 14; the mockup "This is the only active Automatic Air Vent."): the row named by its OWN item name -
+ *  `item_name`, else `item`, else the config's identity attribute value, else the caller's fallback (the dialog's old label). */
+export function usageRowName(attrs: Record<string, unknown> | null | undefined, identityAttr: string | null | undefined, fallback: string): string {
+  const pick = (v: unknown) => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "");
+  return pick(attrs?.item_name) || pick(attrs?.item) || (identityAttr ? pick(attrs?.[identityAttr]) : "") || fallback.trim();
+}
+
+/** CAT-3 K5b (cert D2): each distinct plain line once, in first-seen order (two places can word the same line; the fold keeps both). */
+export function distinctLines(lines: UsageLine[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of lines) {
+    const t = s.line ?? s.message;
+    if (!seen.has(t)) { seen.add(t); out.push(t); }
+  }
+  return out;
+}
+
 /** Distinct places (config + the path's first two segments) the will-stop lines sit in, for the fold's heading. */
 export function usagePlaces(u: ItemUsage): number {
   return new Set(u.will_stop.map((s) => `${s.config}|${s.path.split(".").slice(0, 3).join(".")}`)).size;
@@ -59,7 +77,7 @@ export function ItemUsageBox({ usage, label, isAdmin, loading, testId }: {
         <span>{usage.action === "edit" ? USAGE_COPY.headEdit : USAGE_COPY.headDeactivate(label)}</span>
       </div>
       <ul className="ml-5 list-disc space-y-0.5">
-        {usage.will_stop.map((s, i) => <li key={`${s.config}-${s.path}-${i}`}>{s.line ?? s.message}</li>)}
+        {distinctLines(usage.will_stop).map((t) => <li key={t}>{t}</li>)}
       </ul>
       <p>{USAGE_COPY.tail}</p>
       {isAdmin ? (
@@ -94,7 +112,7 @@ export function UploadValuesLost({ lost }: {
         <>
           <p>These stop working until the rate file is updated:</p>
           <ul className="ml-5 list-disc">
-            {lost.will_stop.map((s, i) => <li key={`ws-${i}`}>{s.line ?? s.message}</li>)}
+            {distinctLines(lost.will_stop).map((t) => <li key={t}>{t}</li>)}
           </ul>
           <p>The next rate-file load is refused until they are updated. The upload itself is not blocked.</p>
         </>

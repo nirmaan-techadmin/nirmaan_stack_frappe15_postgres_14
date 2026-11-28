@@ -26,7 +26,7 @@ import { parseFiniteInput } from "./rateMasterEdit";
 import { DOWNLOAD_COPY, downloadErrorMessage } from "./rateMasterDownload";
 import { RateMasterUploadDialog } from "./RateMasterUploadDialog";
 import { ItemLabelsCell, ItemNoteCell } from "./ItemNoteCell";
-import { ItemUsageBox, usageWarns, type ItemUsage } from "./ItemUsageBox";
+import { ItemUsageBox, usageRowName, usageWarns, type ItemUsage } from "./ItemUsageBox";
 import { flaggedCount } from "./catalogueLabelChips";
 import { FREEZE_BLOCKED_MESSAGE } from "./rateMasterFreeze";
 import {
@@ -260,6 +260,8 @@ export function RateMasterDataViewer({
   const [search, setSearch] = useState("");
   const canEdit = !!isAdmin && !!onSaveItem;
   const rowLabel = (it: RateMasterItem) => rowLabelOf(it, specMode);
+  // CAT-3 K5b (cert D1): the usage box and the note editor name the row by its own item name; the RM-4a line keeps rowLabel
+  const rowName = (it: RateMasterItem) => usageRowName(it.attributes as Record<string, unknown>, config.identity_attribute_id, rowLabel(it));
   // RMF-1: DELIBERATELY NOT folded into `canEdit`. canEdit decides whether the actions COLUMN
   // exists at all; folding the freeze in would make the column vanish and the table change shape,
   // which is a hidden control, not a disabled one. The freeze disables the BUTTONS and leaves the
@@ -277,7 +279,7 @@ export function RateMasterDataViewer({
   // answered in the row; Confirm sends the answer (the OTHER item takes the rates, this one stays), Decline
   // sends nothing at all.
   const [rowTwinAsk, setRowTwinAsk] = useState<{ name: string; patch: SaveItemPatch; twin: UploadTwin } | null>(null);
-  const [confirmDeactivate, setConfirmDeactivate] = useState<{ name: string; label: string } | null>(null);
+  const [confirmDeactivate, setConfirmDeactivate] = useState<{ name: string; label: string; name_for_usage?: string } | null>(null);
   // CAT-3 (R6): the "what stops working" list for the open Deactivate dialog and for the row being edited; never blocks
   const [deactivateUsage, setDeactivateUsage] = useState<ItemUsage | null>(null);
   const [deactivateUsageLoading, setDeactivateUsageLoading] = useState(false);
@@ -1340,7 +1342,7 @@ export function RateMasterDataViewer({
                           </Button>
                         </div>
                         {usageWarns(editUsage) ? (
-                          <div className="max-w-md text-left"><ItemUsageBox usage={editUsage} label={rowLabel(r.it)} isAdmin={!!isAdmin} testId="edit-usage-box" /></div>
+                          <div className="max-w-md text-left"><ItemUsageBox usage={editUsage} label={rowName(r.it)} isAdmin={!!isAdmin} testId="edit-usage-box" /></div>
                         ) : null}
                         {rowTwinAsk && rowTwinAsk.name === r.it.name ? (
                           // SLICE 1f (owner Y-e): the edit would make this item mean the same as another one.
@@ -1365,6 +1367,7 @@ export function RateMasterDataViewer({
                             onClick={() => setConfirmDeactivate({
                               name: r.it.name ?? "",
                               label: rowLabel(r.it),
+                              name_for_usage: rowName(r.it),
                             })}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1592,7 +1595,7 @@ export function RateMasterDataViewer({
               // CAT-3: the row's note (everyone reads; Admin edits) and its labels in the row's own words
               cells[COL_NOTES] = (
                 <TableCell key={COL_NOTES} className="min-w-[10rem] max-w-[18rem] align-top">
-                  <ItemNoteCell note={(r.it as { item_notes?: string | null }).item_notes} label={rowLabel(r.it)}
+                  <ItemNoteCell note={(r.it as { item_notes?: string | null }).item_notes} label={rowName(r.it)}
                     canEdit={!!isAdmin && !!onSaveNote} disabled={writeBlocked}
                     onSave={onSaveNote && r.it.name ? (text) => onSaveNote(r.it.name as string, text) : undefined} />
                 </TableCell>
@@ -1658,7 +1661,7 @@ export function RateMasterDataViewer({
           </AlertDialogHeader>
           {/* CAT-3 (R6, the mockup): what stops working -- never blocks; the button then reads "Deactivate anyway" */}
           {onItemUsage ? (
-            <ItemUsageBox usage={deactivateUsage} loading={deactivateUsageLoading} label={confirmDeactivate?.label ?? ""} isAdmin={!!isAdmin} testId="deactivate-usage-box" />
+            <ItemUsageBox usage={deactivateUsage} loading={deactivateUsageLoading} label={confirmDeactivate?.name_for_usage ?? confirmDeactivate?.label ?? ""} isAdmin={!!isAdmin} testId="deactivate-usage-box" />
           ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
