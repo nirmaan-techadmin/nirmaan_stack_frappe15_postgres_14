@@ -40,7 +40,11 @@ or download may show a 0 as a price. Details: § BoQ Rate Suggestion (RM-3) -> T
 Nov 23:30), QR-RATES (a) / QR-WHERE (a) (27 Nov 12:50). After every Suggest pass that wrote store rows, one background operation
 prices them with `pricing_step.price_rows` (the panel's own code, never a Python copy) and writes "priced" / "not priced:
 <reason>" / "rates not computed: <reason>"; it never touches the run, and an older job never overwrites a row a later pass
-re-read. `bcs_supply_rate` is never written there: every reader shows "not yet - added when the BCS branch merges". The records
+re-read. THE SAME CALL also gives the SUGGESTED BCS supply (BCS-FX, owner R-BCS-182 "Rate at the run"): the step's
+`rec.bcs_supply` (the panel's `result.bcs.values.supply_rate`) is stored in the same UPDATE - `bcs_supply_rate` and, always,
+`rates_detail.bcs = {"supply_rate": <figure or null>}` - never the row's saved BCS figure. Readers (`records.shown_bcs`) read
+`rates_detail.bcs` first: the figure; "-" for none or while pending; "not recorded (run before BCS)" for a record priced before
+BCS-FX - never recomputed by the readers (SRS-2's Admin reprice, no button, re-prices the whole record, BCS included). The records
 are read on the Admin-only "AI Suggest Records" page (`/suggest-records`, under Rate Master) and its two Excel downloads.
 Details: the same section.
 
@@ -5370,8 +5374,14 @@ Code: `services/boq_suggest_store/` (`split.py`, `store.py`, `permissions.py`, `
 - **The statuses.** "priced" (figures real for the kinds in `rates_detail.scope`; a kind outside it stays 0 and is never shown);
   "not priced: <reason>" (the step ran, the helper priced nothing for the row); "rates not computed: <reason>" (no bundle, a
   timeout, an error, a re-committed sheet, or the pricer failing on that row). A failure marks the pass's rows "rates not
-  computed" and writes ONE "BoQ suggest store rates failed" Error Log. `bcs_supply_rate` is never written (the BCS lane fills
-  it after its merge); every reader shows the text "not yet - added when the BCS branch merges" in its place (ANSWER 1).
+  computed" and writes ONE "BoQ suggest store rates failed" Error Log.
+- **The suggested BCS supply (BCS-FX, R-BCS-182).** The same `price_rows` call gives `rec.bcs_supply` (`serverPricingStep.ts`:
+  the helper's `result.bcs.values.supply_rate`, null when it gives none; not in the signature). Every job write records
+  `rates_detail.bcs = {"supply_rate": <figure or null>}` (null on a failed step too) and puts a figure in `bcs_supply_rate`; a
+  row the BoQ side leaves "not priced" still records the helper's BCS supply. The saved `BoQ Row BCS Rate` is never read.
+  `records.shown_bcs` is the ONE display rule (page, detail, Summary and Full Excel): `rates_detail.bcs` first, never the
+  column's 0 alone - the figure / "-" (none, or pending) / "not recorded (run before BCS)" (no `bcs` key: priced before BCS-FX;
+  the Admin reprice method re-prices the whole record, BCS included).
 - **A re-read row is never overwritten by an older job.** Each UPDATE names the read it priced (`run_record` AND `run_date`): a
   row a later pass re-read (reset to 0 + "pending" by the store) is left for that pass's own job.
 - **The bundle must exist where the job runs.** `_build/pricing_step.mjs` (git-ignored) is made by the frontend `build` script

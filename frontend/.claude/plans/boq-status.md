@@ -49,24 +49,24 @@ IS KEPT ...", and § The Suggest run store.
   migrate, no DocType change. The pricing-step bundle must be built on a dev bench by hand (`node
   scripts/build_pricing_step.mjs` from `frontend/`). Nothing on the pricing page changes. Abhishek is told
   of the new page and route, the sidebar line, the rates job and the bundle before the pull request.
-- **Left:** the BCS supply figure (the BCS lane, after its merge; every reader shows "not yet"); a store
-  for historical matching (later, separate).
+- **The BCS supply figure:** filled on `feature/boq-bcs` by BCS-FX (the rates job stores the suggested BCS supply from
+  the same server-step call; old records read "not recorded (run before BCS)"); it reaches main with the BCS merge.
+- **Left:** a store for historical matching (later, separate).
 
 Before CAT: **DU-3**, the fix slice from the DU-2 review of the Ducting rows (the last `## Slice DU-3`
 section of `boq-upload-plan.md`).
 
-**BCS lane (branch `feature/boq-bcs`, dev2):** slice **BCS-6b** took main in (CAT-1, CAT-1b, CAT-M, CAT-2: HVAC v89 / v90 /
-v91 loaded on dev2; Electrical stays v75; no migrate was needed) and built the slice-6 screens (rules:
-`.claude/context/domain/boq-pricing-editor.md` § "The slice-6 screens - BCS-6b"): Electrical Pricing opens on the
-Calculator, the Spreadsheet behind the `spreadsheet` switch in `pricingWorkbooks.ts`; the chosen tab no longer carried across
-Pricing pages; "Previously priced" shows the past row's BCS supply / install / combined to Admin and Estimates (server-side);
-the BoQ summary's ticked sheets as one tinted "Electrical installation block" band with its "Block total" directly under them;
-point 4 shown alone carries no "4.". The merge needed one main-file change the final merge must carry:
-`services/boq_rate_master/catalogue_prose_allowlist.json` (the G-PROSE baseline re-keyed to Electrical v74 / v75's point-wiring
-BCS steps). Before it, **BCS-6a** made every BCS margin work from the amount on screen, and **BCS-5** built the BoQ summary.
-Left for the BCS phase: the final fix slice (the full test sets, the final reconciliation with main incl. SRS-1). Open:
-point 4 still lists rows whose quantity reads 0 although the uploaded file shows a number (BOQ-26-00012 'HVAC - Low side' row
-48 is one; the owner's read-only investigation N9).
+**BCS lane (branch `feature/boq-bcs`, dev2):** slice **BCS-FX**, the lane's final fix slice, took main in (SRS-1 + SRS-2;
+dev2 migrated for SRS-1's three DocTypes; no rate file; Electrical v75, HVAC v91) and fixed the index manifest's miss of the
+BCS-4 / BCS-5 indexes (`services/index_manifest.py`: the next migrate builds `BoQ_Row_Helper_Edit_boq_idx`). Built (rules:
+`.claude/context/domain/boq-pricing-editor.md` § "The final fix slice - BCS-FX"; the store: `boq-rate-master.md` § The Suggest
+run store): the AI Suggest Records' suggested BCS supply at the run; note point 5 (BoQ supply but no BCS supply) with the
+margins' "*"; a cleared BCS cost box saved as "not entered" (every box cleared = the row's cost removed, kept in history); the
+BCS-RV1 row-review display fixes (Indian numbers, the "BoQ amount" column, "RO" quantities, the merged block cell, "On summary",
+the Calculator's folded BCS line, Pricing Inputs out of its picker) and six wordings. Next: the BCS merge into main and the
+deploy (pre-pack, runbook). Open: a per-box blank beside a filled box needs a schema change (owner's call); the Admin reprice
+of an old Suggest record fills its BCS supply (owner to confirm); a typed 0 beside a box the user then clears goes with it
+(decided while the owner was away; owner to confirm); point 4's quantity-0 rows such as BOQ-26-00012 row 48 (N9).
 
 The session that starts the next slice replaces this section with: the slice's name, what it must
 deliver, and what is left.

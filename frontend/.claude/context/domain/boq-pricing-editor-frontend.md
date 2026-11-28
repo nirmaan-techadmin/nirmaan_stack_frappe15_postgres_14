@@ -915,6 +915,24 @@ _Moved verbatim from `frontend/CLAUDE.md` when it was cut down to material every
   its own block `data-note="rates-appear-incorrect"`, an `<ol start={4}>`, the sentence and `RowRangeList` only. Points 1-3 keep
   the BCS-input gate. `rateWithoutQuantity` skips a rate-only item (K2e): `row.is_rate_only === 1`, or
   `reconcile.isRateOnlyQtyText(row.qty_cell_text)` (`PricedRow.qty_cell_text`, from `get_priced_rows`).
+- **Point 5, the asterisk, the cleared box and the display fixes (BCS-FX; rules in `boq-pricing-editor.md`).**
+  - `bcsPoint5.ts` (pure): `point5Rows` reads `RollupNode.ownAmounts` of the Amount (Supply) columns (`bcsAmountAxes` kind
+    "supply"; the "total" columns on a combined-only sheet; quantity x supply rate through `resolveDescriptorValue` when a
+    halves sheet has no supply column) and `ratesByExcelRow`; `point5MarkedRowIndexes` = each listed row and its ancestors.
+    `SummaryPanel` renders point 5 as `<li value={5} data-exception="no-bcs-supply">` (always with the cost note) and the
+    footnote `data-note="not-final"`; `BoqSummaryBlock.sheetFigures` returns `point5` for the BoQ summary's marks.
+  - `summaryBcsCells.tsx` holds the panel's BCS cells (BoQ amount when shown, BCS Total, % Margin + "*"); `rowRangeList.tsx`
+    holds `RowRangeList` / `ROW_LIST_SHOWN` (re-exported by `BoqSummaryBlock`) - both split out for rule S1.
+  - `indianAmount.ts` is the ONE amount formatter of the panel and the grid's BCS Total Amount cell (en-IN, up to 2 decimals,
+    "" for none, "0" for zero). The grid's other cells keep `renderDescriptorCell`.
+  - The cleared box: `bcsColumns.gatherBcsRowRates` (pure) returns null for a blank / non-numeric box (`BcsRowRates` is
+    `number | null`); `buildBcsBatch` (cut / paste) and the undo history (`undoHistory.BcsDelta`, `clipboard.foldBcsWrites`)
+    carry null the same way, and a replay writes "" for it. When a NUMBER is written, `PricingGrid.gatherBcsForRow` (commit,
+    Use-this-value, auto-save) and `clipboard.foldBcsWrites` (paste, undo / redo) send the row's empty boxes as 0, so the
+    server can tell a typed 0 (saved) from "one box cleared, the rest 0" (the row's cost removed). Server: `save_row_bcs_rates`.
+  - `rateOnlyQty.rateOnlyQtyText` (pure) gives the quantity cell's text for a rate-only row (the grid's default read-only
+    branch); `BCS_INSTALL_ON_SUMMARY_SHORT` ("On summary") is the installation box's placeholder, `BCS_INSTALL_ON_SUMMARY` its
+    tooltip; `useThisSheetTicked()` (BoqSummaryBlock, the same SWR read as the sheet line) drives the panel's margin label.
 
 ## Where the full component contracts live
 

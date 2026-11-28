@@ -343,6 +343,14 @@ status / decisions: `frontend/.claude/plans/pricing-module-plan.md`.
   mounts the sheet - that workbook and its Sandbox cannot be opened from the page; `true` = as before. Only a page
   with a Calculator (`CALCULATOR_WORKBOOKS` in `PricingCalculator.tsx`: Electrical, HVAC) can switch it off
   (`spreadsheetOnForPath`). Rules: `boq-pricing-editor.md` § "The slice-6 screens - BCS-6b".
+- **THE CALCULATOR'S PICKER AND BCS LINE (BCS-FX, owner R-BCS-180 ODD-12 / 13, R-BCS-181 W39).** `pricing/calculatorPicker.ts`
+  (pure): `offeredInCalculator(config)` leaves out a Pricing Inputs category (a config holding only Pricing Input kinds -
+  `rateMasterSpec.isPricingInputConfig`, no typed id; it stays in `RATE_MASTER_DISCIPLINES` and on its Rate Master page);
+  `offeredCount` > `PICKER_VISIBLE` (7) shows a sticky "Scroll for more categories (n)" cue under the list; `CALCULATOR_LINE`
+  is W39 ("Every field starts blank. No price shows until the needed fields are filled. Nothing here is saved.");
+  `hasCostCalculation(config)` (cost pipelines present) gates `RateHelperPanel`'s `costHint`: for a cost viewer, until the
+  fields are filled, the panel shows `PriceSection.BcsFillFieldsLine` - the blue section folded, "BCS - our cost: fill the fields
+  to see it" - and the real BCS section once `result.bcs` exists.
 - **THE PAGE IS KEYED BY ITS WORKBOOK PATH (BCS-6b).** The separate route objects below do NOT by themselves
   unmount the page: the three routes render the same element at the same place, so React kept one instance (and
   its chosen tab) across Pricing pages. `PricingWorkbookPage` renders `PricingWorkbookPageFor key={workbook path}`,

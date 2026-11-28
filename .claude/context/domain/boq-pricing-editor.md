@@ -185,8 +185,9 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
 - ONLY PRICEABLE ROWS (Preamble / Line Item) carry a BoQ amount for a margin: a "Total" row's file figure is never added beside
   the lines it totals.
 - THE NOTE (R-BCS-156 / 158 / 159, R5 / R6), for Admin and Estimates: on the sheet's Summary panel, below its table, "How the BoQ
-  amount was taken on this sheet" - "Every row: quantity x the rate you chose, as shown in the Amount column. Three exceptions,
-  listed by row:" (1) priced in the app, but the uploaded file's amount kept ("keep the document's amount" chosen); (2) not
+  amount was taken on this sheet" - "Every row: quantity x the rate you chose, as shown in the Amount column. Exceptions, listed
+  by row:" (BCS-FX, R-BCS-178: no count) (1) priced in the app, but the uploaded file's amount kept (point 1 ends '(you chose
+  "Keep document"):', R-BCS-181 W3); (2) not
   priced in the app yet, so the rate written in the uploaded file is used (a row whose ANY rate comes from the file - owner
   Q-NOTE-2 (a)); (3) no rate in the app or in the uploaded file, so left out of the margin (amount and cost). Each lists its rows
   or "none on this sheet"; a long list shows the count, ranges and "show all"; a row number goes to that row. The BoQ summary
@@ -235,3 +236,32 @@ as-built history: `boq-backend.md` and `frontend/.claude/plans/boq-upload-plan.m
   directly under them inside the band; then the other sheets; then "BoQ total". No "[x]" before a name. Layout only: the figures
   come from `summaryTable` / `sheetFigures` unchanged (the Block total is the block sub-total as before).
 - POINT 4 ALONE carries no "4." (owner R4): see POINT 4 above.
+
+### The final fix slice - BCS-FX (2026-11-28)
+- POINT 5 (owner R-BCS-174 / 181): "These rows have a BoQ supply amount but no BCS supply cost yet:" - on the sheet's Summary
+  panel, ALWAYS with the cost note (Admin + Estimates, BCS on), numbered "5." whether or not point 4 shows, in the same list
+  style ("none on this sheet" when empty). A row is listed when its BoQ supply amount - as the Amount (Supply) column shows
+  it - is above 0 and its BCS supply is blank or 0. On a ONE-RATE-COLUMN sheet (`bcsLiveRateKinds` = combined) the combined
+  amount and the BCS combined cost are read instead; a halves sheet with no Amount (Supply) column reads quantity x supply rate.
+  Never listed: an install-only row (no supply amount), a point-3 row. `bcsPoint5.ts` READS the rollup's own row amounts and the
+  stored cost rows; it works no figure out again. The BoQ summary uses the same rule per sheet (`sheetFigures(...).point5`).
+- THE ASTERISK: every SHOWN % Margin that includes a point-5 row carries "*" (the panel's groups above such a row and its Grand
+  total; the BoQ summary's sheet line, Block total and BoQ total when one of theirs has one), with ONE line under the table:
+  "* Not final: some rows have no BCS cost yet (see point 5)." The figure itself never changes; a blank margin stays blank.
+- A CLEARED COST BOX IS "NOT ENTERED" (R-BCS-175): the grid sends a
+  cleared box (or a cut / pasted blank) as null, never 0; when a NUMBER is written (typed, Use-this-value, auto-save, paste, undo
+  / redo) the row's EMPTY boxes go as 0, so a typed 0 on a never-costed row saves a 0. `save_row_bcs_rates`: at least one box
+  cleared AND every other box cleared or 0 -> the row's current record is frozen (history kept) and no new one written, so every
+  reader shows the row blank - clearing every cost box on a row removes the row's cost (kept in history). `{null, 50, 0}` stays
+  mixed (the cleared box stores 0); a per-box blank beside a filled box would need a schema change (owner's later call). A
+  deliberately typed 0 beside a box the user then clears goes with it (decided while the owner was away; owner to confirm).
+  Stored rows are never
+  rewritten.
+- DISPLAY (R-BCS-179 / 180): one Indian number style (`indianAmount.ts`) on the Summary panel and the grid's BCS Total Amount
+  (the grid's BoQ amount columns unchanged); a "BoQ amount" column (supply + install amount, the margin's base) on a panel with no
+  Amount (Total) column; a rate-only row's quantity cell shows the file's text ("RO") - display only, `rateOnlyQty.ts`; a ticked
+  sheet's own panel labels its margin "% Margin (before the BoQ's installation)"; the BoQ summary's ticked sheets show ONE merged
+  installation cell and ONE merged margin cell; the installation box placeholder "On summary", the full sentence in its tooltip.
+- WORDINGS (R-BCS-181): W11 the blue line "This sheet's margin counts only the installation typed on its rows. The BoQ's
+  installation cost (area x Rs <setting> + floor cutting) is added in the BoQ summary on the BoQ's main page. Enter the area there
+  to see the full margin."; W25 the summary's box "...only confirmed data sheets are listed."; W39 below (the Calculator).
