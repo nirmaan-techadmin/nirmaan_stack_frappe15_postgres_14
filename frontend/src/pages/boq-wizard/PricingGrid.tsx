@@ -375,6 +375,8 @@ export function seedWidthPx(token: string): number {
       return 64;
     case "w-28":
       return 112;
+    case "w-32":
+      return 128;
     case "w-36":
       return 144;
     case "w-48":
@@ -420,6 +422,9 @@ export function seedForWidthKey(key: string): number {
   // wider seed on its own account (its figures are percentages, not unit rates). The cost boxes
   // + BCS Total keep the default; all stay user-resizable like any descriptor.
   if (key === BCS_MARGIN_COL_KEY) return seedWidthPx("w-36");
+  // BCS-FX K5 (owner Q16 (b), 28 Nov): the BCS installation column starts a little wider (128 px) so its
+  // wider box (BCS_INSTALL_BOX_CLASS) shows the "On summary" placeholder in full; still user-resizable.
+  if (key === bcsWidthKey("install")) return seedWidthPx("w-32");
   return seedWidthPx("w-28");
 }
 
@@ -3044,6 +3049,9 @@ export const BCS_HELPER_OPEN_TEXT = "Open rate suggestions (BCS - our cost)";
 export const BCS_INSTALL_ON_SUMMARY = "On the BoQ summary";
 /** BCS-FX (owner R-BCS-180 / R-BCS-181 W15, ODD-11): the box's own placeholder -- short, so it is never cut off ("On the Bo"). */
 export const BCS_INSTALL_ON_SUMMARY_SHORT = "On summary";
+/** BCS-FX K5 (owner Q16 (b)): the installation box is 96 px (the other cost boxes stay 80 px), so the 12 px "On summary"
+ *  placeholder shows in full inside the 128 px default column; the font is unchanged and the cell's tooltip stays. */
+export const BCS_INSTALL_BOX_CLASS = "w-24";
 
 /** PURE (DEV2-B6 PANEL ICON). What a rate cell shows to open the panel:
  *  "badge+sparkle" -- this cell has a badge entry (count / tick): the badge, and beside it the visible sparkle;
@@ -3979,7 +3987,7 @@ const PricingGridRow = memo(function PricingGridRow({
                           }
                         }}
                         onBlur={() => commitBcsRate(row, kind, value)}
-                        className="h-7 w-20 text-right text-xs tabular-nums scroll-mt-9"
+                        className={`h-7 ${kind === "install" ? BCS_INSTALL_BOX_CLASS : "w-20"} text-right text-xs tabular-nums scroll-mt-9`}
                       />
                     </div>
                   </td>
